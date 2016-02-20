@@ -1,0 +1,2556 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+use DateTime;
+use Geo::IP;
+my $gi = Geo::IP->new(GEOIP_STANDARD);
+use POSIX qw(strftime);
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+
+if($q->param('mostrarini') ne "")
+{
+	$inicapa7=$q->param('mostrarini');
+}
+else
+{
+	$inicapa7=0;
+}
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$controlhosts=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*CONTROLHOSTS\s*=\s*.*$/)
+     		{
+				s/^.*$/CONTROLHOSTS\=$controlhosts/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	
+}
+
+
+
+
+$dbuser="root";
+$dbpass="";
+
+
+    my $dbh = DBI->connect('DBI:mysql:database=controlhosts;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+
+my $sth = $dbh->prepare("SELECT mac FROM controlhosts")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+	
+@linea = $sth->fetchrow_array;
+
+$i=0;
+
+while (@linea = $sth->fetchrow_array) {
+ 
+$macrepicontrol=$linea[0];
+
+if($acumucontrolmac !~ /$macrepicontrol/)
+{
+$acumucontrolmac=$acumucontrolmac.$macrepicontrol." ";
+$hostscapturados=$hostscapturados+1;
+}
+ 
+}
+
+
+$horaactual=`date +%s`;
+
+$horaminantes=$horaactual-600;
+
+my $sth = $dbh->prepare("SELECT count(*) FROM controlhosts where lastcheck > $horaminantes")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+$hostsactivos=$linea[0];
+
+
+
+#my $dbh2 = DBI->connect('DBI:mysql:database=ulogd;host=localhost;port=3306',$dbuser,$dbpass)
+#               	 or die "Couldn't connect to database: " . DBI->errstr;
+#               	 
+#my $sth2 = $dbh->prepare("SELECT inet_ntoa(ip_saddr),inet_ntoa(ip_daddr),oob_in,oob_out,oob_time_sec,oob_prefix FROM ulog where limit 15")
+#                	or die "Couldn't prepare statement: " . $dbh->errstr;
+#$sth2->execute()  or die "Couldn't execute statement: " . $sth->errstr;               	 
+
+
+
+$infotest=`/opt/imt/gestor/tools/networking/ptelnet.pl 127.0.0.1 3306`;
+$testmysqlping=`/usr/bin/mysqladmin ping | grep alive`;
+
+$tipologinfile=0;
+
+if($infotest =~ /no conecta/ || $testmysqlping eq "")
+{
+$tipologinfile=1;
+}
+
+my $dbh;
+my $sth;
+
+if($tipologinfile eq 0)
+{
+
+$dbuser="root";
+$dbpass="";
+
+
+    $dbh = DBI->connect('DBI:mysql:database=controlweb;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+}				 
+
+				 
+				 
+if($q->param('env') eq "quitarguia")
+{
+	system("/bin/echo '0' > $sinoguia");
+}
+
+
+if($q->param('env') eq "webreg")
+{
+	$sth = $dbh->prepare("DELETE from pasoreg")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+	$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+
+if($q->param('env') eq "sshreg")
+{
+	$sth = $dbh->prepare("DELETE from sshreg")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+	$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+
+$numnotas=0;
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $listanotas")    or die "can't open $listanotas: $!";
+		
+	while (<OLD>) 
+	{
+			unless (/^#/)
+     		{
+				$numnotas=$numnotas+1;
+			}
+	}
+
+	close(OLD)     or die "can't close $listanotas: $!";
+
+
+
+if($q->param('env') eq "nombreid")
+{
+
+			$nombreid=$q->param('nombreid');
+			
+			open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+			open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+			while (<OLD>) 
+			{
+				if (/^\s*NOMBREID\s*=.*$/)
+				{  
+					s/^.*$/NOMBREID=${nombreid}/; 
+				} 
+			print NEW $_            or die "can't write $aux: $!"; 	
+			}
+
+			close(OLD)     or die "can't close $variables: $!";
+			close(NEW)     or die "can't close $aux: $!";
+			system("/bin/cp $aux $modulos  >/dev/null 2>&1");
+			
+			
+			
+			
+		open(OLD, "< $smbconf")    or die "can't open $smbconf: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		
+			if (/^\s*netbios\sname\s*=.*$/)
+     		{
+				s/^.*$/	netbios name = ${nombreid}/;
+			}
+		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $smbconf: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+
+		system("/bin/cp $aux $smbconf 1>&2");
+			
+		system("$samba restart >/dev/null 2>&1");	
+			
+			
+}
+
+
+if($q->param('env') eq "aplicarinfo")
+{
+
+			$infonombre=$q->param('infonombre');
+			$infolocalidad=$q->param('infolocalidad');
+			$infopais=$q->param('infopais');
+			$infocomentario=$q->param('infocomentario');
+			
+			$infocomentario =~ s/\n//g;
+			
+			open(OLD, "< $home")    or die "can't open $home: $!";
+			open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+			while (<OLD>) 
+			{
+				if (/^\s*INFONOMBRE\s*=.*$/)
+				{  
+					s/^.*$/INFONOMBRE=\"${infonombre}\"/; 
+				} 
+				
+				if (/^\s*INFOLOCALIDAD\s*=.*$/)
+				{  
+					s/^.*$/INFOLOCALIDAD=\"${infolocalidad}\"/; 
+				} 
+				
+				if (/^\s*INFOPAIS\s*=.*$/)
+				{  
+					s/^.*$/INFOPAIS=\"${infopais}\"/; 
+				} 
+				
+				if (/^\s*INFOCOMENTARIO\s*=.*$/)
+				{  
+					s/^.*$/INFOCOMENTARIO=\"${infocomentario}\"/; 
+				} 
+				
+			print NEW $_            or die "can't write $aux: $!"; 	
+			}
+
+			system("/usr/bin/wget -bq \"http://maps.google.es/maps?q=calle ${infolocalidad}&output=html&zoom=2\" -O $enlacegoogle -o /tmp/wget-log >/dev/null 2>&1");
+			
+			close(OLD)     or die "can't close $home: $!";
+			close(NEW)     or die "can't close $aux: $!";
+			system("/bin/cp $aux $home  >/dev/null 2>&1");
+						
+			
+}
+
+
+#lectura inicial de conf de servidor web
+#···············································································	
+
+	open(OLD, "< $portsconf")    or die "can't open $portsconf: $!";
+	
+	$p=0;
+		
+	while (<OLD>) 
+	{
+			if (/^Listen\s.*/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s/,$_);
+				if($p eq 0)
+				{
+		 		$puerto = $data[1];
+				$p=1;
+				}
+			}
+	
+	}
+
+	close(OLD)     or die "can't close $portsconf: $!";
+
+
+
+
+#home
+#···············································································	
+
+	open(OLD, "< $home")    or die "can't open $home: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IDIOMA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$idioma = $data[1];
+			}
+			
+			if (/^\s*DISTRIBUIDOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$distribuidor = $data[1];
+				$distribuidor =~ s/"//g;
+			}
+			
+			if (/^\s*INFONOMBRE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$infonombre = $data[1];
+				$infonombre =~ s/"//g;
+			}
+			
+			if (/^\s*INFOLOCALIDAD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$infolocalidad = $data[1];
+				$infolocalidad =~ s/"//g;
+			}
+			
+			if (/^\s*INFOPAIS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$infopais = $data[1];
+				$infopais =~ s/"//g;
+			}
+			
+			if (/^\s*INFOCOMENTARIO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$infocomentario = $data[1];
+				$infocomentario =~ s/"//g;
+			}
+		
+	}
+
+	close(OLD)     or die "can't close $home: $!";
+
+
+if($sesiidioma eq "ingles") {$idiomaimagen = "bandera_ingles_mini"}
+if($sesiidioma eq "aleman") {$idiomaimagen = "bandera_aleman_mini"}
+if($sesiidioma eq "frances") {$idiomaimagen = "bandera_frances_mini"}
+if($sesiidioma eq "espanol") {$idiomaimagen = "bandera_espanol_mini"}
+if($sesiidioma eq "italiano") {$idiomaimagen = "bandera_italiano_mini"}
+if($sesiidioma eq "chino") {$idiomaimagen = "bandera_chino_mini"}
+if($sesiidioma eq "japones") {$idiomaimagen = "bandera_japones_mini"}
+if($sesiidioma eq "euskera") {$idiomaimagen = "bandera_euskera_mini"}
+if($sesiidioma eq "catalan") {$idiomaimagen = "bandera_catalan_mini"}
+if($sesiidioma eq "gallego") {$idiomaimagen = "bandera_gallego_mini"}
+if($sesiidioma eq "portugues") {$idiomaimagen = "bandera_portugues_mini"}
+if($sesiidioma eq "polaco") {$idiomaimagen = "bandera_polaco_mini"}
+if($sesiidioma eq "ruso") {$idiomaimagen = "bandera_ruso_mini"}
+if($sesiidioma eq "personalizado") {$idiomaimagen = "bandera_personalizado_mini"}
+
+
+
+
+#modulos
+#···············································································	
+
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*VRS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$version = $data[1];
+			}
+			
+			if (/^\s*DESPLIEGUE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$tipodespliegue = $data[1];
+
+				#Mostrar el tipo de despliegue
+				#···············································································
+
+				if($tipodespliegue eq "1") 
+				{
+					$despliegue = "APPLIANCE";
+				}
+
+				if($tipodespliegue eq "2") 
+				{
+					$despliegue = "PASARELA";
+				}
+			}
+
+			if (/^\s*CODDISTRI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$coddistri = $data[1];
+			}
+
+			if (/^\s*GARANTIA_SERVICIO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$garantia_servicio = $data[1];
+				
+				if($garantia_servicio eq "00-00-00")
+				{
+					$garantia_servicio="ILIMITADO";
+				}
+				
+			}
+
+			if (/^\s*GARANTIA_HARDWARE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$garantia_hardware = $data[1];
+			}
+			
+			if (/^\s*NUM_SERIE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$num_serie = $data[1];
+			}
+			
+			if (/^\s*NOMBREID\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$nombreid = $data[1];
+			}
+		
+	}
+
+	close(OLD)     or die "can't close $modulos: $!";
+
+
+
+#lectura licencia antivirus
+#···············································································	
+
+	open(OLD, "< $license")    or die "can't open $license: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^ANTIVIRUS/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/=/,$_);
+		 		$antivirus = $data[1];
+			}
+			
+			if (/^AVDATE_FIN/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/=/,$_);
+		 		$avdatefin = $data[1];
+			}
+	
+	}
+
+	close(OLD)     or die "can't close $license: $!";
+
+
+
+#lectura inicial de variables
+#···············································································	
+
+	open(OLD, "< $variables")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+
+			if (/^\s*IP1\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip1 = $data[1];
+			}
+			elsif(/^\s*BRIDGEIP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip1 = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $variables: $!";
+
+
+($wkday,$month,$day,$time,$year) = split(/\s+/, localtime);
+$fecha="$day-$month-$year\n";
+
+$hora="$time\n";
+
+$uptime=`/usr/bin/uptime`;
+$uptime =~ s/(\r?\n)/\<br\>/g;
+
+@data = split (/,.*user/,$uptime);
+@data2 = split (/up\s*/,$data[0]);
+$uptimevalor = $data2[1];
+
+@data = split (/\s*,\s*/,$uptime);
+@data2 = split (/\s+/,$data[0]);
+
+if($data[1]=~/user/)
+{
+$k=0;
+}
+else
+{
+$k=1;
+}
+
+$user = $data[1+$k];
+$carga = $data[2+$k];
+
+
+$memoria=`/usr/bin/free -m`;
+@data = split (/\s+/,$memoria);
+
+$totalmemoria=$data[8];
+$usadamemoria=$data[16];
+$librememoria=$data[17];
+
+$cpuinfo=`/bin/cat /proc/cpuinfo`;
+@data = split (/:\s*/,$cpuinfo);
+
+@data2 = split (/\n/,$data[5]);
+$modeloplaca=$data2[0];
+
+@data2 = split (/\n/,$data[7]);
+$cpumhz="cpu MHz ".$data2[0];
+
+$porcenmemoriausada=int(($usadamemoria*100) / $totalmemoria);
+#$porcenmemoriausada=100-$porcenmemorialibre;
+
+$dispo=`/sbin/fdisk -l | grep '*'`;
+
+@data = split (/\/dev\//,$dispo);
+$dispo = $data[1];
+@data = split (/[0-9]+\s+\*/,$dispo);
+$dispo = $data[0];
+
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$modelodis1=`/bin/cat /proc/ide/${dispo}/model`;
+$modelodis=$modelodis1;
+
+$modelonumserie=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$modelonumserie =~ s/KINGSTON CF//g; 
+}
+else
+{
+	    $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+		if ($infoidcf =~ /Model\sNumber\s*:\s+(.+)\s+/m)
+        {
+                $modelodis = $1;
+        }
+
+        if ($infoidcf =~ /Serial\sNumber\s*:\s+(.+)\s+/m)
+        {
+                $modelonumserie = $1;
+        }
+}
+
+
+$infokernel=`/bin/uname -rsm`;
+
+
+#$ipcountry=`lynx -accept_all_cookies -dump  http://www.ip-adress.com | grep "IP address country"`;
+#$ipcountry =~ s/flag\s//g;
+#@data = split (/:/,$ipcountry);
+#$ipcountry = $data[1];
+
+#$ipaddress=`lynx -accept_all_cookies -dump  http://www.ip-adress.com | grep "IP address state"`;
+#@data = split (/:/,$ipaddress);
+#$ipaddress = $data[1];
+
+
+
+				 
+				 
+
+
+if($infopais eq "AF"){$checkedAF="selected";}
+elsif($infopais eq "AL"){$checkedAL="selected";}
+elsif($infopais eq "DE"){$checkedDE="selected";}
+elsif($infopais eq "AD"){$checkedAD="selected";}
+elsif($infopais eq "AO"){$checkedAO="selected";}
+elsif($infopais eq "AI"){$checkedAI="selected";}
+elsif($infopais eq "AQ"){$checkedAQ="selected";}
+elsif($infopais eq "DE"){$checkedDE="selected";}
+elsif($infopais eq "AG"){$checkedAG="selected";}
+elsif($infopais eq "AN"){$checkedAN="selected";}
+elsif($infopais eq "SA"){$checkedSA="selected";}
+elsif($infopais eq "DZ"){$checkedDZ="selected";}
+elsif($infopais eq "AR"){$checkedAR="selected";}
+elsif($infopais eq "AM"){$checkedAM="selected";}
+elsif($infopais eq "AW"){$checkedAW="selected";}
+elsif($infopais eq "AU"){$checkedAU="selected";}
+elsif($infopais eq "AT"){$checkedAT="selected";}
+elsif($infopais eq "AZ"){$checkedAZ="selected";}
+elsif($infopais eq "BS"){$checkedBS="selected";}
+elsif($infopais eq "BH"){$checkedBH="selected";}
+elsif($infopais eq "BD"){$checkedBD="selected";}
+elsif($infopais eq "BB"){$checkedBB="selected";}
+elsif($infopais eq "BE"){$checkedBE="selected";}
+elsif($infopais eq "BZ"){$checkedBZ="selected";}
+elsif($infopais eq "BJ"){$checkedBJ="selected";}
+elsif($infopais eq "BM"){$checkedBM="selected";}
+elsif($infopais eq "BY"){$checkedBY="selected";}
+elsif($infopais eq "BO"){$checkedBO="selected";}
+elsif($infopais eq "BA"){$checkedBA="selected";}
+elsif($infopais eq "BW"){$checkedBW="selected";}
+elsif($infopais eq "BR"){$checkedBR="selected";}
+elsif($infopais eq "BN"){$checkedBN="selected";}
+elsif($infopais eq "BG"){$checkedBG="selected";}
+elsif($infopais eq "BF"){$checkedBF="selected";}
+elsif($infopais eq "BI"){$checkedBI="selected";}
+elsif($infopais eq "BT"){$checkedBT="selected";}
+elsif($infopais eq "CV"){$checkedCV="selected";}
+elsif($infopais eq "KH"){$checkedKH="selected";}
+elsif($infopais eq "CM"){$checkedCM="selected";}
+elsif($infopais eq "CA"){$checkedCA="selected";}
+elsif($infopais eq "TD"){$checkedTD="selected";}
+elsif($infopais eq "CL"){$checkedCL="selected";}
+elsif($infopais eq "CN"){$checkedCN="selected";}
+elsif($infopais eq "CY"){$checkedCY="selected";}
+elsif($infopais eq "VA"){$checkedVA="selected";}
+elsif($infopais eq "CO"){$checkedCO="selected";}
+elsif($infopais eq "KM"){$checkedKM="selected";}
+elsif($infopais eq "CG"){$checkedCG="selected";}
+elsif($infopais eq "KP"){$checkedKP="selected";}
+elsif($infopais eq "KR"){$checkedKR="selected";}
+elsif($infopais eq "CI"){$checkedCI="selected";}
+elsif($infopais eq "CR"){$checkedCR="selected";}
+elsif($infopais eq "HR"){$checkedHR="selected";}
+elsif($infopais eq "CU"){$checkedCU="selected";}
+elsif($infopais eq "DK"){$checkedDK="selected";}
+elsif($infopais eq "DM"){$checkedDM="selected";}
+elsif($infopais eq "EC"){$checkedEC="selected";}
+elsif($infopais eq "EG"){$checkedEG="selected";}
+elsif($infopais eq "SV"){$checkedSV="selected";}
+elsif($infopais eq "AE"){$checkedAE="selected";}
+elsif($infopais eq "ER"){$checkedER="selected";}
+elsif($infopais eq "SK"){$checkedSK="selected";}
+elsif($infopais eq "SI"){$checkedSI="selected";}
+elsif($infopais eq "ES"){$checkedES="selected";}
+elsif($infopais eq "US"){$checkedUS="selected";}
+elsif($infopais eq "EE"){$checkedEE="selected";}
+elsif($infopais eq "ET"){$checkedET="selected";}
+elsif($infopais eq "PH"){$checkedPH="selected";}
+elsif($infopais eq "FI"){$checkedFI="selected";}
+elsif($infopais eq "FJ"){$checkedFJ="selected";}
+elsif($infopais eq "FR"){$checkedFR="selected";}
+elsif($infopais eq "GA"){$checkedGA="selected";}
+elsif($infopais eq "GM"){$checkedGM="selected";}
+elsif($infopais eq "GE"){$checkedGE="selected";}
+elsif($infopais eq "GH"){$checkedGH="selected";}
+elsif($infopais eq "GI"){$checkedGI="selected";}
+elsif($infopais eq "GD"){$checkedGD="selected";}
+elsif($infopais eq "GR"){$checkedGR="selected";}
+elsif($infopais eq "GL"){$checkedGL="selected";}
+elsif($infopais eq "GP"){$checkedGP="selected";}
+elsif($infopais eq "GU"){$checkedGU="selected";}
+elsif($infopais eq "GT"){$checkedGT="selected";}
+elsif($infopais eq "GF"){$checkedGF="selected";}
+elsif($infopais eq "GG"){$checkedGG="selected";}
+elsif($infopais eq "GN"){$checkedGN="selected";}
+elsif($infopais eq "GW"){$checkedGW="selected";}
+elsif($infopais eq "GQ"){$checkedGQ="selected";}
+elsif($infopais eq "GY"){$checkedGY="selected";}
+elsif($infopais eq "HT"){$checkedHT="selected";}
+elsif($infopais eq "HN"){$checkedHN="selected";}
+elsif($infopais eq "HK"){$checkedHK="selected";}
+elsif($infopais eq "HU"){$checkedHU="selected";}
+elsif($infopais eq "IN"){$checkedIN="selected";}
+elsif($infopais eq "ID"){$checkedID="selected";}
+elsif($infopais eq "IR"){$checkedIR="selected";}
+elsif($infopais eq "IQ"){$checkedIQ="selected";}
+elsif($infopais eq "IE"){$checkedIE="selected";}
+elsif($infopais eq "BV"){$checkedBV="selected";}
+elsif($infopais eq "CX"){$checkedCX="selected";}
+elsif($infopais eq "IM"){$checkedIM="selected";}
+elsif($infopais eq "IS"){$checkedIS="selected";}
+elsif($infopais eq "NF"){$checkedNF="selected";}
+elsif($infopais eq "IL"){$checkedIL="selected";}
+elsif($infopais eq "IT"){$checkedIT="selected";}
+elsif($infopais eq "JM"){$checkedJM="selected";}
+elsif($infopais eq "JP"){$checkedJP="selected";}
+elsif($infopais eq "JE"){$checkedJE="selected";}
+elsif($infopais eq "JO"){$checkedJO="selected";}
+elsif($infopais eq "KZ"){$checkedKZ="selected";}
+elsif($infopais eq "KE"){$checkedKE="selected";}
+elsif($infopais eq "KG"){$checkedKG="selected";}
+elsif($infopais eq "KI"){$checkedKI="selected";}
+elsif($infopais eq "KW"){$checkedKW="selected";}
+elsif($infopais eq "LA"){$checkedLA="selected";}
+elsif($infopais eq "LS"){$checkedLS="selected";}
+elsif($infopais eq "LV"){$checkedLV="selected";}
+elsif($infopais eq "LB"){$checkedLB="selected";}
+elsif($infopais eq "LR"){$checkedLR="selected";}
+elsif($infopais eq "LY"){$checkedLY="selected";}
+elsif($infopais eq "LI"){$checkedLI="selected";}
+elsif($infopais eq "LT"){$checkedLT="selected";}
+elsif($infopais eq "LU"){$checkedLU="selected";}
+elsif($infopais eq "MO"){$checkedMO="selected";}
+elsif($infopais eq "MK"){$checkedMK="selected";}
+elsif($infopais eq "MG"){$checkedMG="selected";}
+elsif($infopais eq "MY"){$checkedMY="selected";}
+elsif($infopais eq "MW"){$checkedMW="selected";}
+elsif($infopais eq "MV"){$checkedMV="selected";}
+elsif($infopais eq "ML"){$checkedML="selected";}
+elsif($infopais eq "MT"){$checkedMT="selected";}
+elsif($infopais eq "MA"){$checkedMA="selected";}
+elsif($infopais eq "MQ"){$checkedMQ="selected";}
+elsif($infopais eq "MU"){$checkedMU="selected";}
+elsif($infopais eq "MR"){$checkedMR="selected";}
+elsif($infopais eq "YT"){$checkedYT="selected";}
+elsif($infopais eq "MX"){$checkedMX="selected";}
+elsif($infopais eq "FM"){$checkedFM="selected";}
+elsif($infopais eq "MD"){$checkedMD="selected";}
+elsif($infopais eq "MC"){$checkedMC="selected";}
+elsif($infopais eq "MN"){$checkedMN="selected";}
+elsif($infopais eq "ME"){$checkedME="selected";}
+elsif($infopais eq "MS"){$checkedMS="selected";}
+elsif($infopais eq "MZ"){$checkedMZ="selected";}
+elsif($infopais eq "MM"){$checkedMM="selected";}
+elsif($infopais eq "NA"){$checkedNA="selected";}
+elsif($infopais eq "NR"){$checkedNR="selected";}
+elsif($infopais eq "NP"){$checkedNP="selected";}
+elsif($infopais eq "NI"){$checkedNI="selected";}
+elsif($infopais eq "NE"){$checkedNE="selected";}
+elsif($infopais eq "NG"){$checkedNG="selected";}
+elsif($infopais eq "NU"){$checkedNU="selected";}
+elsif($infopais eq "NO"){$checkedNO="selected";}
+elsif($infopais eq "NC"){$checkedNC="selected";}
+elsif($infopais eq "NZ"){$checkedNZ="selected";}
+elsif($infopais eq "OM"){$checkedOM="selected";}
+elsif($infopais eq "NL"){$checkedNL="selected";}
+elsif($infopais eq "PK"){$checkedPK="selected";}
+elsif($infopais eq "PW"){$checkedPW="selected";}
+elsif($infopais eq "PA"){$checkedPA="selected";}
+elsif($infopais eq "PG"){$checkedPG="selected";}
+elsif($infopais eq "PY"){$checkedPY="selected";}
+elsif($infopais eq "PE"){$checkedPE="selected";}
+elsif($infopais eq "PF"){$checkedPF="selected";}
+elsif($infopais eq "PL"){$checkedPL="selected";}
+elsif($infopais eq "PT"){$checkedPT="selected";}
+elsif($infopais eq "PR"){$checkedPR="selected";}
+elsif($infopais eq "QA"){$checkedQA="selected";}
+elsif($infopais eq "GB"){$checkedGB="selected";}
+elsif($infopais eq "CF"){$checkedCF="selected";}
+elsif($infopais eq "CZ"){$checkedCZ="selected";}
+elsif($infopais eq "DO"){$checkedDO="selected";}
+elsif($infopais eq "RE"){$checkedRE="selected";}
+elsif($infopais eq "RW"){$checkedRW="selected";}
+elsif($infopais eq "RO"){$checkedRO="selected";}
+elsif($infopais eq "RU"){$checkedRU="selected";}
+elsif($infopais eq "EH"){$checkedEH="selected";}
+elsif($infopais eq "WS"){$checkedWS="selected";}
+elsif($infopais eq "AS"){$checkedAS="selected";}
+elsif($infopais eq "KN"){$checkedKN="selected";}
+elsif($infopais eq "SM"){$checkedSM="selected";}
+elsif($infopais eq "PM"){$checkedPM="selected";}
+elsif($infopais eq "SH"){$checkedSH="selected";}
+elsif($infopais eq "LC"){$checkedLC="selected";}
+elsif($infopais eq "ST"){$checkedST="selected";}
+elsif($infopais eq "SN"){$checkedSN="selected";}
+elsif($infopais eq "RS"){$checkedRS="selected";}
+elsif($infopais eq "CS"){$checkedCS="selected";}
+elsif($infopais eq "SC"){$checkedSC="selected";}
+elsif($infopais eq "SL"){$checkedSL="selected";}
+elsif($infopais eq "SG"){$checkedSG="selected";}
+elsif($infopais eq "SY"){$checkedSY="selected";}
+elsif($infopais eq "SO"){$checkedSO="selected";}
+elsif($infopais eq "LK"){$checkedLK="selected";}
+elsif($infopais eq "SZ"){$checkedSZ="selected";}
+elsif($infopais eq "ZA"){$checkedZA="selected";}
+elsif($infopais eq "SD"){$checkedSD="selected";}
+elsif($infopais eq "SE"){$checkedSE="selected";}
+elsif($infopais eq "CH"){$checkedCH="selected";}
+elsif($infopais eq "SR"){$checkedSR="selected";}
+elsif($infopais eq "TH"){$checkedTH="selected";}
+elsif($infopais eq "TW"){$checkedTW="selected";}
+elsif($infopais eq "TZ"){$checkedTZ="selected";}
+elsif($infopais eq "TJ"){$checkedTJ="selected";}
+elsif($infopais eq "TL"){$checkedTL="selected";}
+elsif($infopais eq "TG"){$checkedTG="selected";}
+elsif($infopais eq "TK"){$checkedTK="selected";}
+elsif($infopais eq "TO"){$checkedTO="selected";}
+elsif($infopais eq "TT"){$checkedTT="selected";}
+elsif($infopais eq "TN"){$checkedTN="selected";}
+elsif($infopais eq "TM"){$checkedTM="selected";}
+elsif($infopais eq "TR"){$checkedTR="selected";}
+elsif($infopais eq "TV"){$checkedTV="selected";}
+elsif($infopais eq "UA"){$checkedUA="selected";}
+elsif($infopais eq "UG"){$checkedUG="selected";}
+elsif($infopais eq "UY"){$checkedUY="selected";}
+elsif($infopais eq "UZ"){$checkedUZ="selected";}
+elsif($infopais eq "VU"){$checkedVU="selected";}
+elsif($infopais eq "VE"){$checkedVE="selected";}
+elsif($infopais eq "VN"){$checkedVN="selected";}
+elsif($infopais eq "WF"){$checkedWF="selected";}
+elsif($infopais eq "YE"){$checkedYE="selected";}
+elsif($infopais eq "DJ"){$checkedDJ="selected";}
+elsif($infopais eq "ZM"){$checkedZM="selected";}
+elsif($infopais eq "ZW"){$checkedZW="selected";}
+
+
+
+$valorguia=`/bin/cat $sinoguia`;
+$valorguia =~ s/(\r?\n)//g;
+
+
+
+
+$numservicios=0;
+
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		while (<OLD>) 
+		{
+			if (/^\s*IMT.*=[13].*$/)
+     		{
+				$numservicios=$numservicios+1;
+				
+			}
+		}	
+		 
+	close(OLD)     or die "can't close $modulos: $!";
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*CONTROLHOSTS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$controlhosts = $data[1];
+			}
+			
+			if (/^\s*FWCAPA7\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$fwcapa7 = $data[1];
+			}
+			
+			if (/^\s*LOGCAPA7\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$logcapa7 = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+	
+
+
+
+#señal de estado de cada servicio
+#···············································································
+if($controlhosts eq "1") 
+{
+	$estadocontrolhosts = "activadomini.gif";
+	$pasarcontrolhosts = 0;
+}
+else
+{	
+	$estadocontrolhosts = "desactivadomini.gif";
+	$pasarcontrolhosts = 1;
+}
+
+
+
+$usoproceso=`top -bn2 | grep "Cpu(s)" | tail -n 1 | awk '{print \$2}' | sed  s/\\%.*//;`; 
+$usoprocesoint=int($usoproceso);
+
+$cargaini=$carga;
+$cargaini =~ s/load\saverage/$imtlayers_cargasistema/;
+
+if(${inicapa7} >= 15)
+{
+$inicapa7pre=${inicapa7}-15;
+}
+
+if(${inicapa7} <= 15)
+{
+$inicapa7next=${inicapa7}+15;
+}
+
+
+$yearactual = strftime "%Y", localtime;
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/images/jquery.dataTables.min.css">
+<script type="text/javascript" language="javascript" src="/images/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+
+	\$(document).ready(function(){
+    \$('#tablaregissh').DataTable( {
+    	  "dom": '<"toolbarssh">frtip',
+        "scrollY":        "180px",
+        "scrollCollapse": true,
+        "paging":         true,
+        "info": false,
+        "ordering": true,
+        "searching": false,
+    } );
+    
+    \$("div.toolbarssh").html('<b><font style="color:#3e73a8">SSH Access Control</font></b>');
+});
+
+\$(document).ready(function(){
+    \$('#tablaregiweb').DataTable( {
+    	  "dom": '<"toolbarweb">frtip',
+        "scrollY":        "180px",
+        "scrollCollapse": true,
+        "paging":         true,
+        "info": false,
+        "ordering": true,
+        "searching": false
+    } );
+    
+    \$("div.toolbarweb").html('<b><font style="color:#3e73a8">Web Access Control</font></b>');
+});
+
+\$(document).ready(function(){
+    \$('#tablainterface').DataTable( {
+    	  "dom": '<"toolbarinterface">frtip',
+        "scrollY":        "215px",
+        "scrollCollapse": true,
+        "paging":         true,
+        "info": false,
+        "ordering": true,
+        "searching": false
+    } );
+    
+    \$("div.toolbarinterface").html('<b><font style="color:#3e73a8">Interface Traffic Indicator (Today)</font></b>');
+});
+
+</script>
+
+<script language="javascript">
+
+
+function enviar()
+{
+oscuprocessform();
+
+document.theform.env.value="nombreid"
+document.theform.action='inicio.htm';
+document.theform.submit();
+}
+
+function send()
+{
+oscuprocessform();
+
+	document.theform.action="inicio.htm";
+	document.theform.env.value="aplicarinfo"
+	document.theform.submit();
+}
+
+
+function controlamulti()
+{			
+var nombreid;
+nombreid=document.getElementById('nombreid').value;
+top.document.title="$index_titulo: "+nombreid;
+}
+
+function validarkey(e)
+{			
+ 	tecla = (document.all) ? e.keyCode : e.which; // 2
+    if (tecla==8) return true; // 3
+    patron =/[A-Za-z0-9-]/; // 4
+    te = String.fromCharCode(tecla); // 5
+    return patron.test(te); // 6
+
+}
+
+
+top.document.title="$index_titulo: "+"$nombreid";
+
+
+
+
+
+
+
+// <script>
+
+// Copyright (C) 2005 Ilya S. Lyubinskiy. All rights reserved.
+// Technical support: http://www.php-development.ru/
+//
+// YOU MAY NOT
+// (1) Remove or modify this copyright notice.
+// (2) Distribute this code, any part or any modified version of it.
+//     Instead, you can link to the homepage of this code:
+//     http://www.php-development.ru/javascripts/dropdown.php.
+//
+// YOU MAY
+// (1) Use this code on your website.
+// (2) Use this code as a part of another product provided that
+//     its main use is not creating javascript menus.
+//
+// NO WARRANTY
+// This code is provided "as is" without warranty of any kind, either
+// expressed or implied, including, but not limited to, the implied warranties
+// of merchantability and fitness for a particular purpose. You expressly
+// acknowledge and agree that use of this code is at your own risk.
+
+
+// ----- Popup Control ---------------------------------------------------------
+
+function at_display(x)
+{
+  var win = window.open();
+  for (var i in x) win.document.write(i+' = '+x[i]+'<br>');
+}
+
+// ----- Show Aux -----
+
+function at_show_aux(parent, child)
+{
+  var p = document.getElementById(parent);
+  var c = document.getElementById(child );
+
+  var top  = (c["at_position"] == "y") ? p.offsetHeight+2 : 0;
+  var left = (c["at_position"] == "x") ? p.offsetWidth +2 : 0;
+
+  for (; p; p = p.offsetParent)
+  {
+    top  += p.offsetTop;
+    left += p.offsetLeft;
+  }
+
+  c.style.position   = "absolute";
+  c.style.top        = top +'px';
+  c.style.left       = left+'px';
+  c.style.visibility = "visible";
+}
+
+// ----- Show -----
+
+function at_show()
+{
+  var p = document.getElementById(this["at_parent"]);
+  var c = document.getElementById(this["at_child" ]);
+
+  at_show_aux(p.id, c.id);
+
+  clearTimeout(c["at_timeout"]);
+}
+
+// ----- Hide -----
+
+function at_hide()
+{
+  var c = document.getElementById(this["at_child"]);
+
+  c["at_timeout"] = setTimeout("document.getElementById('"+c.id+"').style.visibility = 'hidden'", 333);
+}
+
+// ----- Click -----
+
+function at_click()
+{
+  var p = document.getElementById(this["at_parent"]);
+  var c = document.getElementById(this["at_child" ]);
+
+  if (c.style.visibility != "visible")
+       at_show_aux(p.id, c.id);
+  else c.style.visibility = "hidden";
+
+  return false;
+}
+
+// ----- Attach -----
+
+// PARAMETERS:
+// parent   - id of visible html element
+// child    - id of invisible html element that will be dropdowned
+// showtype - "click" = you should click the parent to show/hide the child
+//            "hover" = you should place the mouse over the parent to show
+//                      the child
+// position - "x" = the child is displayed to the right of the parent
+//            "y" = the child is displayed below the parent
+// cursor   - Omit to use default cursor or check any CSS manual for possible
+//            values of this field
+
+function at_attach(parent, child, showtype, position, cursor)
+{
+  var p = document.getElementById(parent);
+  var c = document.getElementById(child);
+
+  p["at_parent"]     = p.id;
+  c["at_parent"]     = p.id;
+  p["at_child"]      = c.id;
+  c["at_child"]      = c.id;
+  p["at_position"]   = position;
+  c["at_position"]   = position;
+
+  c.style.position   = "absolute";
+  c.style.visibility = "hidden";
+
+  if (cursor != undefined) p.style.cursor = cursor;
+
+  switch (showtype)
+  {
+    case "click":
+      p.onclick     = at_click;
+      p.onmouseout  = at_hide;
+      c.onmouseover = at_show;
+      c.onmouseout  = at_hide;
+      break;
+    case "hover":
+      p.onmouseover = at_show;
+      p.onmouseout  = at_hide;
+      c.onmouseover = at_show;
+      c.onmouseout  = at_hide;
+      break;
+  }
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+function ConstructObject1(nombre,valores)
+{  
+
+    	this.el=document.getElementById(nombre); 
+		
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:550; height:600; overflow:hidden; top:0; left:0; clip:rect(0,550,600,0); visibility:visible";
+
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+		
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:460; height:600; overflow:hidden; top:0; left:0; clip:rect(0,460,600,0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+function ConstructObject3(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+		
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:410; height:600; overflow:hidden; top:0; left:0; clip:rect(0,410,600,0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+
+function InitialiseScrollableArea1(name,data)
+{ 
+    var obj=new ConstructObject1(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function InitialiseScrollableArea3(name,data)
+{ 
+    var obj=new ConstructObject3(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+function capagrande()
+{
+
+
+	container='objContainer1';
+
+	var objContainer = eval(container); 
+	objContainer.el.style.left=255;
+	objContainer.el.style.top=130;
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	 
+
+}
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	openedCombo=null;
+}
+
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+EOF
+if($valorguia eq 1)
+{
+print <<EOF;
+	objContainer1=InitialiseScrollableArea1('divContainer1',null);
+	
+EOF
+}
+print <<EOF;
+//objContainer2=InitialiseScrollableArea2('divContainer2',null);
+//objContainer3=InitialiseScrollableArea3('divContainer3',null);
+	//initRules();
+} 
+
+
+function quitarguia()
+{
+oscuprocessform();
+
+	document.theform.env.value="quitarguia"
+	document.theform.action='inicio.htm';
+	document.theform.submit();	
+}
+
+function borrarpasoreg(opc)
+{
+
+if(!confirm('¿Desea borrar el registro de accesos vía '+opc+' a I.M.T.?'))
+	return false;
+
+oscuprocessform();
+	
+	document.theform.env.value=opc+"reg";
+	document.theform.action='inicio.htm';
+	document.theform.submit();	
+}
+
+
+function toggle()
+{
+
+	container='objContainer2';
+	
+	var objContainer = eval(container); 
+	objContainer.el.style.left=265;
+	objContainer.el.style.top=140;
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+		
+}
+
+function toggle3()
+{
+
+	container='objContainer3';
+	
+	var objContainer = eval(container); 
+	objContainer.el.style.left=265;
+	objContainer.el.style.top=140;
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+		
+}
+
+
+</script>
+
+
+	<script>
+
+
+function enviarestado(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+mensaje = "\\nTenga en cuenta que en la detección de hosts si permanece activo el proceso de manera muy continua,\\nen ocasiones pueda provocar un comportamiento no adecuado a través de algunos Switchs.";
+}
+else
+{
+estado = "desactivar";
+mensaje = "";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' la detección de hosts?'+mensaje))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function amplipanel()
+{
+document.theform.action="regiscontrolcapa7.htm";
+document.theform.submit();
+}
+
+
+		
+	</script>	
+
+
+
+</head>
+
+
+EOF
+if($valorguia eq 1)
+{
+$cargaonload="onLoad=capagrande()";
+}
+print <<EOF;
+	
+<body ${cargaonload} onclick="clearLista()">
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden"><input name="estado" type="hidden">
+
+<CENTER>
+<br>
+<table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 style="font-weight: bold;color:#3e73a8"><B>$inicio_titulo0</B></FONT></td></tr></table>
+
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<p><br><br>
+
+
+
+<div>
+<table cellpadding="0" cellspacing="0"><tr>
+<td>
+<table style="background:#3e73a8" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="100"><tr><td width="5"></td><td align="center"><b><a href="autoregishostsv3.htm?princi=gestigrupos&secci="><font color="white">Dashboard</font></a></b></td></tr></table>
+</td><td width="40"></td><td>
+<table style="background:white" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="100"><tr><td width="5"></td><td align="center"><b><a href="webshell.htm"><font color="black">Web Shell</font></a></b></td></tr></table>
+</td><td width="40"></td><td>
+<table style="background:white" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="150"><tr><td width="5"></td><td align="center"><b><a href="autoregishostsv3.htm"><font color="black">$inicio_objectpestana</font></a></b></td></tr></table>
+</td><td width="40"></td><td>
+<table style="background:white" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="150"><tr><td width="5"></td><td align="center"><b><a href="regiscontrolcapa7.htm"><font color="black">Traffic Analyzer</font></a></b></td></tr></table>
+</td>
+</tr></table>
+</div>
+<div style="background:#3e73a8; width:820; height:2615;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<table><tr><td height="8"></td></table>
+<div style="background:white; width:780; height:2590;-webkit-box-shadow: 0px 1px 5px black;
+  -moz-box-shadow: 0px 1px 5px black;
+  box-shadow: 0px 1px 5px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+
+<table><tr><td height="3"></td></tr></table>
+
+
+
+<br>
+
+
+
+<table width="800" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="10"></td>
+<td align="center">
+
+<iframe src="chartinfosystem.htm"  frameborder="no" scrolling="no" width=780 height=140 name="chartinfosystem" id="chartinfosystem"></iframe>
+
+</td>
+</tr>
+<tr><td height=10></td></tr>
+<tr>
+<td width="10"></td>
+<td align="center">
+EOF
+if($versionimt !~ /imt3/)
+{
+print <<EOF;
+<iframe src="upgradeversions.htm"  frameborder="no" scrolling="no" width=780 height=250 name="upgradeversions" id="upgradeversions"></iframe>
+EOF
+}
+print <<EOF;
+</td>
+</tr>
+</table>
+<br>
+
+<br>
+
+<table>
+<tr>
+<td width="600" align="right" valign="center">
+
+<table cellpadding="0" cellspacing="0" class="bordenegrosombra2" style="font-size:10px;width:100%;">
+<tr><td height="12"></td></tr>
+<tr><td width="12"></td><td><table cellpadding="0" cellspacing="0"><tr><td><img src="/images/$estadocontrolhosts" onClick="enviarestado('$pasarcontrolhosts')" style="cursor:pointer"></td><td width="5"></td><td>$inicio_deteccion</td></tr></table></td></tr>
+<tr><td width="12"></td><td><a href="autoregishostsv3.htm">&nbsp;<font style="font-size:13px;font-weight:bold">$hostscapturados</font> <font color="black"> $inicio_host </font></a></td><td width="12"></td></tr>
+<tr><td height="12"></td></tr>
+</table>
+
+</td>
+</tr></table>
+
+<br><br>
+
+
+<!-- Comienzo -->
+
+<div id="divtablainterface" style="width:650;z-index:-10;">
+<table id="tablainterface" class="display" cellpadding="0" cellspacing="0" style="font-size:10px;">
+<thead>
+<tr>
+<th>Interface</th>
+<th>Status</th>
+<th>Connect</th>
+<th>Receive</th>
+<th>Transmit</th>
+<th>Total</th>
+<th>avg rate</th>
+</tr>
+</thead>
+
+<tbody>
+EOF
+
+$listadointerfaces=`/bin/ip -o link show | cut -d: -f2 | xargs`;
+$listadointerfaces =~ s/(\r?\n)//g;
+$listadointerfaces =~ s/ /,/g;
+$listadointerfaces =~ s/,\s*$//g;
+
+
+@list=split(/\s*,\s*/,$listadointerfaces);
+
+foreach $a (@list){
+ 
+$interface=$a;
+$interface =~ s/\@.*$//g;
+
+$controlupinterface=`/sbin/ifconfig $interface | grep 'inet addr'`;
+
+$controllink=`/sbin/ethtool $interface | grep 'Link detected: yes'`;
+
+if($controlupinterface ne "")
+{
+	$activoupinterface="Activo";
+}
+else
+{
+	$activoupinterface="Inactivo";
+}
+
+if($controllink ne "")
+{
+	$activoestado="Activo";
+}
+else
+{
+	$activoestado="Inactivo";
+}
+
+$vnstatdatostoday=`/usr/bin/vnstat -i $interface | grep today`;
+$vnstatdatostoday =~ s/(\r?\n)//g;
+$vnstatdatostoday =~ s/today\s*//g;
+
+@vnstatdatostodaylinea=split(/\s*\|\s*/,$vnstatdatostoday);
+
+$rx=$vnstatdatostodaylinea[0];
+$tx=$vnstatdatostodaylinea[1];
+$total=$vnstatdatostodaylinea[2];
+$avg=$vnstatdatostodaylinea[3];
+
+ print  "<tr>".
+		"<td align='center'>$interface</td>".
+		"<td align='center'>$activoupinterface</td>".
+		"<td align='center'>$activoestado</td>".
+		"<td align='center'>$rx</td>".
+		"<td align='center'>$tx</td>".
+		"<td align='center'>$total</td>".
+		"<td align='center'>$avg</td>".
+	   "</tr>";	 
+    }
+
+print <<EOF;	
+
+</tbody>
+</table>
+</div>
+
+<br><br>
+
+<div id="divtablaregiweb" style="width:600;z-index:-10;">
+<table id="tablaregiweb" class="display" cellpadding="0" cellspacing="0" style="font-size:10px;">
+<thead>
+<tr>
+<th>User</th>
+<th>Date</th>
+<th>Time</th>
+<th>IP Address</th>
+<th>Result</th>
+<th>Country</th>
+</tr>
+</thead>
+
+<tbody>
+EOF
+
+if($tipologinfile eq 0)
+{
+
+$sth = $dbh->prepare("select * from pasoreg order by date DESC, time DESC limit 50")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+	
+ while (@linea = $sth->fetchrow_array) {
+ 
+	$fecha=$linea[1];				
+	@data = split (/-/,$fecha);
+	$fecha= "$data[2]-$data[1]-$data[0]";
+	
+	@data2 = split (/\./,$linea[3]);
+   $parteiptres= "$data2[0].$data2[1].$data2[2].";
+
+ print  "<tr>".
+		"<td align='center'>$linea[0]</td>".
+		"<td align='center'>$fecha</td>".
+		"<td align='center'>$linea[2]</td>".
+		"<td align='center'>$linea[3]</td>".
+		"<td align='center'>$linea[4]</td>".
+		"<td align='center'>";
+		if ($linea[5] ne "" && $linea[3] !~ /^192.121.212./ && $listaipscompro !~ /${parteiptres}/)
+		{
+		 print "<img src='/images/${linea[5]}.png'>";
+		}
+ print "</td>".
+	   "</tr>";	 
+    }
+
+}
+
+print <<EOF;	
+
+</tbody>
+</table>
+</div>
+
+<br><br>
+
+<div style="width:600;z-index:-10;">
+<table id="tablaregissh" class="display" cellpadding="0" cellspacing="0" style="font-size:10px;">
+<thead>
+<tr>
+<th>User</th>
+<th>Date</th>
+<th>Time</th>
+<th>IP Address</th>
+<th>Result</th>
+<th>Country</th>
+</tr>
+</thead>
+
+<tbody>
+EOF
+
+if($tipologinfile eq 0)
+{
+
+$sth = $dbh->prepare("select * from sshreg order by date DESC, time DESC limit 50")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+	
+ while (@linea = $sth->fetchrow_array) {
+ 
+	$fecha=$linea[1];				
+	@data = split (/-/,$fecha);
+	$fecha= "$data[2]-$data[1]-$data[0]";
+	
+	@data2 = split (/\./,$linea[3]);
+   $parteiptres= "$data2[0].$data2[1].$data2[2].";
+
+ print  "<tr>".
+		"<td align='center'>$linea[0]</td>".
+		"<td align='center'>$fecha</td>".
+		"<td align='center'>$linea[2]</td>".
+		"<td align='center'>$linea[3]</td>".
+		"<td align='center'>$linea[4]</td>".
+		"<td align='center'>";
+		if ($linea[5] ne "" && $linea[3] !~ /^192.121.212./ && $listaipscompro !~ /${parteiptres}/)
+		{
+		 print "<img src='/images/${linea[5]}.png'>";
+		}
+ print "</td>".
+	   "</tr>";	 
+    }
+
+}
+
+print <<EOF;	
+
+</tbody>
+</table>
+</div>
+    
+      
+
+<!-- Fin -->
+
+<br><br>
+
+<!--<iframe src="/webshell/"  frameborder="no" scrolling="no" width=100% height=250 name="webshell"></iframe>
+
+<br><br>-->
+
+<div align="center">
+
+
+<table border="0" height="180">
+<tr><td valign="top">
+
+
+
+	<table cellspacing="0" cellpadding="0" border="0" width="280" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;color:#1F75BC;" class="bordenegrosombra">
+	<tr><td  height="23" class="barratituloazul" align="center" colspan="5">&nbsp;<b><font color=white>$inicio_titulo1</b></font></td></tr>
+	<tr><td height="10"></td></tr>
+	<tr><td>
+	
+	<div id="scroll" style="height: 280px; overflow: auto;float:center;	width:260px; border-color:#000000; border-width: 2px;">
+	<table cellspacing="0" cellpadding="0" border="0" width="250">
+	<tr><td width=10></td><td height="10"></td></tr>
+	<tr><td width=10 height="25"></td><td><table border=0><tr><td>$inicio_nombreid:</td><td><input class='campotxt' type='text' id='nombreid' name='nombreid' style="font-weight:bold; color:#3e73a8;width:120" maxlength="15" onkeypress="return validarkey(event)"  onKeyUp='controlamulti(nombreid.value)' onKeyDown='controlamulti(nombreid.value)' value='$nombreid'></td><td width="2"></td><td><img src='../images/ok.gif' onClick="enviar()" style="cursor:pointer"></td></tr></table></td></tr>
+	<tr><td width=10 height="25"></td><td colspan="2">$inicio_despliegue: <b>$despliegue</b></td></tr>
+	<tr><td width=10 height="25"></td><td colspan="2">$inicio_ipacceso: <b>$ip1</b></td></tr>
+	<tr><td width=10 height="25"></td><td colspan="2">$inicio_escucha : <b>$puerto</b></td></tr>
+	<tr><td width=10 height="25"></td><td><table cellpadding="0" cellspacing="0"><tr><td>$inicio_idioma:</td><td width="8"></td><td><b><a href="idioma.htm"><img src="../images/$idiomaimagen.jpg" border="0"></a></b></td></tr></table></td></tr>	
+	<tr><td width=10 height="25"></td><td colspan="2">Conectado a servicio: <b>IMTCloud</b></td></tr>
+	<tr><td width=10 height="25"></td><td>$inicio_numserie: <b>$num_serie</b></td></tr>
+	<tr><td width=10 height="25"></td><td>$inicio_garantiservi: <b>$garantia_servicio</b></td></tr>
+	<tr><td width=10 height="25"></td><td>$inicio_garantihard: <b>$garantia_hardware</b></td></tr>
+	<tr><td width=10 height="25"></td><td>$inicio_modulosnum: <b>$numservicios</b></td></tr>
+	</table>
+	</div>
+
+	</td></tr>	
+	</table>
+
+EOF
+
+$comproequipoimt=`/bin/lspci`;
+$comproprocessimt=`/bin/cat /proc/cpuinfo`;
+
+if($comproequipoimt =~ /VT82C586A\/B\/VT82C686/m && $comproequipoimt !~ /CardBus\sbridge\:\sRicoh/m && $comproprocessimt !~ /Eden/m && $comproprocessimt =~ /[C7|C3]/m)
+{
+	$equipoimt="minipclight2";
+	$modeloequipoimt="Modelo Light";
+}
+elsif($comproequipoimt =~ /VT82C586A\/B\/VT82C686/m && $comproequipoimt =~ /CardBus\sbridge\:\sRicoh/m)
+{
+	$equipoimt="minipctwister2";
+	$modeloequipoimt="Modelo Twister";
+}
+elsif($comproequipoimt =~ /CN700\/VN800\/P4M800CE\/Pro/m && $comproprocessimt =~ /Eden/m)
+{
+	$equipoimt="minipcuno2";
+	$modeloequipoimt="Modelo Uno";
+}
+elsif($comproequipoimt =~ /945GM\/GMS\/940GML/ && $comproprocessimt =~ /Intel.*Xeon/m)
+{
+	$equipoimt="minipcprim2";
+	$modeloequipoimt="Modelo Prim";
+}
+else
+{
+	$modeloequipoimt="Desconocido";
+}
+
+if($modeloequipoimt ne "Desconocido")
+{
+print <<EOF;	
+	
+	<table>
+	<tr><td height=5></td></tr>
+	<tr><td><img src="../images/${equipoimt}.gif"></td><td valign="top">Equipo:<br><b><font color="#3e73a8">$modeloequipoimt</font><!--<br><u>Datos técnicos</u>--></b></td></tr>
+	</table>
+	
+EOF
+}
+
+print <<EOF;		
+
+</td>
+<td width=20></td>
+<td valign=top>
+
+<table cellspacing="0" cellpadding="0" border="0" width="280" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra">
+	<tr><td  height="23" class="barratituloazul" align="center" colspan="5">&nbsp;<b><font color=white>$inicio_titulo3</b></font></td></tr>
+	<tr><td height="10"></td></tr>
+	<tr>
+	<td>
+	<table cellpadding="0" cellspacing="0">
+	<tr><td width=10 height="25"></td><td width="2"></td><td>$inicio_nombre:</td><td><input class='campotxt' style="font-weight:bold; color:#3e73a8;width:140" type='text' id='infonombre' name='infonombre' maxlength="25" value='$infonombre'></td></tr>
+	<tr><td width=10 height="25"></td><td width="2"></td><td>$inicio_localidad:&nbsp;</td><td><input class='campotxt' style="font-weight:bold; color:#3e73a8;width:140" type='text' id='infolocalidad' name='infolocalidad' maxlength="25" value='$infolocalidad'></td></tr>
+	<tr><td width=10 height="25"></td><td width="2"></td><td>
+	
+	$inicio_pais:</td><td>
+	<div style="z-index:auto ">
+	<select name="infopais" id="infopais" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="AF" $checkedAF>Afganistán</option>
+<option value="AL" $checkedAL>Albania</option>
+<option value="DE" $checkedDE>Alemania</option>
+<option value="AD" $checkedAD>Andorra</option>
+<option value="AO" $checkedAO>Angola</option>
+<option value="AI" $checkedAI>Anguila</option>
+<option value="SA" $checkedSA>Arabia Saudí</option>
+<option value="DZ" $checkedDZ>Argelia</option>
+<option value="AR" $checkedAR>Argentina</option>
+<option value="AM" $checkedAM>Armenia</option>
+<option value="AU" $checkedAU>Australia</option>
+<option value="AT" $checkedAT>Austria</option>
+<option value="AZ" $checkedAZ>Azerbaiyán</option>
+<option value="BS" $checkedBS>Bahamas</option>
+<option value="BD" $checkedBD>Bangladesh</option>
+<option value="BB" $checkedBB>Barbados</option>
+<option value="BE" $checkedBE>Bélgica</option>
+<option value="BZ" $checkedBZ>Belice</option>
+<option value="BJ" $checkedBJ>Benín</option>
+<option value="BM" $checkedBM>Bermudas</option>
+<option value="BY" $checkedBY>Bielorrusia</option>
+<option value="BO" $checkedBO>Bolivia</option>
+<option value="BR" $checkedBR>Brasil</option>
+<option value="BG" $checkedBG>Bulgaria</option>
+<option value="BI" $checkedBI>Burundi</option>
+<option value="CV" $checkedCV>Cabo Verde</option>
+<option value="KH" $checkedKH>Camboya</option>
+<option value="CM" $checkedCM>Camerún</option>
+<option value="CA" $checkedCA>Canadá</option>
+<option value="CL" $checkedCL>Chile</option>
+<option value="CN" $checkedCN>China</option>
+<option value="CY" $checkedCY>Chipre</option>
+<option value="CO" $checkedCO>Colombia</option>
+<option value="CG" $checkedCG>Congo</option>
+<option value="KR" $checkedKR>Corea del Sur</option>
+<option value="CI" $checkedCI>Costa de Marfil</option>
+<option value="CR" $checkedCR>Costa Rica</option>
+<option value="HR" $checkedHR>Croacia</option>
+<option value="CU" $checkedCU>Cuba</option>
+<option value="DK" $checkedDK>Dinamarca</option>
+<option value="DM" $checkedDM>Dominica</option>
+<option value="EC" $checkedEC>Ecuador</option>
+<option value="EG" $checkedEG>Egipto</option>
+<option value="SV" $checkedSV>El Salvador</option>
+<option value="AE" $checkedAE>Emiratos Árabes</option>
+<option value="SK" $checkedSK>Eslovaquia</option>
+<option value="SI" $checkedSI>Eslovenia</option>
+<option value="ES" $checkedES>España</option>
+<option value="US" $checkedUS>Estados Unidos</option>
+<option value="EE" $checkedEE>Estonia</option>
+<option value="ET" $checkedET>Etiopía</option>
+<option value="PH" $checkedPH>Filipinas</option>
+<option value="FI" $checkedFI>Finlandia</option>
+<option value="FR" $checkedFR>Francia</option>
+<option value="GE" $checkedGE>Georgia</option>
+<option value="GI" $checkedGI>Gibraltar</option>
+<option value="GD" $checkedGD>Granada</option>
+<option value="GR" $checkedGR>Grecia</option>
+<option value="GL" $checkedGL>Groenlandia</option>
+<option value="GT" $checkedGT>Guatemala</option>
+<option value="GN" $checkedGN>Guinea</option>
+<option value="GQ" $checkedGQ>Guinea Ecuatorial</option>
+<option value="GY" $checkedGY>Guyana</option>
+<option value="HT" $checkedHT>Haití</option>
+<option value="HN" $checkedHN>Honduras</option>
+<option value="HK" $checkedHK>Hong Kong</option>
+<option value="HU" $checkedHU>Hungría</option>
+<option value="IN" $checkedIN>India</option>
+<option value="ID" $checkedID>Indonesia</option>
+<option value="IR" $checkedIR>Irán</option>
+<option value="IQ" $checkedIQ>Iraq</option>
+<option value="IE" $checkedIE>Irlanda</option>
+<option value="IS" $checkedIS>Islandia</option>
+<option value="IL" $checkedIL>Israel</option>
+<option value="IT" $checkedIT>Italia</option>
+<option value="JM" $checkedJM>Jamaica</option>
+<option value="JP" $checkedJP>Japón</option>
+<option value="JE" $checkedJE>Jersey</option>
+<option value="JO" $checkedJO>Jordania</option>
+<option value="KZ" $checkedKZ>Kazajistán</option>
+<option value="KE" $checkedKE>Kenia</option>
+<option value="KG" $checkedKG>Kirguizistán</option>
+<option value="KW" $checkedKW>Kuwait</option>
+<option value="LA" $checkedLA>Laos</option>
+<option value="LS" $checkedLS>Lesoto</option>
+<option value="LV" $checkedLV>Letonia</option>
+<option value="LB" $checkedLB>Líbano</option>
+<option value="LR" $checkedLR>Liberia</option>
+<option value="LY" $checkedLY>Libia</option>
+<option value="LI" $checkedLI>Liechtenstein</option>
+<option value="LT" $checkedLT>Lituania</option>
+<option value="LU" $checkedLU>Luxemburgo</option>
+<option value="MO" $checkedMO>Macao</option>
+<option value="MK" $checkedMK>Macedonia</option>
+<option value="MG" $checkedMG>Madagascar</option>
+<option value="MY" $checkedMY>Malasia</option>
+<option value="MW" $checkedMW>Malaui</option>
+<option value="MV" $checkedMV>Maldivas</option>
+<option value="ML" $checkedML>Mali</option>
+<option value="MT" $checkedMT>Malta</option>
+<option value="MA" $checkedMA>Marruecos</option>
+<option value="MQ" $checkedMQ>Martinica</option>
+<option value="MU" $checkedMU>Mauricio</option>
+<option value="MR" $checkedMR>Mauritania</option>
+<option value="YT" $checkedYT>Mayotte</option>
+<option value="MX" $checkedMX>México</option>
+<option value="FM" $checkedFM>Micronesia</option>
+<option value="MD" $checkedMD>Moldavia</option>
+<option value="MC" $checkedMC>Mónaco</option>
+<option value="MN" $checkedMN>Mongolia</option>
+<option value="ME" $checkedME>Montenegro</option>
+<option value="MS" $checkedMS>Montserrat</option>
+<option value="MZ" $checkedMZ>Mozambique</option>
+<option value="NI" $checkedNI>Nicaragua</option>
+<option value="NE" $checkedNE>Níger</option>
+<option value="NG" $checkedNG>Nigeria</option>
+<option value="NU" $checkedNU>Niue</option>
+<option value="NO" $checkedNO>Noruega</option>
+<option value="NZ" $checkedNZ>Nueva Zelanda</option>
+<option value="OM" $checkedOM>Omán</option>
+<option value="NL" $checkedNL>Países Bajos</option>
+<option value="PK" $checkedPK>Pakistán</option>
+<option value="PW" $checkedPW>Palaos</option>
+<option value="PA" $checkedPA>Panamá</option>
+<option value="PY" $checkedPY>Paraguay</option>
+<option value="PE" $checkedPE>Perú</option>
+<option value="PL" $checkedPL>Polonia</option>
+<option value="PT" $checkedPT>Portugal</option>
+<option value="PR" $checkedPR>Puerto Rico</option>
+<option value="QA" $checkedQA>Qatar</option>
+<option value="GB" $checkedGB>Reino Unido</option>
+<option value="CZ" $checkedCZ>Repú. Checa</option>
+<option value="DO" $checkedDO>Repú. Dominicana</option>
+<option value="RE" $checkedRE>Reunión</option>
+<option value="RW" $checkedRW>Ruanda</option>
+<option value="RO" $checkedRO>Rumania</option>
+<option value="RU" $checkedRU>Rusia</option>
+<option value="EH" $checkedEH>Sáhara Occidental</option>
+<option value="WS" $checkedWS>Samoa</option>
+<option value="AS" $checkedAS>Samoa americana</option>
+<option value="SN" $checkedSN>Senegal</option>
+<option value="SC" $checkedSC>Seychelles</option>
+<option value="SL" $checkedSL>Sierra Leona</option>
+<option value="SG" $checkedSG>Singapur</option>
+<option value="SY" $checkedSY>Siria</option>
+<option value="SO" $checkedSO>Somalia</option>
+<option value="LK" $checkedLK>Sri Lanka</option>
+<option value="SZ" $checkedSZ>Suazilandia</option>
+<option value="ZA" $checkedZA>Sudáfrica</option>
+<option value="SD" $checkedSD>Sudán</option>
+<option value="SE" $checkedSE>Suecia</option>
+<option value="CH" $checkedCH>Suiza</option>
+<option value="SR" $checkedSR>Surinam</option>
+<option value="TH" $checkedTH>Tailandia</option>
+<option value="TW" $checkedTW>Taiwán</option>
+<option value="TZ" $checkedTZ>Tanzania</option>
+<option value="TR" $checkedTR>Turquía</option>
+<option value="UA" $checkedUA>Ucrania</option>
+<option value="UG" $checkedUG>Uganda</option>
+<option value="UY" $checkedUY>Uruguay</option>
+<option value="VU" $checkedVU>Vanuatu</option>
+<option value="VE" $checkedVE>Venezuela</option>
+<option value="VN" $checkedVN>Vietnam</option>
+<option value="YE" $checkedYE>Yemen</option>
+</select>
+</div>
+	
+	</td></tr>
+	<tr><td height=2></td></tr>
+	<tr><td width=10 height="25"></td><td></td><td valign=top>Detalles:</td>
+	<td>
+	<textarea style="width:180px;height:160px;" class="campotxt" id="infocomentario" name="infocomentario">${infocomentario}</textarea>
+	</td></tr>	
+	
+	</table>
+	</td></tr>
+	<tr><td height="40"></td></tr>
+	</table>
+
+</td>
+</tr></table>
+
+<br><br>
+
+<table><tr><td valign="top">
+
+	<table cellspacing="0" cellpadding="0" border="0" width="600" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra">
+	<tr><td  height="23" class="barratituloazul" align="center" colspan="6">&nbsp;<b><font color=white>$inicio_estaocupvol</b></font></td></tr>
+	<tr><td width=10></td><td height="10"></td></tr>
+	<tr><td> 
+
+EOF
+
+$partesnumvalor="";
+
+open(OLD, "df -h  | grep mapper |");
+						
+		while (<OLD>) 
+		{
+           	chomp;
+           	
+           	$_ =~ s/\/dev\/mapper\///;
+           	
+           	@data = split (/\s+/,$_);
+	
+				$nombregvlv=$data[0];	
+				
+				@data10 = split (/-/,$nombregvlv);
+				$nombregv=$data10[0];
+				$nombrelv=$data10[1];
+				
+				$tamanototal=$data[1];
+				$tamanousado=$data[2];
+				$tamanolibre=$data[3];
+				$tamanoporcenlibre=$data[4]; 
+           	
+           	if($nombrelv ne "")
+           	{
+           	$partesnumvalor=$partesnumvalor.$nombregv."|".$nombrelv."|".$tamanototal."|".$tamanousado."|".$tamanolibre."|".$tamanoporcenlibre." ";
+           	}	
+		}
+close(OLD);	
+
+
+$partesnumvalor =~ s/\s+$//;
+@partesnumarray = split (/\s+/,$partesnumvalor);
+
+
+print <<EOF;
+
+<div id="scroll" style="height: 440px; overflow: auto;float:center;	width:590px;">
+
+<table border=0><tr><td width=5></td><td align="left">
+
+
+<table cellpadding="2" cellspacing="2" border="0">
+<tr><td></td><td><u>$inicio_gmvn</u></td><td></td><td><u>$inicio_lvmn</u></td><td align="left"><u>$inicio_total</u></td><td align="left"><u>$inicio_ocupadon</u></td><td align="left"><u>$inicio_libren</u></td><td align="left"><u>$inicio_porcentn</u></td></tr>
+EOF
+foreach $partesnum(@partesnumarray) {
+
+@data = split (/\|/,$partesnum);
+$nombregv = $data[0];
+$nombrelv = $data[1];
+$tamanototal = $data[2];
+$tamanousado = $data[3];
+$tamanolibre = $data[4];
+$tamanoporcenlibre=$data[5];
+
+$lineaespacios=`df -Th | grep "imt3-${nombrelv}"`;
+@data = split (/\s+/,$lineaespacios);
+$tipoarchivoslv = $data[1];
+$totallv = $data[2];
+$usadolv = $data[3];
+$disponilv = $data[4];
+
+if($nombrelv eq "swap")
+{
+	$tipoarchivoslv="swap";
+	$totallv=$tamanolv."M";
+	
+	$tamanoswap=`free -h | grep Swap`;
+	@data = split (/\s+/,$tamanoswap);
+	$usadolv = $data[2];
+	$disponilv = $data[3];
+	
+}
+
+if($nombrelv eq "opt" || $nombrelv eq "root" || $nombrelv eq "swap" || $nombrelv eq "usr" || $nombrelv eq "var" || $nombrelv eq "write")
+{
+$saltareliminado=1;
+}
+else
+{
+$saltareliminado=0;
+}
+
+if($nombregv eq "imtdatos")
+{
+$rutadiscohilo=`mount | grep ${nombrelv} | awk '{split(\$0,a," "); print a[3]}'`;
+$rutadiscohilo =~ s/(\r?\n)//g;
+#$rutadiscohilo='/local/squidcache';
+$flechi="<div style='cursor:pointer' onClick=\"myRef = window.open('/imt/hilomusical.htm?dir=$rutadiscohilo','mywin','left=330,top=150,width=900,height=600,toolbar=1,resizable=1,status=0,menubar=1,scrollbars=yes');myRef.focus()\"><img src='../images/miniverdeflecha.gif'></div>";
+}
+else
+{
+$flechi="";
+}
+
+print <<EOF;
+<tr>
+<td width=8>$flechi</td>
+<td><b><i>$nombregv</i></b></td><td width="20"></td>
+<td width="140" align="left"><font color=black>${nombrelv}</font></td>
+<td width="140" align="left"><font color=black>${tamanototal}</font></td>
+<td width="140" align="left"><font color=black>${tamanousado}</font></td>
+<td width="140" align="left"><font color=black>${tamanolibre}</font></td>
+<td width="140" align="left"><font color=black>${tamanoporcenlibre}</font></td>
+<td width=20></td>
+</tr>
+EOF
+}
+print <<EOF;
+</table>
+</td></tr>
+</table>
+
+</div>
+	
+	
+	</td></tr>	
+	<tr><td width=10></td><td height="10"></td></tr>
+	</table>
+	
+</td></tr>
+<!--<tr><td height="25"></td></tr>
+<tr>
+<td valign="top" align="center">
+
+
+<table cellpadding="0" cellspacing="0"><tr><td height="20"></td></tr><tr><td>
+		<div id="test" style="zIndex:5;color:white">$usoprocesoint</div>
+</td><td width="15"></td><td>		
+		<div id="test2" style="zIndex:5;color:white">$porcenmemoriausada</div>
+</td></tr>
+<tr><td valign="top">$inicio_gastopron $usoproceso</td><td></td><td>
+
+<table cellpadding="0" cellspacing="0"><tr><td valign="top">$inicio_gastmen</td><td width="5"></td><td><table cellpadding="0" cellspacing="0"><tr><td>$usadamemoria MB $inicio_usadan</td></tr><tr><td>$totalmemoria MB $inicio_totn</td></tr></table></td></tr></table>
+
+</td></tr>
+
+<tr><td>$cargaini</td></tr>
+
+</table>
+
+</td>
+</tr>-->
+</table>
+<br><br>
+			<!--<table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="send()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>-->
+              
+</div>              
+</div>
+
+<br><br>
+
+
+
+<center>
+<table><tr><td height="5"></td></tr><tr><td>
+<center>
+<a href="https://www.imtcloud.com" target="new"><b><font size=3 style="color:black;cursor:pointer;text-shadow: 1px 1px 1px gray;font-weight: bold;">www.imtcloud.com</font></b></a><br>
+<b>$inicio_versiactual: <a href="update.htm">$version</a></b><br>
+Copyright &copy; 2005-$yearactual Infodesain Technology S.L.
+</center>
+</td></tr></table>
+</center> 
+
+<br>
+
+<script language="javascript">
+//ngWindowInclude("9Cars", "html/ngW9Cars.htm",  157, 250);
+</script>
+EOF
+if($valorguia eq 1)
+{
+print <<EOF;
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer1" class="opaco1" style="visibility:hidden">
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="550" class="bordecuadro">
+<tr>
+<td valign="top" width="550">
+<div width="550" align="left" id="divContainer1cnt">
+
+
+<table><tr>
+<td>
+<div id="scroll" style="height: 390px; overflow: auto;float:center;	width:540px;">
+<table><tr>
+<td><img src="/images/minilupa.gif" style="cursor:pointer" border="0" onclick="clearLista()"></td><td><font color="#3e73a8"><b>OCULTAR GUÍA</b></font></td>
+<td width="100"></td>
+<td><img src="/images/close.gif" style="cursor:pointer" border="0" onclick="quitarguia()"></td><td><font color="#669900"><b>NO VOLVER A MOSTRAR GUÍA</b></font></td>
+</tr></table><br>
+
+&nbsp;<font size="4"><b>Recomendaciones iniciales:</b></font><br>
+<br>
+<table><tr><td><img src="/images/top10_1.gif"></td><td width="3"></td>
+<td><font color="#333333" size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>
+Por seguridad es importante que cambies el <font color="#3e73a8">password por defecto</font> de acceso a tu <font color="#3e73a8">I.M.T.</font> vía web y por shell, retringiendo
+el <font color="#3e73a8">acceso externo</font> en la medida de lo posible según consideres.
+</b></font></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_2.gif"></td><td width="3"></td>
+<td><font color="#333333" size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>
+Te recomendamos, antes del despliegue, que <font color="#3e73a8">prepares un esquema</font> de los <font color="#3e73a8">servidores</font> que están dentro de la red interna, así como de todos los <font color="#3e73a8">elementos de networking y tipos de lineas</font>
+que conforman la red. En la sección de configuración encontrarás todas la herramientas necesarias para el despliegue e integración.
+</b></font></td><td><img src="/images/esquema.gif"></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_3.gif"></td><td width="3"></td>
+<td><font color="#333333" size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>
+Comienza en la medida de lo posible con un <font color="#3e73a8">despliegue sencillo</font> activando en primer lugar aquellos servicios o configuración que afecten lo menos posible la conectividad.
+Una vez asentado el despliegue y según tu experiencia ve activando poco a poco los servicios a prestar y <font color="#3e73a8">analizando el nivel de eficiencia y rendimiento</font>.
+</b></font></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_4.gif"></td><td width="3"></td>
+<td><font color="#333333" size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>
+No te olvides en <font color="#3e73a8">configuración general</font> de instroducir una <font color="#3e73a8">cuenta de correo</font> para administración. Te avisará sobre actualizaciones, envío de informes y cualquier cosa que se precise
+comunicar al administrador. 
+</b></font></td><td><img src="/images/arroba.gif"></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_5.gif"></td><td width="3"></td>
+<td><font color="#333333" size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>
+Antes de terminar recuerda dejar <font color="#3e73a8">siempre un acceso externo para la gestión</font> y realiza siempre una <font color="#3e73a8">copia de seguridad</font> en la sección de mantenimiento (Backup I.M.T.)
+</b></font></td>
+</tr></table>
+<br><br>
+<!--<table><tr><td><img src="/images/top10_6.gif"></td><td width="3"></td>
+<td><font size="2">
+Modifique las interfaces en “Configuración
+LAN” para adaptarse a sus necesidades de
+red o crear unas nuevas. Recuerde que
+las interfaces de red tienen que estar en
+distintas subredes.
+</font></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_7.gif"></td><td width="3"></td>
+<td><font size="2">
+Modifique las interfaces en “Configuración
+LAN” para adaptarse a sus necesidades de
+red o crear unas nuevas. Recuerde que
+las interfaces de red tienen que estar en
+distintas subredes.
+</font></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_8.gif"></td><td width="3"></td>
+<td><font size="2">
+Modifique las interfaces en “Configuración
+LAN” para adaptarse a sus necesidades de
+red o crear unas nuevas. Recuerde que
+las interfaces de red tienen que estar en
+distintas subredes.
+</font></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_9.gif"></td><td width="3"></td>
+<td><font size="2">
+Modifique las interfaces en “Configuración
+LAN” para adaptarse a sus necesidades de
+red o crear unas nuevas. Recuerde que
+las interfaces de red tienen que estar en
+distintas subredes.
+</font></td>
+</tr></table>
+<br><br>
+<table><tr><td><img src="/images/top10_10.gif"></td><td width="3"></td>
+<td><font size="2">
+Modifique las interfaces en “Configuración
+LAN” para adaptarse a sus necesidades de
+red o crear unas nuevas. Recuerde que
+las interfaces de red tienen que estar en
+distintas subredes.
+</font></td>
+</tr></table>
+<br><br>-->
+
+</div>
+</td>
+</tr></table>
+
+</div>
+</td>
+</tr>
+</table>
+</div>
+
+EOF
+}
+
+
+print <<EOF;
+
+
+<script>
+
+window.setInterval("reloadIFrame();", 30000);
+function reloadIFrame() {
+ document.getElementById("chartinfosystem").src="chartinfosystem.htm";
+}
+
+</script>
+
+
+<script language="javascript">InitialiseAreas(); </script>
+
+
+EOF
+require "$imtlayers";
+print <<EOF;
+</form>
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+

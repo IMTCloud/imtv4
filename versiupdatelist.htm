@@ -1,0 +1,228 @@
+#! /usr/bin/perl -wX
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';              
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			
+			if (/^\s*VRS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$version = $data[1];
+			}		
+
+	}
+close(OLD);
+
+
+#print "Content-type: text/html; charset=$idicharset\n";
+#print "Content-Language: $idicorto\r\n\r\n";
+
+print <<EOF;
+<html>
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">      
+</head>
+
+<body style="background-image: none">
+
+EOF
+
+
+
+$infotest=`/opt/imt/gestor/updateutils/updates-list`;
+$infotest =~ s/(\r?\n)//g;
+$infotest =~ s/^<br>//;
+$infotest =~ s/<br><verificadoimt>$//;
+@infotestvalor = split (/<br>/,$infotest);
+
+@infotestvalor = reverse @infotestvalor;
+
+print <<EOF;
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+<link rel="stylesheet" type="text/css" href="/images/jquery.dataTables.min.css">
+<script type="text/javascript" language="javascript" src="/images/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+
+	\$(document).ready(function(){
+    \$('#tablepaquetes').DataTable( {
+        "paging":         false,
+        "scrollY":        "350px",
+        "info": true,
+        "ordering": true,
+        //"order": [[ 2, "desc" ]],
+        "searching": false,
+        'iDisplayLength': 10
+    } );
+    
+    \$("div.toolbarweb").html(' ');
+});
+
+</script>
+
+
+<div id="divtablepaquetes" style="width:200;z-index:-10;">
+
+<table id="tablepaquetes" class="display" cellpadding="0" cellspacing="0" style="font-size:12px;white-space: nowrap ;">
+
+<thead>
+<tr>
+<th>Last Version</th>
+<th>Date</th>
+</tr>
+</thead>
+
+<tbody>
+
+EOF
+
+
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+if ($mon eq "0") { $mes = "Ene"; $mesdig= "01"; }
+if ($mon eq "1") { $mes = "Feb"; $mesdig= "02"; }
+if ($mon eq "2") { $mes = "Mar"; $mesdig= "03"; }
+if ($mon eq "3") { $mes = "Abr"; $mesdig= "04"; }
+if ($mon eq "4") { $mes = "May"; $mesdig= "05"; }
+if ($mon eq "5") { $mes = "Jun"; $mesdig= "06"; }
+if ($mon eq "6") { $mes = "Jul"; $mesdig= "07"; }
+if ($mon eq "7") { $mes = "Ago"; $mesdig= "08"; }
+if ($mon eq "8") { $mes = "Sep"; $mesdig= "09"; }
+if ($mon eq "9") { $mes = "Oct"; $mesdig= "10"; }
+if ($mon eq "10") { $mes = "Nov"; $mesdig= "11"; }
+if ($mon eq "11") { $mes = "Dic"; $mesdig= "12"; }
+@data = split (/^1/,$year);
+$year = $data[1];
+$fechaactualretro= "20${year}"-1;
+$mesactual= $mesdig;
+
+
+	
+
+$i=0;
+$p=0;
+
+
+foreach $entrada ( @infotestvalor ) {	
+
+		@data = split (/\|/,$entrada);
+				
+		#Versión
+      $linea1 = $data[2];
+ 
+				if($linea1 eq $version)
+				{
+					$p=$i-1;		
+				}
+								
+				$i=$i+1;								
+		}
+	
+
+	
+$i=0;
+$nodispo=0;
+$quitar=0;
+$estilo="campotxt";
+	
+ foreach $entrada ( @infotestvalor ) {	
+ 
+				@data = split (/\|/,$entrada);
+				
+				#Número
+				$linea0 = $data[1];
+				
+				#Versión
+            $linea1 = $data[2];
+            
+            #Versión
+            $linea2 = $data[3];
+				   
+				#Fecha            
+            $linea4 = $data[5];
+            
+            $linea6 = $data[6];
+            
+            $linea7 = $data[8];
+            
+            $linea9 = $data[10];
+            
+            if($linea0 ne "")
+            {
+								
+				if($linea1 eq $version)
+				{
+					$estilo="campotxt4";
+					$inicio=$i;
+				}
+				
+				if (! utf8::is_utf8($linea2)) {
+				  utf8::decode($linea2);
+				}
+				
+				$fecha=$linea4;
+				
+				@data = split (/-/,$fecha);
+				$fecha= "$data[2]-$data[1]-$data[0]";
+				$anyo=$data[0];
+				$mesfijado=$data[1];
+				
+				if($linea1 eq $version)
+				{
+					$negraini="<b>";
+					$negrafin="</b>";
+					$regisactuselec="style='color:white;background-color: #809E12'";
+				}
+				else
+				{
+					$negraini="";
+					$negrafin="";
+					$regisactuselec="";
+				}	
+					
+				
+				print "<tr>\n";	
+				print "<td $regisactuselec>${negraini}${linea1}${negrafin}</td>\n";				
+				print "<td>${fecha}</td>\n";												
+				print "</tr>\n";																
+				
+				if($linea1 eq $version)
+				{
+					last;
+				}					
+				
+				#$i=$i+1;
+				
+				}
+				
+		}
+
+print <<EOF;
+
+</tbody>
+</table>
+
+</div>       
+
+</body></html>
+
+
+
+EOF
+

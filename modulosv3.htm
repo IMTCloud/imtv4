@@ -1,0 +1,1790 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+$cargarsnap = "10";
+#$infotest=`/opt/imt/gestor/tools/networking/ptelnet.pl www.infodesain.com 3306`;
+
+#unless($infotest =~ /no conecta/)
+#{
+#	$cargarsnap = "1";
+#}
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+	
+			if (/^\s*ACTIVADO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$activado = $data[1];
+
+				#Según estado activado o no
+				#···············································································
+
+				if($activado eq "0") 
+				{
+					print "Location: fabrica.htm\n";
+				}
+
+			}
+
+	############
+	#Despliegue#
+	############
+
+			if (/^\s*DESPLIEGUE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$tipodespliegue = $data[1];
+
+				#Mostrar el tipo de despliegue
+				#···············································································
+
+				if($tipodespliegue eq "1") 
+				{
+					$despliegue = "APPLIANCE";
+				}
+
+				if($tipodespliegue eq "2") 
+				{
+					$despliegue = "PASARELA";
+				}
+
+			}
+			
+	######################
+	#Antivirus Perimetral#
+	######################
+	
+			if (/^\s*IMT_ANTIVIRUS_HTTP_FTP_POP3\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ANTIVIRUS_HTTP_FTP_POP3 = "no";}
+				if ($data[1] eq "1") {$ANTIVIRUS_HTTP_FTP_POP3 = "si";}
+				if ($data[1] eq "2") {$ANTIVIRUS_HTTP_FTP_POP3 = "nopos";}
+				if ($data[1] eq "3") {$ANTIVIRUS_HTTP_FTP_POP3 = "maspeque"; $ANTIVIRUS_HTTP_FTP_POP3_LINK= "style='cursor:pointer' onClick=enviar('IMT_ANTIVIRUS_HTTP_FTP_POP3')";}
+			}
+			
+			if (/^\s*IMT_ANTIVIRUS_SMTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ANTIVIRUS_SMTP = "no";}
+				if ($data[1] eq "1") {$ANTIVIRUS_SMTP = "si";}
+				if ($data[1] eq "2") {$ANTIVIRUS_SMTP = "nopos";}
+				if ($data[1] eq "3") {$ANTIVIRUS_SMTP = "maspeque"; $ANTIVIRUS_SMTP_LINK= "style='cursor:pointer' onClick=enviar('IMT_ANTIVIRUS_SMTP')";}
+			}
+			
+			if (/^\s*IMT_ANTIVIRUS_IMAP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ANTIVIRUS_IMAP = "no";}
+				if ($data[1] eq "1") {$ANTIVIRUS_IMAP = "si";}
+				if ($data[1] eq "2") {$ANTIVIRUS_IMAP = "nopos";}
+				if ($data[1] eq "3") {$ANTIVIRUS_IMAP = "maspeque"; $ANTIVIRUS_IMAP_LINK= "style='cursor:pointer' onClick=enviar('IMT_ANTIVIRUS_IMAP')";}
+			}
+			
+			if (/^\s*IMT_ANTIVIRUS_NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ANTIVIRUS_NETBIOS = "no";}
+				if ($data[1] eq "1") {$ANTIVIRUS_NETBIOS = "si";}
+				if ($data[1] eq "2") {$ANTIVIRUS_NETBIOS = "nopos";}
+				if ($data[1] eq "3") {$ANTIVIRUS_NETBIOS = "maspeque";}
+			}
+			
+			if (/^\s*IMT_MULTIPLE_AV\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$MULTIPLE_AV = "no";}
+				if ($data[1] eq "1") {$MULTIPLE_AV = "si";}
+				if ($data[1] eq "2") {$MULTIPLE_AV = "nopos";}
+				if ($data[1] eq "3") {$MULTIPLE_AV = "maspeque"; $MULTIPLE_AV_LINK= "style='cursor:pointer' onClick=enviar('IMT_MULTIPLE_AV')";}
+			}
+			
+			if (/^\s*IMT_FETCHMAIL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$FETCHMAIL = "no";}
+				if ($data[1] eq "1") {$FETCHMAIL = "si";}
+				if ($data[1] eq "2") {$FETCHMAIL = "nopos";}
+				if ($data[1] eq "3") {$FETCHMAIL = "maspeque"; $FETCHMAIL_LINK= "style='cursor:pointer' onClick=enviar('IMT_FETCHMAIL')";}
+			}
+			
+			if (/^\s*IMT_GOTMAIL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$GOTMAIL = "no";}
+				if ($data[1] eq "1") {$GOTMAIL = "si";}
+				if ($data[1] eq "2") {$GOTMAIL = "nopos";}
+				if ($data[1] eq "3") {$GOTMAIL = "maspeque"; $GOTMAIL_LINK= "style='cursor:pointer' onClick=enviar('IMT_GOTMAIL')";}
+			}
+			
+			
+	
+#----------------------------------------------------------------------------			
+			
+	###########
+	#Servicios#
+	###########
+	
+			if (/^\s*IMT_SERVIDOR_DE_DOMINIO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVIDOR_DE_DOMINIO = "no";}
+				if ($data[1] eq "1") {$SERVIDOR_DE_DOMINIO = "si";}
+				if ($data[1] eq "2") {$SERVIDOR_DE_DOMINIO = "nopos";}
+				if ($data[1] eq "3") {$SERVIDOR_DE_DOMINIO = "maspeque";}
+			}
+			
+			if (/^\s*IMT_SERVIDOR_FTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVIDOR_FTP = "no";}
+				if ($data[1] eq "1") {$SERVIDOR_FTP = "si";}
+				if ($data[1] eq "2") {$SERVIDOR_FTP = "nopos";}
+				if ($data[1] eq "3") {$SERVIDOR_FTP = "maspeque";}
+				##Serie
+				$SERVIDOR_FTP = "estrellamini"; $SERVIDOR_FTP_LINK= "";
+			}
+			
+			if (/^\s*IMT_SERVIDOR_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVIDOR_WEB = "no";}
+				if ($data[1] eq "1") {$SERVIDOR_WEB = "si";}
+				if ($data[1] eq "2") {$SERVIDOR_WEB = "nopos";}
+				if ($data[1] eq "3") {$SERVIDOR_WEB = "maspeque";}
+				##Serie
+				$SERVIDOR_WEB = "estrellamini"; $SERVIDOR_WEB_LINK= "";
+			}
+			
+			if (/^\s*IMT_SERVIDOR_BBDD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVIDOR_BBDD = "no";}
+				if ($data[1] eq "1") {$SERVIDOR_BBDD = "si";}
+				if ($data[1] eq "2") {$SERVIDOR_BBDD = "nopos";}
+				if ($data[1] eq "3") {$SERVIDOR_BBDD = "maspeque";}
+			}
+			
+			if (/^\s*IMT_TECNOLOGIA_NET_BACKUP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$TECNOLOGIA_NET_BACKUP = "no";}
+				if ($data[1] eq "1") {$TECNOLOGIA_NET_BACKUP = "si";}
+				if ($data[1] eq "2") {$TECNOLOGIA_NET_BACKUP = "nopos";}
+				if ($data[1] eq "3") {$TECNOLOGIA_NET_BACKUP = "maspeque"; $TECNOLOGIA_NET_BACKUP_LINK= "style='cursor:pointer' onClick=enviar('IMT_TECNOLOGIA_NET_BACKUP')";}
+			}
+			
+			if (/^\s*IMT_BACKUPPC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$BACKUPPC = "no";}
+				if ($data[1] eq "1") {$BACKUPPC = "si";}
+				if ($data[1] eq "2") {$BACKUPPC = "nopos";}
+				if ($data[1] eq "3") {$BACKUPPC = "maspeque"; $BACKUPPC_LINK= "style='cursor:pointer' onClick=enviar('IMT_BACKUPPC')";}
+				##Serie
+				$BACKUPPC = "estrellamini"; $BACKUPPC_LINK= "";
+			}
+			
+			if (/^\s*IMT_SERVIDOR_DE_CORREO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVIDOR_DE_CORREO = "no";}
+				if ($data[1] eq "1") {$SERVIDOR_DE_CORREO = "si";}
+				if ($data[1] eq "2") {$SERVIDOR_DE_CORREO = "nopos";}
+				if ($data[1] eq "3") {$SERVIDOR_DE_CORREO = "maspeque";}
+			}
+			
+			if (/^\s*IMT_ALMACEN_NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ALMACEN_NETBIOS = "no";}
+				if ($data[1] eq "1") {$ALMACEN_NETBIOS = "si";}
+				if ($data[1] eq "2") {$ALMACEN_NETBIOS = "nopos";}
+				if ($data[1] eq "3") {$ALMACEN_NETBIOS = "maspeque"; $ALMACEN_NETBIOS_LINK= "style='cursor:pointer' onClick=enviar('IMT_ALMACEN_NETBIOS')";}
+			}
+			
+			if (/^\s*IMT_INTRANET\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$INTRANET = "no";}
+				if ($data[1] eq "1") {$INTRANET = "si";}
+				if ($data[1] eq "2") {$INTRANET = "nopos";}
+				if ($data[1] eq "3") {$INTRANET = "maspeque";}
+			}
+			
+			if (/^\s*IMT_GROUPWARE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$GROUPWARE = "no";}
+				#if ($data[1] eq "1") {$GROUPWARE = "si";}
+				#if ($data[1] eq "2") {$GROUPWARE = "nopos";}
+				#if ($data[1] eq "3") {$GROUPWARE = "maspeque"; $GROUPWARE_LINK= "style='cursor:pointer' onClick=enviar('IMT_GROUPWARE')";}
+				##Serie
+				$GROUPWARE = "estrellamini"; $GROUPWARE_LINK= "";
+			}
+			
+			if (/^\s*IMT_SISTEMA_DE_GESTION\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SISTEMA_DE_GESTION = "no";}
+				if ($data[1] eq "1") {$SISTEMA_DE_GESTION = "si";}
+				if ($data[1] eq "2") {$SISTEMA_DE_GESTION = "nopos";}
+				if ($data[1] eq "3") {$SISTEMA_DE_GESTION = "maspeque";}
+			}
+			
+			if (/^\s*IMT_SERVIDOR_DE_MENSAJERIA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVIDOR_DE_MENSAJERIA = "no";}
+				if ($data[1] eq "1") {$SERVIDOR_DE_MENSAJERIA = "si";}
+				if ($data[1] eq "2") {$SERVIDOR_DE_MENSAJERIA = "nopos";}
+				if ($data[1] eq "3") {$SERVIDOR_DE_MENSAJERIA = "maspeque"; $SERVIDOR_DE_MENSAJERIA_LINK= "style='cursor:pointer' onClick=enviar('IMT_SERVIDOR_DE_MENSAJERIA')";}
+			}
+			
+			if (/^\s*IMT_PORTAL_DE_IMAGEN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$PORTAL_DE_IMAGEN = "no";}
+				#if ($data[1] eq "1") {$PORTAL_DE_IMAGEN = "si";}
+				#if ($data[1] eq "2") {$PORTAL_DE_IMAGEN = "nopos";}
+				#if ($data[1] eq "3") {$PORTAL_DE_IMAGEN = "maspeque"; $PORTAL_DE_IMAGEN_LINK= "style='cursor:pointer' onClick=enviar('IMT_PORTAL_DE_IMAGEN')";}
+				##Serie
+				$PORTAL_DE_IMAGEN = "estrellamini"; $PORTAL_DE_IMAGEN_LINK= "";
+			}
+			
+			if (/^\s*IMT_ALFRESCO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$ALFRESCO = "no";}
+				#if ($data[1] eq "1") {$ALFRESCO = "si";}
+				#if ($data[1] eq "2") {$ALFRESCO = "nopos";}
+				#if ($data[1] eq "3") {$ALFRESCO = "maspeque"; $ALFRESCO_LINK= "style='cursor:pointer' onClick=enviar('ALFRESCO')";}
+				##Serie
+				$ALFRESCO = "estrellamini"; $ALFRESCO_LINK= "";
+			}
+			
+			if (/^\s*IMT_MANTIS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$MANTIS = "no";}
+				#if ($data[1] eq "1") {$MANTIS = "si";}
+				#if ($data[1] eq "2") {$MANTIS = "nopos";}
+				#if ($data[1] eq "3") {$MANTIS = "maspeque"; $MANTIS_LINK= "style='cursor:pointer' onClick=enviar('MANTIS')";}
+				##Serie
+				$MANTIS = "estrellamini"; $MANTIS_LINK= "";
+			}
+			
+			if (/^\s*IMT_MOODLE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$MOODLE = "no";}
+				#if ($data[1] eq "1") {$MOODLE = "si";}
+				#if ($data[1] eq "2") {$MOODLE = "nopos";}
+				#if ($data[1] eq "3") {$MOODLE = "maspeque"; $MOODLE_LINK= "style='cursor:pointer' onClick=enviar('MOODLE')";}
+				##Serie
+				$MOODLE = "estrellamini"; $MOODLE_LINK= "";
+			}
+			
+			if (/^\s*IMT_RAT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$RAT = "no";}
+				if ($data[1] eq "1") {$RAT = "si";}
+				if ($data[1] eq "2") {$RAT = "nopos";}
+				if ($data[1] eq "3") {$RAT = "maspeque"; $RAT_LINK= "style='cursor:pointer' onClick=enviar('IMT_RAT')";}
+				##Serie
+				$RAT = "estrellamini"; $RAT_LINK= "";
+			}
+			
+			if (/^\s*IMT_SERVIDOR_DNS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$SERVIDOR_DNS = "no";}
+				#if ($data[1] eq "1") {$SERVIDOR_DNS = "si";}
+				#if ($data[1] eq "2") {$SERVIDOR_DNS = "nopos";}
+				#if ($data[1] eq "3") {$SERVIDOR_DNS = "maspeque"; $SERVIDOR_DNS_LINK= "style='cursor:pointer' onClick=enviar('IMT_SERVIDOR_DNS')";}
+				##Serie
+				$SERVIDOR_DNS = "estrellamini"; $SERVIDOR_DNS_LINK= "";			
+			}
+			
+			
+			if (/^\s*IMT_WEBFOLDER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$WEBFOLDER = "no";}
+				if ($data[1] eq "1") {$WEBFOLDER = "si";}
+				if ($data[1] eq "2") {$WEBFOLDER = "nopos";}
+				if ($data[1] eq "3") {$WEBFOLDER = "maspeque";}
+			}
+
+			if (/^\s*IMT_SISTEMA_CIR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SISTEMA_CIR = "no";}
+				if ($data[1] eq "1") {$SISTEMA_CIR = "si";}
+				if ($data[1] eq "2") {$SISTEMA_CIR = "nopos";}
+				if ($data[1] eq "3") {$SISTEMA_CIR = "maspeque"; $SISTEMA_CIR_LINK= "style='cursor:pointer' onClick=enviar('IMT_SISTEMA_CIR')";}
+				##Serie
+				$SISTEMA_CIR = "estrellamini"; $SISTEMA_CIR_LINK= "";						
+			}
+			
+			if (/^\s*IMT_WAKEONLAN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$WAKEONLAN = "no";}
+				#if ($data[1] eq "1") {$WAKEONLAN = "si";}
+				#if ($data[1] eq "2") {$WAKEONLAN = "nopos";}
+				#if ($data[1] eq "3") {$WAKEONLAN = "maspeque"; $WAKEONLAN_LINK= "style='cursor:pointer' onClick=enviar('IMT_WAKEONLAN')";}
+				##Serie
+				$WAKEONLAN = "estrellamini"; $WAKEONLAN_LINK= "";	
+			}
+			
+			if (/^\s*IMT_POWEROFF_PCS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$POWEROFF_PCS = "no";}
+				if ($data[1] eq "1") {$POWEROFF_PCS = "si";}
+				if ($data[1] eq "2") {$POWEROFF_PCS = "nopos";}
+				if ($data[1] eq "3") {$POWEROFF_PCS = "maspeque"; $POWEROFF_PCS_LINK= "style='cursor:pointer' onClick=enviar('IMT_POWEROFF_PCS')";}
+				##Serie
+				$POWEROFF_PCS = "estrellamini"; $POWEROFF_PCS_LINK= "";
+			}			
+			
+			if (/^\s*IMT_MAMW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$MAMW = "no";}
+				#if ($data[1] eq "1") {$MAMW = "si";}
+				#if ($data[1] eq "2") {$MAMW = "nopos";}
+				#if ($data[1] eq "3") {$MAMW = "maspeque"; $MAMW_LINK= "style='cursor:pointer' onClick=enviar('IMT_MAMW')";}
+				##Serie
+				$MAMW = "estrellamini"; $MAMW_LINK= "";			
+			}
+			
+			if (/^\s*IMT_MFC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$MFC = "no";}
+				#if ($data[1] eq "1") {$MFC = "si";}
+				#if ($data[1] eq "2") {$MFC = "nopos";}
+				#if ($data[1] eq "3") {$MFC = "maspeque"; $RAT_LINK= "style='cursor:pointer' onClick=enviar('IMT_MFC')";}
+				##Serie
+				$MFC = "estrellamini"; $MFC_LINK= "";			
+			}
+			
+				
+#----------------------------------------------------------------------------			
+			
+	###########
+	#Seguridad#
+	###########
+	
+			if (/^\s*IMT_PORTAL_CAUTIVO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$PORTAL_CAUTIVO = "no";}
+				if ($data[1] eq "1") {$PORTAL_CAUTIVO = "si";}
+				if ($data[1] eq "2") {$PORTAL_CAUTIVO = "nopos";}
+				if ($data[1] eq "3") {$PORTAL_CAUTIVO = "maspeque"; $PORTAL_CAUTIVO_LINK= "style='cursor:pointer' onClick=enviar('IMT_PORTAL_CAUTIVO')";}
+			}
+			
+			if (/^\s*IMT_AUDITOR_DE_SEGURIDAD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$AUDITOR_DE_SEGURIDAD = "no";}
+				if ($data[1] eq "1") {$AUDITOR_DE_SEGURIDAD = "si";}
+				if ($data[1] eq "2") {$AUDITOR_DE_SEGURIDAD = "nopos";}
+				if ($data[1] eq "3") {$AUDITOR_DE_SEGURIDAD = "maspeque"; $AUDITOR_DE_SEGURIDAD_LINK= "style='cursor:pointer' onClick=enviar('IMT_AUDITOR_DE_SEGURIDAD')";}
+			}
+			
+			
+			if (/^\s*IMT_FIREWALL_PERIMETRAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$FIREWALL_PERIMETRAL = "no";}
+				if ($data[1] eq "1") {$FIREWALL_PERIMETRAL = "si";}
+				if ($data[1] eq "2") {$FIREWALL_PERIMETRAL = "nopos";}
+				if ($data[1] eq "3") {$FIREWALL_PERIMETRAL = "maspeque"; $FIREWALL_PERIMETRAL_LINK= "style='cursor:pointer' onClick=enviar('IMT_FIREWALL_PERIMETRAL')";}
+				
+			}
+			
+			
+			if (/^\s*IMT_CONTROL_CAPA7\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$CONTROL_CAPA7 = "no";}
+				if ($data[1] eq "1") {$CONTROL_CAPA7 = "si";}
+				if ($data[1] eq "2") {$CONTROL_CAPA7 = "nopos";}
+				if ($data[1] eq "3") {$CONTROL_CAPA7 = "maspeque"; $CONTROL_CAPA7_LINK= "style='cursor:pointer' onClick=enviar('IMT_CONTROL_CAPA7')";}
+				
+			}
+			
+			
+			if (/^\s*IMT_BLOQUEADOR_P2P_MSN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$BLOQUEADOR_P2P_MSN = "no";}
+				if ($data[1] eq "1") {$BLOQUEADOR_P2P_MSN = "si";}
+				if ($data[1] eq "2") {$BLOQUEADOR_P2P_MSN = "nopos";}
+				if ($data[1] eq "3") {$BLOQUEADOR_P2P_MSN = "maspeque"; $BLOQUEADOR_P2P_MSN_LINK= "style='cursor:pointer' onClick=enviar('IMT_BLOQUEADOR_P2P_MSN')";}
+			}
+			
+			if (/^\s*IMT_SISTEMA_PORTSHADOW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SISTEMA_PORTSHADOW = "no";}
+				if ($data[1] eq "1") {$SISTEMA_PORTSHADOW = "si";}
+				if ($data[1] eq "2") {$SISTEMA_PORTSHADOW = "nopos";}
+				if ($data[1] eq "3") {$SISTEMA_PORTSHADOW = "maspeque"; $SISTEMA_PORTSHADOW_LINK= "style='cursor:pointer' onClick=enviar('IMT_SISTEMA_PORTSHADOW')";}
+				##Serie
+				$SISTEMA_PORTSHADOW = "estrellamini"; $SISTEMA_PORTSHADOW_LINK= "";		
+			}
+			
+			if (/^\s*IMT_INTRUSION_DETECTION\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$INTRUSION_DETECTION = "no";}
+				#if ($data[1] eq "1") {$INTRUSION_DETECTION = "si";}
+				#if ($data[1] eq "2") {$INTRUSION_DETECTION = "nopos";}
+				#if ($data[1] eq "3") {$INTRUSION_DETECTION = "maspeque"; $INTRUSION_DETECTION_LINK= "style='cursor:pointer' onClick=enviar('IMT_INTRUSION_DETECTION')";}
+				##Serie
+				$INTRUSION_DETECTION = "estrellamini"; $INTRUSION_DETECTION_LINK= "";
+			}
+			
+			if (/^\s*IMT_GESTOR_PKI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$GESTOR_PKI = "no";}
+				if ($data[1] eq "1") {$GESTOR_PKI = "si";}
+				if ($data[1] eq "2") {$GESTOR_PKI = "nopos";}
+				if ($data[1] eq "3") {$GESTOR_PKI = "maspeque"; $GESTOR_PKI_LINK= "style='cursor:pointer' onClick=enviar('IMT_GESTOR_PKI')";}
+				##Serie
+				$GESTOR_PKI = "estrellamini"; $GESTOR_PKI_LINK= "";
+			}
+			
+			if (/^\s*IMT_BITDEFENDER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$BITDEFENDER = "no";}
+				if ($data[1] eq "1") {$BITDEFENDER = "si";}
+				if ($data[1] eq "2") {$BITDEFENDER = "nopos";}
+				if ($data[1] eq "3") {$BITDEFENDER = "maspeque"; $BITDEFENDER_LINK= "style='cursor:pointer' onClick=enviar('IMT_BITDEFENDER')";}
+			}
+			
+			if (/^\s*IMT_IMSPECTOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$IMSPECTOR = "no";}
+				if ($data[1] eq "1") {$IMSPECTOR = "si";}
+				if ($data[1] eq "2") {$IMSPECTOR = "nopos";}
+				if ($data[1] eq "3") {$IMSPECTOR = "maspeque"; $IMSPECTOR_LINK= "style='cursor:pointer' onClick=enviar('IMT_IMSPECTOR')";}
+			}
+			
+				
+#----------------------------------------------------------------------------			
+			
+	######################
+	# Conectividad de red#
+	######################
+	
+			if (/^\s*IMT_VPN_IPSEC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$VPN_IPSEC = "no";}
+				if ($data[1] eq "1") {$VPN_IPSEC = "si";}
+				if ($data[1] eq "2") {$VPN_IPSEC = "nopos";}
+				if ($data[1] eq "3") {$VPN_IPSEC = "maspeque"; $VPN_IPSEC_LINK= "style='cursor:pointer' onClick=enviar('IMT_VPN_IPSEC')";}
+			}
+			
+			if (/^\s*IMT_VPN_PPTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$VPN_PPTP = "no";}
+				if ($data[1] eq "1") {$VPN_PPTP = "si";}
+				if ($data[1] eq "2") {$VPN_PPTP = "nopos";}
+				if ($data[1] eq "3") {$VPN_PPTP = "maspeque"; $VPN_PPTP_LINK= "style='cursor:pointer' onClick=enviar('IMT_VPN_PPTP')";}
+			}
+			
+			if (/^\s*IMT_OPENVPN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$OPENVPN = "no";}
+				if ($data[1] eq "1") {$OPENVPN = "si";}
+				if ($data[1] eq "2") {$OPENVPN = "nopos";}
+				if ($data[1] eq "3") {$OPENVPN = "maspeque"; $OPENVPN_LINK= "style='cursor:pointer' onClick=enviar('IMT_OPENVPN')";}
+			}
+			
+			if (/^\s*IMT_VPN_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$VPN_WEB = "no";}
+				if ($data[1] eq "1") {$VPN_WEB = "si";}
+				if ($data[1] eq "2") {$VPN_WEB = "nopos";}
+				if ($data[1] eq "3") {$VPN_WEB = "maspeque"; $VPN_WEB_LINK= "style='cursor:pointer' onClick=enviar('IMT_VPN_WEB')";}
+			}
+					
+#----------------------------------------------------------------------------			
+			
+	###############
+	# Comunicación#
+	###############
+	
+			if (/^\s*IMT_VOZ_SOBRE_IP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$VOZ_SOBRE_IP = "no";}
+				if ($data[1] eq "1") {$VOZ_SOBRE_IP = "si";}
+				if ($data[1] eq "2") {$VOZ_SOBRE_IP = "nopos";}
+				if ($data[1] eq "3") {$VOZ_SOBRE_IP = "maspeque"; $VOZ_SOBRE_IP_LINK= "style='cursor:pointer' onClick=enviar('IMT_VOZ_SOBRE_IP')";}
+			}
+			
+			if (/^\s*IMT_FAX_SOBRE_IP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$FAX_SOBRE_IP = "no";}
+				if ($data[1] eq "1") {$FAX_SOBRE_IP = "si";}
+				if ($data[1] eq "2") {$FAX_SOBRE_IP = "nopos";}
+				if ($data[1] eq "3") {$FAX_SOBRE_IP = "maspeque"; $FAX_SOBRE_IP_LINK= "style='cursor:pointer' onClick=enviar('IMT_FAX_SOBRE_IP')";}
+			}
+			
+			if (/^\s*IMT_SIP_PROXY_SERVER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SIP_PROXY_SERVER = "no";}
+				if ($data[1] eq "1") {$SIP_PROXY_SERVER = "si";}
+				if ($data[1] eq "2") {$SIP_PROXY_SERVER = "nopos";}
+				if ($data[1] eq "3") {$SIP_PROXY_SERVER = "maspeque"; $SIP_PROXY_SERVER_LINK= "style='cursor:pointer' onClick=enviar('IMT_SIP_PROXY_SERVER')";}
+			}
+			
+			if (/^\s*IMT_COMUNICADOR_SMS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$COMUNICADOR_SMS = "no";}
+				if ($data[1] eq "1") {$COMUNICADOR_SMS = "si";}
+				if ($data[1] eq "2") {$COMUNICADOR_SMS = "nopos";}
+				if ($data[1] eq "3") {$COMUNICADOR_SMS = "maspeque"; $COMUNICADOR_SMS_LINK= "style='cursor:pointer' onClick=enviar('IMT_COMUNICADOR_SMS')";}
+			}
+			
+			if (/^\s*IMT_COMUNICADOR_BLUETOOTH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$COMUNICADOR_BLUETOOTH = "no";}
+				if ($data[1] eq "1") {$COMUNICADOR_BLUETOOTH = "si";}
+				if ($data[1] eq "2") {$COMUNICADOR_BLUETOOTH = "nopos";}
+				if ($data[1] eq "3") {$COMUNICADOR_BLUETOOTH = "maspeque"; $COMUNICADOR_BLUETOOTH_LINK= "style='cursor:pointer' onClick=enviar('IMT_COMUNICADOR_BLUETOOTH')";}
+			}
+			
+			if (/^\s*IMT_XBLUE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$XBLUE = "no";}
+				if ($data[1] eq "1") {$XBLUE = "si";}
+				if ($data[1] eq "2") {$XBLUE = "nopos";}
+				if ($data[1] eq "3") {$XBLUE = "maspeque"; $XBLUE_LINK= "style='cursor:pointer' onClick=enviar('IMT_XBLUE')";}
+			}
+	
+	#----------------------------------------------------------------------------
+	
+	###############
+	# Rendimiento #
+	###############
+	
+			if (/^\s*IMT_PREFETCH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$PREFETCH = "no";}
+				if ($data[1] eq "1") {$PREFETCH = "si";}
+				if ($data[1] eq "2") {$PREFETCH = "nopos";}
+				if ($data[1] eq "3") {$PREFETCH = "maspeque"; $PREFETCH_LINK= "style='cursor:pointer' onClick=enviar('IMT_PREFETCH')";}
+				##Serie
+				$PREFETCH = "estrellamini"; $PREFETCH_LINK= "";
+			}
+	
+			
+	#----------------------------------------------------------------------------			
+			
+	###########
+	# Hardware#
+	###########
+	
+			if (/^\s*IMT_ROUTER_ADSL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$ROUTER_ADSL = "no";}
+				#if ($data[1] eq "1") {$ROUTER_ADSL = "si";}
+				#if ($data[1] eq "2") {$ROUTER_ADSL = "nopos";}
+				#if ($data[1] eq "3") {$ROUTER_ADSL = "maspeque"; $ROUTER_ADSL_LINK= "style='cursor:pointer' onClick=enviar('IMT_ROUTER_ADSL')";}
+				##Serie
+				$ROUTER_ADSL = "estrellamini"; $ROUTER_ADSL_LINK= "";
+			}
+			
+			if (/^\s*IMT_TARJETA_3G\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$TARJETA_3G = "no";}
+				#if ($data[1] eq "1") {$TARJETA_3G = "si";}
+				#if ($data[1] eq "2") {$TARJETA_3G = "nopos";}
+				#if ($data[1] eq "3") {$TARJETA_3G = "maspeque"; $TARJETA_3G_LINK= "style='cursor:pointer' onClick=enviar('IMT_TARJETA_3G')";}
+				##Serie
+				$TARJETA_3G = "estrellamini"; $TARJETA_3G_LINK= "";
+			}
+			
+			if (/^\s*IMT_CONEXION_WIFI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$CONEXION_WIFI = "no";}
+				#if ($data[1] eq "1") {$CONEXION_WIFI = "si";}
+				#if ($data[1] eq "2") {$CONEXION_WIFI = "nopos";}
+				#if ($data[1] eq "3") {$CONEXION_WIFI = "maspeque"; $CONEXION_WIFI_LINK= "style='cursor:pointer' onClick=enviar('IMT_CONEXION_WIFI')";}
+				##Serie
+				$CONEXION_WIFI = "estrellamini"; $CONEXION_WIFI_LINK= "";
+			}
+			
+			if (/^\s*IMT_DISCO_ALMACEN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$DISCO_ALMACEN = "no";}
+				#if ($data[1] eq "1") {$DISCO_ALMACEN = "si";}
+				#if ($data[1] eq "2") {$DISCO_ALMACEN = "nopos";}
+				#if ($data[1] eq "3") {$DISCO_ALMACEN = "maspeque"; $DISCO_ALMACEN_LINK= "style='cursor:pointer' onClick=enviar('IMT_DISCO_ALMACEN')";}
+				##Serie
+				$DISCO_ALMACEN = "estrellamini"; $DISCO_ALMACEN_LINK= "";
+			}
+			
+			if (/^\s*IMT_CONEXION_WIFI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$CONEXION_WIFI = "no";}
+				#if ($data[1] eq "1") {$CONEXION_WIFI = "si";}
+				#if ($data[1] eq "2") {$CONEXION_WIFI = "nopos";}
+				#if ($data[1] eq "3") {$CONEXION_WIFI = "maspeque";}
+				##Serie
+				$CONEXION_WIFI = "estrellamini"; $CONEXION_WIFI_LINK= "";
+			}
+	
+	#----------------------------------------------------------------------------			
+			
+	################
+	#Monitorización#
+	################
+		
+			if (/^\s*IMT_CONTROLADOR_DE_PASO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$CONTROLADOR_DE_PASO = "no";}
+				#if ($data[1] eq "1") {$CONTROLADOR_DE_PASO = "si";}
+				#if ($data[1] eq "2") {$CONTROLADOR_DE_PASO = "nopos";}
+				#if ($data[1] eq "3") {$CONTROLADOR_DE_PASO = "maspeque"; $CONTROLADOR_DE_PASO_LINK= "style='cursor:pointer' onClick=enviar('IMT_CONTROLADOR_DE_PASO')";}
+				##Serie
+				$CONTROLADOR_DE_PASO = "estrellamini"; $CONTROLADOR_DE_PASO_LINK= "";
+			}
+			
+			if (/^\s*IMT_BUSCADOR_FTP_NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$BUSCADOR_FTP_NETBIOS = "no";}
+				if ($data[1] eq "1") {$BUSCADOR_FTP_NETBIOS = "si";}
+				if ($data[1] eq "2") {$BUSCADOR_FTP_NETBIOS = "nopos";}
+				if ($data[1] eq "3") {$BUSCADOR_FTP_NETBIOS = "maspeque";}
+			}
+			
+			if (/^\s*IMT_RASTREADOR_NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$RASTREADOR_NETBIOS = "no";}
+				if ($data[1] eq "1") {$RASTREADOR_NETBIOS = "si";}
+				if ($data[1] eq "2") {$RASTREADOR_NETBIOS = "nopos";}
+				if ($data[1] eq "3") {$RASTREADOR_NETBIOS = "maspeque"; $RASTREADOR_NETBIOS_LINK= "style='cursor:pointer' onClick=enviar('IMT_RASTREADOR_NETBIOS')";}
+				##Serie
+				$RASTREADOR_NETBIOS = "estrellamini"; $RASTREADOR_NETBIOS_LINK= "";
+			}
+			
+			if (/^\s*IMT_SERVICES_MONITOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SERVICES_MONITOR = "no";}
+				if ($data[1] eq "1") {$SERVICES_MONITOR = "si";}
+				if ($data[1] eq "2") {$SERVICES_MONITOR = "nopos";}
+				if ($data[1] eq "3") {$SERVICES_MONITOR = "maspeque"; $SERVICES_MONITOR_LINK= "style='cursor:pointer' onClick=enviar('IMT_SERVICES_MONITOR')";}
+			
+			}
+			
+			if (/^\s*IMT_CACTI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$CACTI = "no";}
+				if ($data[1] eq "1") {$CACTI = "si";}
+				if ($data[1] eq "2") {$CACTI = "nopos";}
+				if ($data[1] eq "3") {$CACTI = "maspeque"; $CACTI_LINK= "style='cursor:pointer' onClick=enviar('IMT_CACTI')";}
+				##Serie
+				$CACTI = "estrellamini"; $CACTI_LINK= "";
+			}
+			
+			if (/^\s*IMT_SB_EVENTLOG_MONITOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SB_EVENTLOG_MONITOR = "no";}
+				if ($data[1] eq "1") {$SB_EVENTLOG_MONITOR = "si";}
+				if ($data[1] eq "2") {$SB_EVENTLOG_MONITOR = "nopos";}
+				if ($data[1] eq "3") {$SB_EVENTLOG_MONITOR = "maspeque"; $SB_EVENTLOG_MONITOR_LINK= "style='cursor:pointer' onClick=enviar('IMT_SB_EVENTLOG_MONITOR')";}
+			}
+			##Serie
+			$SB_EVENTLOG_MONITOR = "estrellamini"; $SB_EVENTLOG_MONITOR_LINK= "";
+			
+			if (/^\s*IMT_HAPM_HEARTBEAT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$HAPM_HEARTBEAT = "no";}
+				if ($data[1] eq "1") {$HAPM_HEARTBEAT = "si";}
+				if ($data[1] eq "2") {$HAPM_HEARTBEAT = "nopos";}
+				if ($data[1] eq "3") {$HAPM_HEARTBEAT = "maspeque"; $HAPM_HEARTBEAT_LINK= "style='cursor:pointer' onClick=enviar('IMT_HAPM_HEARTBEAT')";}
+			}
+			
+			if (/^\s*IMT_ZABBIX\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ZABBIX = "no";}
+				if ($data[1] eq "1") {$ZABBIX = "si";}
+				if ($data[1] eq "2") {$ZABBIX = "nopos";}
+				if ($data[1] eq "3") {$ZABBIX = "maspeque"; $ZABBIX_LINK= "style='cursor:pointer' onClick=enviar('IMT_ZABBIX')";}
+			}
+			##Serie
+			$ZABBIX = "estrellamini"; $ZABBIX_LINK= "";				
+			
+			if (/^\s*IMT_NTOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$NTOP = "no";}
+				if ($data[1] eq "1") {$NTOP = "si";}
+				if ($data[1] eq "2") {$NTOP = "nopos";}
+				if ($data[1] eq "3") {$NTOP = "maspeque"; $ZABBIX_LINK= "style='cursor:pointer' onClick=enviar('IMT_NTOP')";}
+			}
+			##Serie
+			$NTOP = "estrellamini"; $NTOP_LINK= "";
+			
+			if (/^\s*IMT_NAGIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$NAGIOS = "no";}
+				if ($data[1] eq "1") {$NAGIOS = "si";}
+				if ($data[1] eq "2") {$NAGIOS = "nopos";}
+				if ($data[1] eq "3") {$NAGIOS = "maspeque"; $NAGIOS_LINK= "style='cursor:pointer' onClick=enviar('IMT_NAGIOS')";}
+			}
+			##Serie
+			$NAGIOS = "estrellamini"; $NAGIOS_LINK= "";		
+			
+									
+#----------------------------------------------------------------------------			
+			
+	####################
+	# Control de correo#
+	####################
+		
+			
+			if (/^\s*IMT_SISTEMA_ANTISPAM\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SISTEMA_ANTISPAM = "no";}
+				if ($data[1] eq "1") {$SISTEMA_ANTISPAM = "si";}
+				if ($data[1] eq "2") {$SISTEMA_ANTISPAM = "nopos";}
+				if ($data[1] eq "3") {$SISTEMA_ANTISPAM = "maspeque"; $SISTEMA_ANTISPAM_LINK= "style='cursor:pointer' onClick=enviar('IMT_SISTEMA_ANTISPAM')";}
+			}
+			
+			if (/^\s*IMT_FILTRADOR_DE_CORREO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$FILTRADOR_DE_CORREO = "no";}
+				if ($data[1] eq "1") {$FILTRADOR_DE_CORREO = "si";}
+				if ($data[1] eq "2") {$FILTRADOR_DE_CORREO = "nopos";}
+				if ($data[1] eq "3") {$FILTRADOR_DE_CORREO = "maspeque";}
+			}
+			
+			if (/^\s*IMT_ALMACEN_SMTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$ALMACEN_SMTP = "no";}
+				if ($data[1] eq "1") {$ALMACEN_SMTP = "si";}
+				if ($data[1] eq "2") {$ALMACEN_SMTP = "nopos";}
+				if ($data[1] eq "3") {$ALMACEN_SMTP = "maspeque";}
+			}
+			
+			if (/^\s*IMT_DETECTOR_DE_INFORMACION_EMAIL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$DETECTOR_DE_INFORMACION_EMAIL = "no";}
+				if ($data[1] eq "1") {$DETECTOR_DE_INFORMACION_EMAIL = "si";}
+				if ($data[1] eq "2") {$DETECTOR_DE_INFORMACION_EMAIL = "nopos";}
+				if ($data[1] eq "3") {$DETECTOR_DE_INFORMACION_EMAIL = "maspeque";}
+			}
+			
+			if (/^\s*IMT_NOTIFICADOR_EMAIL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$NOTIFICADOR_EMAIL = "no";}
+				if ($data[1] eq "1") {$NOTIFICADOR_EMAIL = "si";}
+				if ($data[1] eq "2") {$NOTIFICADOR_EMAIL = "nopos";}
+				if ($data[1] eq "3") {$NOTIFICADOR_EMAIL = "maspeque";}
+			}
+			
+							
+#----------------------------------------------------------------------------			
+			
+	#####################################
+	#Trafico de red, alta disponibilidad#
+	#####################################
+
+			
+			if (/^\s*IMT_TECNOLOGIA_CARP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$TECNOLOGIA_CARP = "no";}
+				#if ($data[1] eq "1") {$TECNOLOGIA_CARP = "si";}
+				#if ($data[1] eq "2") {$TECNOLOGIA_CARP = "nopos";}
+				#if ($data[1] eq "3") {$TECNOLOGIA_CARP = "maspeque"; $TECNOLOGIA_CARP_LINK= "style='cursor:pointer' onClick=enviar('IMT_TECNOLOGIA_CARP')";}
+				##Serie
+				$TECNOLOGIA_CARP = "estrellamini"; $TECNOLOGIA_CARP_LINK= "";
+			}
+			
+			if (/^\s*IMT_CLUSTERING\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$CLUSTERING = "no";}
+				if ($data[1] eq "1") {$CLUSTERING = "si";}
+				if ($data[1] eq "2") {$CLUSTERING = "nopos";}
+				if ($data[1] eq "3") {$CLUSTERING = "maspeque";}
+			}
+			
+			if (/^\s*IMT_BALANCEADOR_DE_CARGA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$BALANCEADOR_DE_CARGA = "no";}
+				if ($data[1] eq "1") {$BALANCEADOR_DE_CARGA = "si";}
+				if ($data[1] eq "2") {$BALANCEADOR_DE_CARGA = "nopos";}
+				if ($data[1] eq "3") {$BALANCEADOR_DE_CARGA = "maspeque"; $BALANCEADOR_DE_CARGA_LINK= "style='cursor:pointer' onClick=enviar('IMT_BALANCEADOR_DE_CARGA')";}
+			}
+			
+			if (/^\s*IMT_CONTROLADOR_DE_CAUDAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$CONTROLADOR_DE_CAUDAL = "no";}
+				if ($data[1] eq "1") {$CONTROLADOR_DE_CAUDAL = "si";}
+				if ($data[1] eq "2") {$CONTROLADOR_DE_CAUDAL = "nopos";}
+				if ($data[1] eq "3") {$CONTROLADOR_DE_CAUDAL = "maspeque";}
+			}
+			
+			if (/^\s*IMT_BACKUP_DE_LINEA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$BACKUP_DE_LINEA = "no";}
+				if ($data[1] eq "1") {$BACKUP_DE_LINEA = "si";}
+				if ($data[1] eq "2") {$BACKUP_DE_LINEA = "nopos";}
+				if ($data[1] eq "3") {$BACKUP_DE_LINEA = "maspeque"; $BACKUP_DE_LINEA_LINK= "style='cursor:pointer' onClick=enviar('IMT_BACKUP_DE_LINEA')";}
+			}
+			
+			if (/^\s*IMT_FASTHTTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$FASTHTTP = "no";}
+				if ($data[1] eq "1") {$FASTHTTP = "si";}
+				if ($data[1] eq "2") {$FASTHTTP = "nopos";}
+				if ($data[1] eq "3") {$FASTHTTP = "maspeque"; $FASTHTTP_LINK= "style='cursor:pointer' onClick=enviar('IMT_FASTHTTP')";}
+			}
+			
+			if (/^\s*IMT_SISTEMA_BONDING\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				#if ($data[1] eq "0") {$SISTEMA_BONDING = "no";}
+				#if ($data[1] eq "1") {$SISTEMA_BONDING = "si";}
+				#if ($data[1] eq "2") {$SISTEMA_BONDING = "nopos";}
+				#if ($data[1] eq "3") {$SISTEMA_BONDING = "maspeque"; $SISTEMA_BONDING_LINK= "style='cursor:pointer' onClick=enviar('IMT_SISTEMA_BONDING')";}
+				##Serie
+				$SISTEMA_BONDING = "estrellamini"; $SISTEMA_BONDING_LINK= "";
+			}
+									
+#----------------------------------------------------------------------------			
+			
+	#############
+	#Control Web#
+	#############
+	
+			
+			if (/^\s*IMT_FILTRADOR_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$FILTRADOR_WEB = "no";}
+				if ($data[1] eq "1") {$FILTRADOR_WEB = "si";}
+				if ($data[1] eq "2") {$FILTRADOR_WEB = "nopos";}
+				if ($data[1] eq "3") {$FILTRADOR_WEB = "maspeque"; $FILTRADOR_WEB_LINK= "style='cursor:pointer' onClick=enviar('IMT_FILTRADOR_WEB')";}
+			}		
+							
+			
+			if (/^\s*IMT_CHIVATO_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$CHIVATO_WEB = "no";}
+				if ($data[1] eq "1") {$CHIVATO_WEB = "si";}
+				if ($data[1] eq "2") {$CHIVATO_WEB = "nopos";}
+				if ($data[1] eq "3") {$CHIVATO_WEB = "maspeque"; $CHIVATO_WEB_LINK= "style='cursor:pointer' onClick=enviar('IMT_CHIVATO_WEB')";}
+			}
+			
+			
+			if (/^\s*IMT_PRIVOXY\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$PRIVOXY = "no";}
+				if ($data[1] eq "1") {$PRIVOXY = "si";}
+				if ($data[1] eq "2") {$PRIVOXY = "nopos";}
+				if ($data[1] eq "3") {$PRIVOXY = "maspeque"; $PRIVOXY_WEB_LINK= "style='cursor:pointer' onClick=enviar('IMT_PRIVOXY')";}
+			}		
+			
+			
+			if (/^\s*IMT_OPTENET\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$OPTENET = "no";}
+				if ($data[1] eq "1") {$OPTENET = "si";}
+				if ($data[1] eq "2") {$OPTENET = "nopos";}
+				if ($data[1] eq "3") {$OPTENET = "maspeque"; $OPTENET_LINK= "style='cursor:pointer' onClick=enviar('IMT_OPTENET')";}
+			}		
+			
+
+			
+			
+			if (/^\s*IMT_TECNOLOGIA_INALAMBRICA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$TECNOLOGIA_INALAMBRICA = "no";}
+				if ($data[1] eq "1") {$TECNOLOGIA_INALAMBRICA = "si";}
+				if ($data[1] eq "2") {$TECNOLOGIA_INALAMBRICA = "nopos";}
+				if ($data[1] eq "3") {$TECNOLOGIA_INALAMBRICA = "maspeque";}
+			}
+
+
+
+#----------------------------------------------------------------------------			
+			
+	################
+	#Virtualización#
+	################
+	
+			
+			if (/^\s*IMT_VIRTUALXEN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$VIRTUALXEN = "no";}
+				if ($data[1] eq "1") {$VIRTUALXEN = "si";}
+				if ($data[1] eq "2") {$VIRTUALXEN = "nopos";}
+				if ($data[1] eq "3") {$VIRTUALXEN = "maspeque"; $VIRTUALXEN_LINK= "style='cursor:pointer' onClick=enviar('IMT_VIRTUALXEN')";}
+			}		
+
+
+
+			
+#----------------------------------------------------------------------------			
+			
+	#######################
+	#Programación adaptada#
+	#######################
+	
+			
+			if (/^\s*IMT_GESTOR_DE_OBRAS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$GESTOR_DE_OBRAS = "no";}
+				if ($data[1] eq "1") {$GESTOR_DE_OBRAS = "si";}
+				if ($data[1] eq "2") {$GESTOR_DE_OBRAS = "nopos";}
+				if ($data[1] eq "3") {$GESTOR_DE_OBRAS = "maspeque"; $GESTOR_DE_OBRAS_LINK= "style='cursor:pointer' onClick=enviar('IMT_GESTOR_DE_OBRAS')";}
+			}		
+							
+			if (/^\s*IMT_OCS_INVENTORY\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$OCS_INVENTORY = "no";}
+				if ($data[1] eq "1") {$OCS_INVENTORY = "si";}
+				if ($data[1] eq "2") {$OCS_INVENTORY = "nopos";}
+				if ($data[1] eq "3") {$OCS_INVENTORY = "maspeque"; $OCS_INVENTORY_LINK= "style='cursor:pointer' onClick=enviar('IMT_OCS_INVENTORY')";}
+			}
+			##Serie
+			$OCS_INVENTORY = "estrellamini"; $OCS_INVENTORY_LINK= "";						
+			
+			if (/^\s*IMT_DOMAIN_TECHNOLOGY_CONTROL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$DOMAIN_TECHNOLOGY_CONTROL = "no";}
+				if ($data[1] eq "1") {$DOMAIN_TECHNOLOGY_CONTROL = "si";}
+				if ($data[1] eq "2") {$DOMAIN_TECHNOLOGY_CONTROL = "nopos";}
+				if ($data[1] eq "3") {$DOMAIN_TECHNOLOGY_CONTROL = "maspeque"; $DOMAIN_TECHNOLOGY_CONTROL_LINK= "style='cursor:pointer' onClick=enviar('IMT_DOMAIN_TECHNOLOGY_CONTROL')";}
+			}	
+			
+			if (/^\s*IMT_SUGARCRM\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$SUGARCRM = "no";}
+				if ($data[1] eq "1") {$SUGARCRM = "si";}
+				if ($data[1] eq "2") {$SUGARCRM = "nopos";}
+				if ($data[1] eq "3") {$SUGARCRM = "maspeque"; $SUGARCRM_LINK= "style='cursor:pointer' onClick=enviar('IMT_SUGARCRM')";}
+				##Serie
+				$SUGARCRM = "estrellamini"; $SUGARCRM_LINK= "";
+			}
+			
+			if (/^\s*IMT_OSCOMMERCE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "0") {$OSCOMMERCE = "no";}
+				if ($data[1] eq "1") {$OSCOMMERCE = "si";}
+				if ($data[1] eq "2") {$OSCOMMERCE = "nopos";}
+				if ($data[1] eq "3") {$OSCOMMERCE = "maspeque"; $OSCOMMERCE_LINK= "style='cursor:pointer' onClick=enviar('IMT_OSCOMMERCE')";}
+				##Serie
+				$OSCOMMERCE = "estrellamini"; $OSCOMMERCE_LINK= "";
+			}															
+			
+	}
+
+	close(OLD)     or die "can't close $modulos: $!";
+ 
+
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<title>Modulos</title>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="JavaScript1.2">
+<!--
+
+//Smart Folding Menu tree- By Dynamic Drive (rewritten 03/03/02)
+//For full source code and more DHTML scripts, visit http://www.dynamicdrive.com
+//This credit MUST stay intact for use
+
+var head="display:''"
+img1=new Image()
+img1.src="fold.gif"
+img2=new Image()
+img2.src="open.gif"
+
+var ns6=document.getElementById&&!document.all
+var ie4=document.all&&navigator.userAgent.indexOf("Opera")==-1
+
+function checkcontained(e){
+var iscontained=0
+cur=ns6? e.target : event.srcElement
+i=0
+if (cur.id=="foldheader")
+iscontained=1
+else
+while (ns6&&cur.parentNode||(ie4&&cur.parentElement)){
+if (cur.id=="foldheader"||cur.id=="foldinglist"){
+iscontained=(cur.id=="foldheader")? 1 : 0
+break
+}
+cur=ns6? cur.parentNode : cur.parentElement
+}
+
+if (iscontained){
+var foldercontent=ns6? cur.nextSibling.nextSibling : cur.all.tags("UL")[0]
+if (foldercontent.style.display=="none"){
+foldercontent.style.display=""
+cur.style.listStyleImage="url(open.gif)"
+}
+else{
+foldercontent.style.display="none"
+cur.style.listStyleImage="url(fold.gif)"
+}
+}
+}
+
+if (ie4||ns6)
+document.onclick=checkcontained
+
+//-->
+</script>
+
+
+
+
+<script language="javascript">
+
+function enviar(opc)
+{
+oscuprocessform();
+
+var opc    
+document.theform.env.value = opc;
+document.theform.action = "altaservicio.htm";
+document.theform.submit();
+
+}
+
+
+
+</script>
+EOF
+if($cargarsnap eq 1)
+{
+print <<EOF;
+<script type="text/javascript" src="http://shots.snap.com/ss/9bb05bea9576fe1cd000b682236cf9db/snap_shots.js"></script>
+EOF
+}
+print <<EOF;
+
+<style>
+
+.node circle {
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.node {
+  font: 10px sans-serif;
+}
+
+.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+</style>
+
+</head>
+
+	
+<body>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR="#3e73a8"><B>Módulos integrados</B></FONT></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<div style="position:absolute; left: 1000; border: 1px solid red">
+
+<script src="/images/d3.min.js"></script>
+<script>
+
+var width = 700,
+    height = 1400;
+
+var cluster = d3.layout.cluster()
+    .size([height, width - 160]);
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height)
+  .append("g")
+    .attr("transform", "translate(40,0)");
+
+d3.json("/images/modulosintegra.json", function(error, root) {
+  if (error) throw error;
+
+  var nodes = cluster.nodes(root),
+      links = cluster.links(nodes);
+
+  var link = svg.selectAll(".link")
+      .data(links)
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("d", diagonal);
+
+  var node = svg.selectAll(".node")
+      .data(nodes)
+    .enter().append("g")
+      .attr("class", "node")
+      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; })
+
+  node.append("circle")
+      .attr("r", 4.5);
+
+  node.append("text")
+      .attr("dx", function(d) { return d.children ? -8 : 8; })
+      .attr("dy", 3)
+      .style("text-anchor", function(d) { return d.children ? "end" : "start"; })
+      .text(function(d) { return d.name; });
+});
+
+d3.select(self.frameElement).style("height", height + "px");
+
+</script>
+
+</div>
+
+<!--
+<center>
+<table border="0" cellpadding="2" cellspacing="0" width="780" style="background:white" class="bordenegrosombra">
+<tr><td height=15></td></tr>
+<tr><td width="15"></td><td valign="top">
+
+
+<div class="datagrid" style="">
+<table>
+<thead><tr>
+<th>Servicios de red</td>
+<th>Seguridad</td>
+<th>Control de correo</td>
+<th>Monitorización</td>
+<th>Centralización</td>
+<th>Control web</td>
+<th>Conectividad</td>
+</tr><tr>
+<th>Tráfico de red</td>
+<th>Almacenamiento</td>
+<th>Comunicación</td>
+<th>Multimedia</td>
+<th>Gestión</td>
+<th>Rendimiento</td>
+<th>Automatización</td>
+</thead></tr>
+</table>
+</div>
+
+<br>
+
+<div class="datagrid" style="">
+<table>
+<thead><tr>
+<th>Tecnologías y aplicaciones</td>
+<th>A</td>
+<th>B</td>
+<th>C</td>
+<th>D</td>
+<th>E</td>
+<th>F</td>
+<th>G</td>
+<th>H</td>
+<th>I</td>
+<th>J</td>
+<th>K</td>
+<th>L</td>
+<th>M</td>
+<th>N</td>
+</thead></tr>
+<tbody>
+<tr><td>Icinga</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Pandora FMS</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Sistema ELK</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Cacheador dinámico</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>NxFilter</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Alfresco</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Odoo</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Unifi</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>MFI</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Gestor Salicru</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>MFC Auto</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Observium</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Auditor seguridad</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Privoxy</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Rastreador netbios</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>OCS Inventory</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Cacti RRDTool</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Zabbix</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Control aplicaciones</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>NTOPNG</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Gestor C.I.R.</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Wakeonlan</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Poweroff PCs</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Servidor DNS</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Servidor FTP</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>HTTP Inverso Gateway</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Acelera.Proxy HTTP</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Jabber</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Gallery</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Papercut</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Hilo Musical</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Vtiger</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Antivirus Clamav</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Servidor Netbios</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Openvpn</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>PPTP</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>IPSec</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>VPN P2P</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Dolibarr</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Elkarbackup</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Owncloud</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Backuppc</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Controlador SMTP</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>OTRS</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>QOS</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Servidor de Fax</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>ITOP</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>MANTIS</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Wordpress</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Openmediavault</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Zoneminder</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Mydlp</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Antispam</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Zarafa</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Asterisk</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>BYOD</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Wifi Center</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Optiflows</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Bacula</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Glusterfs</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Servidor WebDAV</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Amanda Network Backup</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>ZRM Mysql</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>PostgreSQL Server</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>PHPMyadmin MySQL</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Daloradius</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>RabbIT Proxy</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>HTTPERF</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Proxmox</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>OCRBox</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Agente MFC</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Honeytrap</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Surfids</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Packetfence</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Guacamole</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Fetchmail</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Mailarchiva</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Servidor Tomcat</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>seccubus</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Wapiti</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Motion</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Osmius</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Octopussy</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>OSSIM</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Kismet</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>HAProxy</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Alfresco</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Mantis</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Moodle</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Zimbra</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>FusionDirectory</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Sidu</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Cockpit</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Honeyproxy</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Syncthing</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Kamailio</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>phpIPAM</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>DomotiGa</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Domoticz</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Arachni</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Site monitoring</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>sshkeybox</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>DynVPN</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>NodePoint</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Bandwidthd</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>sshuttle</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+<tr><td>Packetbeat</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td><td>X</td></tr></tbody>
+</table>
+</div>
+	
+	
+</td></tr>
+<tr><td height="15"></td></tr>
+</table>
+-->
+
+</center>
+<br><br><br>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

@@ -1,0 +1,596 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+
+	if($q->param('env') eq "1")
+	{
+	
+		$community=$q->param('community');
+		$permitidas=$q->param('permitidas');
+		
+		$sysname=$q->param('sysname');
+		$syslocation=$q->param('syslocation');
+		$syscontact=$q->param('syscontact');
+	
+		open(NEW, "> $snmpdconf")     or die "can't open $snmpdconf: $!";
+		
+		print NEW "\n#Community: ${community}\n" or die "can't write $snmpdconf: $!";
+		print NEW "##########################################\n" or die "can't write $snmpdconf: $!";
+		
+		$i=0;
+		@data = split (/\s+/,$permitidas);
+		
+		while( 1 ) 
+		{
+			$permi = $data[$i];
+		
+			if( $permi eq undef )
+			{
+				last;
+			}
+		
+			print NEW "com2sec readonly  $permi  ${community}\n" or die "can't write $snmpdconf: $!";
+		
+			$i=$i+1;
+		}
+		
+		print NEW "##########################################\n\n" or die "can't write $snmpdconf: $!";
+
+		print NEW "group MyROGroup v1         readonly\n" or die "can't write $snmpdconf: $!";
+		print NEW "group MyROGroup v2c        readonly\n" or die "can't write $snmpdconf: $!";
+		print NEW "group MyROGroup usm        readonly\n\n" or die "can't write $snmpdconf: $!";
+
+		print NEW "view all    included  .1                               80\n" or die "can't write $snmpdconf: $!";
+		print NEW "view system included  .iso.org.dod.internet.mgmt.mib-2.system\n\n" or die "can't write $snmpdconf: $!";
+
+		print NEW "access MyROGroup \"\"      any       noauth    exact  all    none   none\n\n" or die "can't write $snmpdconf: $!";
+
+		print NEW "sysname ${sysname}\n" or die "can't write $snmpdconf: $!";
+		print NEW "syslocation ${syslocation}\n" or die "can't write $snmpdconf: $!";
+		print NEW "syscontact ${syscontact}\n" or die "can't write $snmpdconf: $!";
+
+		
+		close(NEW) or die "can't close $snmpdconf: $!";
+		
+		system("$snmpdemoni restart  >/dev/null 2>&1");
+	}
+
+
+	if($q->param('env') eq "2")
+	{
+		
+		$snmp=$q->param('estado');
+
+		open(OLD, "< $estado")    or die "can't open $estado: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			if(/^\s*SNMP\s*=\s*.*$/)
+     		{
+				s/^.*$/SNMP\=$snmp/;
+			}			
+  	
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $estado: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+	
+		system("/bin/cp $aux $estado 1>&2");
+	
+		system("$snmpdemoni restart  >/dev/null 2>&1");
+		
+
+	open(OLD, "< $monitrc")    or die "can't open $monitrc: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/snmpd.monit/)
+     		{
+				if($snmp eq "1")
+	   			{
+					s/#+//;
+				}
+				else
+     			{
+     				s/^#*/#/;
+     			}
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $monitrc: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $monitrc 1>&2");
+	
+	system("$monitd restart >/dev/null 2>&1 &");		
+		
+		
+	}
+
+
+
+
+$i=1;
+open(OLD, "< $snmpdconf")    or die "can't open $snmpdconf: $!";
+		
+	while (<OLD>) 
+	{
+		if (/com2sec/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$com2sec = $data[2];
+			
+			$com2secsumar=$com2secsumar." ".$com2sec;
+			
+		}
+	
+		if (/Community/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$community = $data[1];
+		}
+		
+		if (/syslocation/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$syslocation = $data[1];
+		}
+
+		if (/syscontact/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$syscontact = $data[1];
+		}
+ 
+	    if (/sysname/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$sysname = $data[1];
+		}
+
+	}
+close(OLD);
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*SNMP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$snmp = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($snmp eq "1") 
+{
+	$estadosnmp = "activado.gif";
+	$pasarsnmp = 0;
+}
+else
+{	
+	$estadosnmp = "desactivado.gif";
+	$pasarsnmp = 1;
+}
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+
+function load(theForm,lista,nombre)
+{
+	var lista=document.getElementById(lista);
+	if(lista.selectedIndex==-1)
+		return;
+
+	nombre.value=lista.options[lista.selectedIndex].value;
+
+	lista.options[lista.selectedIndex]=null;	
+}
+
+function anadir(theForm)
+{
+	var lista=document.getElementById('lista');
+
+	//if(theForm.nombre.value==null || theForm.nombre.value.search(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))\$/)!=0)
+	//{
+	//	alert('Se esperaba una dirección de correo válida');	
+	//	return false;
+	//}
+
+	lista.options[lista.options.length]=new Option(theForm.nombre.value,theForm.nombre.value);
+	theForm.nombre.value='';
+	return true;
+	
+}
+
+function del()
+{
+	var lista=document.getElementById('lista');
+	if(lista.selectedIndex==-1)
+		return;
+	nombre=lista.options[lista.selectedIndex].value.split('::')[0];
+	
+	selind = lista.selectedIndex;
+	lista.options[lista.selectedIndex]=null;	
+	lista.selectedIndex = selind;
+}
+
+
+
+function enviar()
+{
+
+	var lista=document.getElementById('lista').options;
+	document.theform.permitidas.value='';
+	for(i=0;i < lista.length;i++)
+	{	
+		document.theform.permitidas.value+=lista[i].value+' ';
+	}
+	
+	oscuprocessform();
+
+	theform.env.value = 1;
+	document.theform.submit();
+}
+
+
+function enviar2(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el servidor SNMP?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 2;
+theform.estado.value = est;
+document.theform.submit();
+
+
+}
+
+</script>
+
+</head>
+
+<body>
+
+
+<br>
+<CENTER><table cellpadding=0 cellspacing=0 border=0><tr><!--<td><img src='../images/snmp.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$snmp_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<p><br>
+	<table width="600" border="0"><tr><!--<td align="left">
+<A HREF=$volver target=main><img src="../images/volver.gif" border="0"><br>$fw_volver</a> 
+</td>--><td align="center">
+
+	<center>
+<table border="0"><tr>
+<td><img src="../images/$estadosnmp" onClick="enviar2('$pasarsnmp')" style="cursor:pointer"></td><td width="4"></td><td>Activación o desactivación del servidor SNMP</td>
+</tr></table>
+</center>
+
+</td></tr></table>
+
+<br><br>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="estado" type="hidden">
+<input name="permitidas" type="hidden">
+
+<table border="0"><tr><td>
+
+&nbsp;&nbsp;<strong>$snmp_clave:</strong>
+&nbsp;&nbsp;<input class="campotxt" name="community" id="community" size="20" type="text"  value="$community">		
+ <br><br>
+
+
+</td>
+<td width="10"></td><td></td>
+</tr>
+
+<tr>
+
+
+<td>
+
+<!--<table cellpadding="2" cellspacing="0" border="1" width="250" class="bordecuadrof">
+        <tr> 
+          <td class="bordecuadrof"> <table cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr> 
+                <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$snmp_acceso</b></td>
+              </tr>
+            </table></td>
+        </tr>
+        <tr>
+          <td class="bordecuadrof">-->
+
+			<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="250" height="150">
+		<tr><td width="100%" height="23" class="barratituloazul" colspan="2">&nbsp;&nbsp;&nbsp;<b><font color=white>$snmp_acceso</b></font></td></tr>
+		<tr><td height="5"></td></tr>
+		<tr><td width="10"></td><td>          
+          
+           <div align="center"> 
+
+<table cellspacing="3" cellpadding="3" align="center" border="0">
+                <tr> 
+                  <td width="60"> <table cellpadding="0" cellspacing="0" border="0">
+                      <tr> 
+                        <td><b>$snmp_permitidas</b></td>
+                      </tr>
+                      <tr> 
+                        <td><input id="nombre" size="30" class="campotxt" type="text" name="nombre"></td>
+                      </tr>
+                    </table></td>
+                  <td valign="bottom"><img alt="editar" onClick="load(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flecharriba.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="a&ntilde;adir" onClick="anadir(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flechabajo.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="borrar" onClick="del('lista')" height="17" width="16" src="../images/flechax.gif" style="cursor:pointer"></td>
+                </tr>
+                <tr> 
+                  <td align="left" colspan="4"> <div align="left"> 
+                      <table cellpadding="0" cellspacing="0" border="0" width="260">
+                        <tr> 
+                          <td rowspan="4" width="87%"><select id="lista"  class="campotxt" size="6" name="lista" style="width:100%">
+                              </select></td>
+                        </tr>
+                      </table>
+
+				 </div></td>
+                </tr>
+              </table>
+</td>
+                </tr>
+                <tr><td height="10"></td></tr>
+              </table>
+
+</td>
+<td></td>
+<td width="250">
+$snmp_frase1
+<br><br>
+<b>
+$snmp_frase2
+</b>
+</td>
+</tr>
+
+<td><td height="15"></td></td>
+
+<tr>
+
+<td align="right">
+
+<!--<table cellpadding="2" cellspacing="0" border="1" width="100%" class="bordecuadrof">
+        <tr> 
+          <td class="bordecuadrof"> <table cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr> 
+                <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$snmp_info</b></td>
+              </tr>
+            </table></td>
+        </tr>
+        <tr>
+          <td class="bordecuadrof"> <div align="center"> -->
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="100%">
+<tr><td width="100%" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;<b><font color=white>$snmp_info</b></td></tr>
+<tr><td height="5"></td></tr>
+<tr><td align="center">          
+                    
+<br>
+&nbsp;&nbsp;<strong>$inicio_nombre:</strong>
+&nbsp;&nbsp;<input class="campotxt" name="sysname" id="sysname" size="15" type="text"  value="$sysname">		
+ <br><br> 
+ &nbsp;&nbsp;<strong>$antivirusconfig_direccion:</strong>
+&nbsp;&nbsp;<input class="campotxt" name="syslocation" id="syslocation" size="20" type="text"  value="$syslocation">		
+ <br><br>
+ &nbsp;&nbsp;<strong>$snmp_contacto:</strong>
+&nbsp;&nbsp;<input class="campotxt" name="syscontact" id="syscontact" size="20" type="text"  value="$syscontact">		
+ <br><br>
+				 </div></td>
+                </tr>
+              </table>
+
+
+</td>
+
+
+<td></td>
+<td width="250">
+$snmp_frase3
+</td>
+</tr>
+<tr><td height="5"></td></tr>
+<tr><td align="center">
+<img src="../images/aplicar.gif" onClick="enviar()" style="cursor:pointer">
+</td></tr>
+</table>
+
+<br>
+
+</form>
+
+<script type="text/javascript" language="javascript1.2">
+//cargar lista blanca
+lblanca = '$com2secsumar';
+
+lblanca = lblanca.split(" ");
+lblanca = lblanca.sort();
+
+var lista=document.getElementById('lista');	
+
+
+for(i = 0; i < lblanca.length;i++)
+{	
+	if (lblanca[i]=="") continue;
+	nombre=lblanca[i];
+	lista.options[lista.options.length]=new Option(nombre,nombre);
+}
+
+
+</script>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+ </body>
+</html>
+EOF

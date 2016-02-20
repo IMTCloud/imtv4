@@ -1,0 +1,1332 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_FIREWALL_PERIMETRAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+      	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+$dbuser="root";
+$dbpass="";
+
+
+    my $dbh = DBI->connect('DBI:mysql:database=controlservices;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+ 
+ 
+
+
+if($q->param('enviar') eq "Aplicar")
+{
+
+$p2pxper=$q->param('p2pxper');
+$businessxper=$q->param('businessxper');
+$clouditxper=$q->param('clouditxper');
+$collaborationxper=$q->param('collaborationxper');
+$emailxper=$q->param('emailxper');
+$gamexper=$q->param('gamexper');
+$generalinterestxper=$q->param('generalinterestxper');
+$networkservicexper=$q->param('networkservicexper');
+$socialmediaxper=$q->param('socialmediaxper');
+$storagebackupxper=$q->param('storagebackupxper');
+$videoaudioxper=$q->param('videoaudioxper');
+$webothersxper=$q->param('webothersxper');
+
+	$sth = $dbh->prepare("update categocapa7 set controlgrupo='$p2pxper' where categoria='P2P';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$businessxper' where categoria='Business';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$clouditxper' where categoria='Cloud.IT';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$collaborationxper' where categoria='Collaboration';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$emailxper' where categoria='Email';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$gamexper' where categoria='Game';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$generalinterestxper' where categoria='General.Interest';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$networkservicexper' where categoria='Network.Service';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$socialmediaxper' where categoria='Social.Media';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$storagebackupxper' where categoria='Storage.Backup';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$videoaudioxper' where categoria='videoaudio';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 $sth = $dbh->prepare("update categocapa7 set controlgrupo='$webothersxper' where categoria='webothers';")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+ 	 
+ 	 system("$cleanall >/dev/null 2>&1");
+    system("$firewall >/dev/null 2>&1");
+    system("$prerouting >/dev/null 2>&1");
+	
+} 
+ 
+ 
+               	 
+    $sth = $dbh->prepare("select * from categocapa7")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+ 	 $sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+	
+	 while (@linea = $sth->fetchrow_array) {
+ 
+		if($linea[0] eq "P2P")
+		{
+			$estadop2p=$linea[1];
+		}
+		
+		if($linea[0] eq "Business")
+		{
+			$estadobusiness=$linea[1];
+		}
+		
+		if($linea[0] eq "Cloud.IT")
+		{
+			$estadocloudit=$linea[1];
+		}
+		
+		if($linea[0] eq "Collaboration")
+		{
+			$estadocollaboration=$linea[1];
+		}
+		
+		if($linea[0] eq "Email")
+		{
+			$estadoemail=$linea[1];
+		}
+		
+		if($linea[0] eq "Game")
+		{
+			$estadogame=$linea[1];
+		}
+		
+		if($linea[0] eq "General.Interest")
+		{
+			$estadogeneralinterest=$linea[1];
+		}
+		
+		if($linea[0] eq "Network.Service")
+		{
+			$estadonetworkservice=$linea[1];
+		}
+		
+		if($linea[0] eq "Social.Media")
+		{
+			$estadosocialmedia=$linea[1];
+		}
+		
+		if($linea[0] eq "Storage.Backup")
+		{
+			$estadostoragebackup=$linea[1];
+		}
+		
+		if($linea[0] eq "videoaudio")
+		{
+			$estadovideoaudio=$linea[1];
+		}
+		
+		if($linea[0] eq "webothers")
+		{
+			$estadowebothers=$linea[1];
+		}
+				           	 
+
+ 	 }
+
+
+
+#Modificar estado backup
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+	
+	
+	$comprobarfwcapa7=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*FWCAPA7\s*=\s*.*$/)
+     		{
+				s/^.*$/FWCAPA7\=$comprobarfwcapa7/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	
+	system("$cleanall >/dev/null 2>&1");
+	system("$firewall >/dev/null 2>&1");
+	system("$prerouting >/dev/null 2>&1");
+	
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*FWCAPA7\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$fwcapa7estado = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($fwcapa7estado eq "1") 
+{
+	$estadofwcapa7 = "activado.gif";
+	$pasarfwcapa7 = 0;
+}
+else
+{	
+	$estadofwcapa7 = "desactivado.gif";
+	$pasarfwcapa7 = 1;
+}
+
+
+
+
+if($q->param('princi') ne "")
+{
+	$princi=$q->param('princi');
+}
+else
+{
+	$princi="catego";
+}
+
+$colorprincicatego="black";
+$colorprinciporaplica="black";
+$colorprinciformatoreglas="black";
+$colorprincigestormonitor="black";
+
+$fondoprincicatego="white";
+$fondoprinciporaplica="white";
+$fondoprinciformatoreglas="white";
+$fondoprincigestormonitor="white";
+
+if($princi eq "catego")
+{
+	$colorprincicatego="white";
+	$fondoprincicatego="#3e73a8";
+}
+elsif($princi eq "poraplica")
+{
+	$colorprinciporaplica="white";
+	$fondoprinciporaplica="#3e73a8";
+}
+elsif($princi eq "formatoreglas")
+{
+	$colorprinciformatoreglas="white";
+	$fondoprinciformatoreglas="#3e73a8";
+}
+elsif($princi eq "gestormonitor")
+{
+	$colorprincigestormonitor="white";
+	$fondoprincigestormonitor="#3e73a8";
+}
+
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+
+/*function enviar(opc)
+{
+theform.env.value = opc;
+document.theform.submit();
+}*/
+
+
+function enviarestado(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' Control aplicaciones?'))
+	return false;
+	
+oscuprocessform();
+	 
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function validarForm()
+{
+	
+	document.theform.action="fwaplica.htm";
+	document.theform.enviar.value="Aplicar";
+	document.theform.submit();
+	
+}
+
+
+function togglePermitirdiv(id)
+{
+	//var imgpermitir = document.getElementById('permitir'+id);
+
+	if(document.getElementById(id+'xper').value == 0)
+	{
+		document.getElementById(id+'xper').value=1;
+		document.getElementById('permitir'+id).innerHTML = 'Permitir';
+		document.getElementById('permitir'+id).style.background='#809e12';
+		return;
+	}
+
+	if(document.getElementById(id+'xper').value == 1)
+	{
+		document.getElementById(id+'xper').value=2;
+		document.getElementById('permitir'+id).innerHTML = 'Denegar';
+		document.getElementById('permitir'+id).style.background='#e20010';
+		return;
+	}
+	
+	if(document.getElementById(id+'xper').value == 2)
+	{	
+		document.getElementById(id+'xper').value=0;
+		document.getElementById('permitir'+id).innerHTML = 'OFF';
+		document.getElementById('permitir'+id).style.background='#8D5D8D';
+		return;
+	}
+	
+	
+
+	/*if(document.getElementById(id+'xper').value == 1)
+	{
+		document.getElementById(id+'xper').value=0;
+		document.getElementById('permitir'+id).innerHTML = 'Denegar';
+		document.getElementById('permitir'+id).style.background='#e20010';
+	}
+	else
+	{	
+		document.getElementById(id+'xper').value=1;
+		document.getElementById('permitir'+id).innerHTML = 'Permitir';
+		document.getElementById('permitir'+id).style.background='#809e12';
+	}*/
+
+}
+
+
+</script>
+
+
+
+</head>
+
+	
+<body>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="estado" type="hidden">
+<input name="enviar" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/balanceo.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>Control aplicaciones</B></FONT></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<P><br>
+<br><br>
+
+
+<table style="$imagenvisiblemod"><tr>
+<td><img src="../images/$estadofwcapa7" onClick="enviarestado('$pasarfwcapa7')" style="cursor:pointer"></td><td width="4"></td><td><b>$rat_activar</b></td>
+</tr></table>
+
+
+	<br><br>
+	
+
+<table cellpadding="0" cellspacing="0"><tr>
+
+<td valign=bottom>
+<table style="background:$fondoprincicatego" class="bordenegrosombrasinredonbottom" height=25 cellpadding="0" cellspacing="0" width="100"><tr><td align="center"><b><a href="fwaplica.htm?princi=catego&secci=&volver=$volver"><font color="$colorprincicatego">Categorías</font></a></b></td></tr></table>
+</td>
+<td width="20"></td>
+
+<td valign=bottom>
+<table style="background:$fondoprinciporaplica" class="bordenegrosombrasinredonbottom" height=25 cellpadding="0" cellspacing="0" width="110"><tr><td align="center"><b><a href="fwaplica.htm?princi=poraplica&secci=&volver=$volver"><font color="$colorprinciporaplica">Por Aplicación</font><!--</a>--></b></td></tr></table>
+</td>
+
+<td width="20"></td>
+
+<td valign=bottom>
+<table style="background:gray" class="bordenegrosombrasinredonbottom" height=25 cellpadding="0" cellspacing="0" width="120"><tr><td align="center"><b><!--<a href="fwaplica.htm?princi=formatoreglas&secci=&volver=$volver">--><font color="white">Formato reglas</font><!--</a>--></b></td></tr></table>
+</td>
+
+<td width="20"></td>
+
+<td valign=bottom>
+<table style="background:$fondoprincigestormonitor" class="bordenegrosombrasinredonbottom" height=25 cellpadding="0" cellspacing="0" width="160"><tr><td align="center"><b><a href="fwaplica.htm?princi=gestormonitor&secci=&volver=$volver"><font color="$colorprincigestormonitor">Gestores monitorización</font><!--</a>--></b></td></tr></table>
+</td>
+
+<td width=80 align=right>	
+</td>
+</tr>
+</table>
+
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="900" height="350">
+<tr><td width="900" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;<font color="white"><b></b></font></td></tr>
+<tr><td align="center">
+
+
+EOF
+if($princi eq "catego")
+{
+print <<EOF;
+<br>
+<table width="690" border="0">
+<tr><td height="5"></td></tr>
+
+<tr>
+<td>
+
+<table><tr>
+<td>
+  <div id=\"permitirp2p\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('p2p')"></div>
+
+  <input  type='hidden' id='p2pxper' name='p2pxper' value='$estadop2p'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('p2pxper').value == 0)
+  {	
+		document.getElementById('permitirp2p').innerHTML = 'OFF';
+		document.getElementById('permitirp2p').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('p2pxper').value == 1)
+  {	
+		document.getElementById('permitirp2p').innerHTML = 'Permitir';
+		document.getElementById('permitirp2p').style.background='#809e12';
+  }
+  
+  if(document.getElementById('p2pxper').value == 2)
+  {
+		document.getElementById('permitirp2p').innerHTML = 'Denegar';
+		document.getElementById('permitirp2p').style.background='#e20010';
+  }
+  
+  
+  </script>
+
+</td>
+<td>P2P</td>
+</tr>
+</table>
+
+
+</td>
+<td>
+
+<table><tr>
+<td>
+  <div id=\"permitirbusiness\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('business')"></div>
+
+  <input  type='hidden' id='businessxper' name='businessxper' value='$estadobusiness'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('businessxper').value == 0)
+  {	
+		document.getElementById('permitirbusiness').innerHTML = 'OFF';
+		document.getElementById('permitirbusiness').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('businessxper').value == 1)
+  {	
+		document.getElementById('permitirbusiness').innerHTML = 'Permitir';
+		document.getElementById('permitirbusiness').style.background='#809e12';
+  }
+  
+  if(document.getElementById('businessxper').value == 2)
+  {
+		document.getElementById('permitirbusiness').innerHTML = 'Denegar';
+		document.getElementById('permitirbusiness').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Business</td>
+</tr>
+</table>
+
+</td>
+<td>
+
+<table><tr>
+<td>
+  <div id=\"permitircloudit\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('cloudit')"></div>
+
+  <input  type='hidden' id='clouditxper' name='clouditxper' value='$estadocloudit'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('clouditxper').value == 0)
+  {	
+		document.getElementById('permitircloudit').innerHTML = 'OFF';
+		document.getElementById('permitircloudit').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('clouditxper').value == 1)
+  {	
+		document.getElementById('permitircloudit').innerHTML = 'Permitir';
+		document.getElementById('permitircloudit').style.background='#809e12';
+  }
+  
+  if(document.getElementById('clouditxper').value == 2)
+  {
+		document.getElementById('permitircloudit').innerHTML = 'Denegar';
+		document.getElementById('permitircloudit').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Cloud.IT</td>
+</tr>
+</table>
+
+</td><td></tr>
+<tr><td height="20"></td></tr>
+<tr><td>
+
+<table><tr>
+<td>
+  <div id=\"permitircollaboration\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('collaboration')"></div>
+
+  <input  type='hidden' id='collaborationxper' name='collaborationxper' value='$estadocollaboration'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('collaborationxper').value == 0)
+  {	
+		document.getElementById('permitircollaboration').innerHTML = 'OFF';
+		document.getElementById('permitircollaboration').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('collaborationxper').value == 1)
+  {	
+		document.getElementById('permitircollaboration').innerHTML = 'Permitir';
+		document.getElementById('permitircollaboration').style.background='#809e12';
+  }
+  
+  if(document.getElementById('collaborationxper').value == 2)
+  {
+		document.getElementById('permitircollaboration').innerHTML = 'Denegar';
+		document.getElementById('permitircollaboration').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Collaboration</td>
+</tr>
+</table>
+
+</td><td>
+
+<table><tr>
+<td>
+  <div id=\"permitiremail\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('email')"></div>
+
+  <input  type='hidden' id='emailxper' name='emailxper' value='$estadoemail'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('emailxper').value == 0)
+  {	
+		document.getElementById('permitiremail').innerHTML = 'OFF';
+		document.getElementById('permitiremail').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('emailxper').value == 1)
+  {	
+		document.getElementById('permitiremail').innerHTML = 'Permitir';
+		document.getElementById('permitiremail').style.background='#809e12';
+  }
+  
+  if(document.getElementById('emailxper').value == 2)
+  {
+		document.getElementById('permitiremail').innerHTML = 'Denegar';
+		document.getElementById('permitiremail').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Email</td>
+</tr>
+</table>
+
+</td><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirgame\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('game')"></div>
+
+  <input  type='hidden' id='gamexper' name='gamexper' value='$estadogame'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('gamexper').value == 0)
+  {	
+		document.getElementById('permitirgame').innerHTML = 'OFF';
+		document.getElementById('permitirgame').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('gamexper').value == 1)
+  {	
+		document.getElementById('permitirgame').innerHTML = 'Permitir';
+		document.getElementById('permitirgame').style.background='#809e12';
+  }
+  
+  if(document.getElementById('gamexper').value == 2)
+  {
+		document.getElementById('permitirgame').innerHTML = 'Denegar';
+		document.getElementById('permitirgame').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Game</td>
+</tr>
+</table>
+
+</td></tr>
+<tr><td height="20"></td></tr>
+<tr><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirgeneralinterest\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('generalinterest')"></div>
+
+  <input  type='hidden' id='generalinterestxper' name='generalinterestxper' value='$estadogeneralinterest'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('generalinterestxper').value == 0)
+  {	
+		document.getElementById('permitirgeneralinterest').innerHTML = 'OFF';
+		document.getElementById('permitirgeneralinterest').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('generalinterestxper').value == 1)
+  {	
+		document.getElementById('permitirgeneralinterest').innerHTML = 'Permitir';
+		document.getElementById('permitirgeneralinterest').style.background='#809e12';
+  }
+  
+  if(document.getElementById('generalinterestxper').value == 2)
+  {
+		document.getElementById('permitirgeneralinterest').innerHTML = 'Denegar';
+		document.getElementById('permitirgeneralinterest').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>General.Interest</td>
+</tr>
+</table>
+
+</td><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirnetworkservice\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('networkservice')"></div>
+
+  <input  type='hidden' id='networkservicexper' name='networkservicexper' value='$estadonetworkservice'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('networkservicexper').value == 0)
+  {	
+		document.getElementById('permitirnetworkservice').innerHTML = 'OFF';
+		document.getElementById('permitirnetworkservice').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('networkservicexper').value == 1)
+  {	
+		document.getElementById('permitirnetworkservice').innerHTML = 'Permitir';
+		document.getElementById('permitirnetworkservice').style.background='#809e12';
+  }
+  
+  if(document.getElementById('networkservicexper').value == 2)
+  {
+		document.getElementById('permitirnetworkservice').innerHTML = 'Denegar';
+		document.getElementById('permitirnetworkservice').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Network.Service</td>
+</tr>
+</table>
+
+</td><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirsocialmedia\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('socialmedia')"></div>
+
+  <input  type='hidden' id='socialmediaxper' name='socialmediaxper' value='$estadosocialmedia'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('socialmediaxper').value == 0)
+  {	
+		document.getElementById('permitirsocialmedia').innerHTML = 'OFF';
+		document.getElementById('permitirsocialmedia').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('socialmediaxper').value == 1)
+  {	
+		document.getElementById('permitirsocialmedia').innerHTML = 'Permitir';
+		document.getElementById('permitirsocialmedia').style.background='#809e12';
+  }
+  
+  if(document.getElementById('socialmediaxper').value == 2)
+  {
+		document.getElementById('permitirsocialmedia').innerHTML = 'Denegar';
+		document.getElementById('permitirsocialmedia').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Social.Media</td>
+</tr>
+</table>
+
+</td></tr>
+<tr><td height="20"></td></tr>
+<tr><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirstoragebackup\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('storagebackup')"></div>
+
+  <input  type='hidden' id='storagebackupxper' name='storagebackupxper' value='$estadostoragebackup'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('storagebackupxper').value == 0)
+  {	
+		document.getElementById('permitirstoragebackup').innerHTML = 'OFF';
+		document.getElementById('permitirstoragebackup').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('storagebackupxper').value == 1)
+  {	
+		document.getElementById('permitirstoragebackup').innerHTML = 'Permitir';
+		document.getElementById('permitirstoragebackup').style.background='#809e12';
+  }
+  
+  if(document.getElementById('storagebackupxper').value == 2)
+  {
+		document.getElementById('permitirstoragebackup').innerHTML = 'Denegar';
+		document.getElementById('permitirstoragebackup').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>Storage.Backup</td>
+</tr>
+</table>
+
+</td><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirvideoaudio\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('videoaudio')"></div>
+
+  <input  type='hidden' id='videoaudioxper' name='videoaudioxper' value='$estadovideoaudio'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('videoaudioxper').value == 0)
+  {	
+		document.getElementById('permitirvideoaudio').innerHTML = 'OFF';
+		document.getElementById('permitirvideoaudio').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('videoaudioxper').value == 1)
+  {	
+		document.getElementById('permitirvideoaudio').innerHTML = 'Permitir';
+		document.getElementById('permitirvideoaudio').style.background='#809e12';
+  }
+  
+  if(document.getElementById('videoaudioxper').value == 2)
+  {
+		document.getElementById('permitirvideoaudio').innerHTML = 'Denegar';
+		document.getElementById('permitirvideoaudio').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>videoaudio</td>
+</tr>
+</table>
+
+</td><td>
+
+<table><tr>
+<td>
+  <div id=\"permitirwebothers\" style='background: #809e12;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 8px;
+  text-decoration: none;cursor:pointer; width:55' align=left class='bordenegrosombra' onclick="togglePermitirdiv('webothers')"></div>
+
+  <input  type='hidden' id='webothersxper' name='webothersxper' value='$estadowebothers'/>
+
+  <script language='javascript'>
+  
+  if(document.getElementById('webothersxper').value == 0)
+  {	
+		document.getElementById('permitirwebothers').innerHTML = 'OFF';
+		document.getElementById('permitirwebothers').style.background='#8D5D8D';
+  }  
+  
+  if(document.getElementById('webothersxper').value == 1)
+  {	
+		document.getElementById('permitirwebothers').innerHTML = 'Permitir';
+		document.getElementById('permitirwebothers').style.background='#809e12';
+  }
+  
+  if(document.getElementById('webothersxper').value == 2)
+  {
+		document.getElementById('permitirwebothers').innerHTML = 'Denegar';
+		document.getElementById('permitirwebothers').style.background='#e20010';
+  }
+  
+  </script>
+
+</td>
+<td>webothers</td>
+</tr>
+</table>
+
+</td></tr>
+
+<tr><td height="5"></td></tr>
+</table>
+
+EOF
+}
+if($princi eq "poraplica")
+{
+print <<EOF;
+
+<iframe src="controlcapa7.htm"  frameborder="no" scrolling="no" width=100% height=800></iframe>
+
+EOF
+}
+if($princi eq "gestormonitor")
+{
+print <<EOF;
+<br><br>
+<table width="480">
+
+<!--<tr>
+<td width="150" align="center"><strong><font size=4 color=#3e73a8>Snorby</font></strong><br><br><input type="radio" name="modochivatoweb" value=1 onclick="cambiomodochivatoweb()" $modochivatowebchecked1> A través de Logstash</td>
+<td width=5></td><td>Gestor que en comunicación mediante barnyard2 se comunica con el IPS Suricata.<br><u><b><a href="http://$ENV{"SERVER_NAME"}:3001">Pulsa para acceder</a></b></u></td>
+</tr>
+
+<tr><td height="35"></td></tr>-->
+
+<tr>
+<td width="150" align="center"><strong><font size=4 color=#3e73a8>Logstash</font></strong><br><!--<br><input type="radio" name="modochivatoweb" value=1 onclick="cambiomodochivatoweb()" $modochivatowebchecked1>--> A través de Logstash</td>
+<td width=5></td><td>Es una herramienta estándar para la gestión de eventos y generación de gráficos.<br><u><b><a href="/kibana" target="_new">Pulsa para acceder</a></b></u></td>
+</tr>
+
+<tr><td height="35"></td></tr>
+
+<tr>
+<td width="150" align="center"><strong><font size=4 color=gray>Fluentd</font></strong><br><!--<br><input name="modochivatoweb" type="radio" value=2 onclick="cambiomodochivatoweb()" $modochivatowebchecked2>--> A través de Fluentd</td>
+<td width=5></td><td>Es un software para buscar, monitorizar y analizar datos generados por máquinas (Big Data) de aplicaciones, sistemas e infraestructura IT.<br><u><b><a href=""><font color=black>No disponible en esta versión</font><!--Pulsa para acceder--></a></b></u></td>
+</tr>
+
+<tr><td height="35"></td></tr>
+
+<tr>
+<td width="150" align="center"><strong><font size=4 color=gray>Splunk</font></strong><br><!--<br><input name="modochivatoweb" type="radio" value=2 onclick="cambiomodochivatoweb()" $modochivatowebchecked2>--> A través de Splunk</td>
+<td width=5></td><td>Es un software para buscar, monitorizar y analizar datos generados por máquinas (Big Data) de aplicaciones, sistemas e infraestructura IT.<br><u><b><a href=""><font color=black>No disponible en esta versión</font><!--Pulsa para acceder--></a></b></u></td>
+</tr>
+
+<td height="20"></td></tr>
+</table>
+
+EOF
+}
+
+if($princi ne "gestormonitor" && $princi ne "poraplica")
+{
+print <<EOF;
+<br><br>
+
+				<table border="0" align="center" cellpadding="0" cellspacing="0" width="620">
+             <tr><td height=10></td></tr>
+                <tr>
+                  <td align="center" valign="top"><input type="$controlbuttonmod" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="$controlbuttonmod" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+				</tr>
+				</table>
+EOF
+}
+else
+{
+print <<EOF;
+<br><br><br>
+EOF
+}
+print <<EOF;				
+
+
+</td></tr></table>
+
+<br><br>
+
+
+<!--
+<table border="0" align="center" cellpadding="0" cellspacing="0" width="620">
+<tr>
+<td align="center" valign="top"><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()"></td>
+</tr>
+</table>-->
+
+		</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+
+
+

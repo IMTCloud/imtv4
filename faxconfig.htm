@@ -1,0 +1,220 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_FAX_SOBRE_IP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+	}
+close(OLD);
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$fax=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*FAX\s*=\s*.*$/)
+     		{
+				s/^.*$/FAX\=$fax/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	system("$hylafaxdemonio restart >/dev/null 2>&1 &");
+	
+}
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*FAX\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$fax = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+	
+
+
+
+#señal de estado de cada servicio
+#···············································································
+if($fax eq "1") 
+{
+	$estadofax = "activado.gif";
+	$pasarfax = 0;
+}
+else
+{	
+	$estadofax = "desactivado.gif";
+	$pasarfax = 1;
+}
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+
+function enviarestado(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el servidor de fax?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+</script>
+
+</head>
+
+	
+<body>
+<form name="theform" method="post">
+<input name="env" type="hidden"><input name="estado" type="hidden">
+<input name="modofw" type="hidden">
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR=#3e73a8><B>Servidor de fax</B></FONT></td></tr></table>
+
+<P>
+	<br><br><br>
+
+		<center>
+		<table><tr>
+<td><img src="../images/$estadofax" onClick="enviarestado('$pasarfax')" style="cursor:pointer"></td><td width="4"></td><td>$rat_activar</td><td width="40"></td>
+</tr></table>
+		<br>
+		<br>
+	
+	
+<!--<table>
+		<tr><td width="420" height="23" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;<font color="white"><b>$ipsecconfig_menu</b></font></td></tr>
+</table>
+<table border="2" class="bordecuadro" width="420" height="150">
+<tr><td height="144" align="center" class="bordecuadrof">-->
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="420" height="150">
+<tr><td width="420" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;<font color="white"><b>$ipsecconfig_menu</b></font></td></tr>
+
+<tr><td align="center">
+
+<table border="0">
+<tr><td height='5'>&nbsp;</td></tr>
+<TR><td align="center">
+
+<table><tr><td>
+<td align="center"><A HREF=fax.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra' style="background-color: #7bb061"><br>$toc_serverfax</div></A></td>
+<td width="50"></td>
+<td align="center"><A HREF=faxmailocr.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra' style="background-color: #847099"><br>$toc_serverfaxocr</div></A></td>
+</tr></table>
+
+</td><td width="10"></td></tr>
+</table>
+
+</td></tr>
+<tr><td height='10'></td></tr>
+</table>
+
+  </center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+

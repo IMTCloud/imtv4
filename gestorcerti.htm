@@ -1,0 +1,969 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+if($q->param('env') eq "exportarapache")
+{
+	$certificado=$q->param("certificado");
+	system("cp $certiconten/$certificado /etc/apache2/apache.pem");
+	system("$httpd reload >/dev/null 2>&1");		
+}
+
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+	
+	warn $q->param('enviar');
+		
+	if($q->param('enviar') eq "Borrar")
+	{
+		$nombre=$q->param("nombre");
+		system("cd $certiconten && /bin/rm $nombre");
+	}
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+	
+		$nombre="key".int(rand(10000)).".key";			
+		system("cd $certiconten && $openvpn --genkey --secret $nombre");
+			
+	}
+	
+	if($q->param('enviar') eq "Aplicar")
+	{
+		$i=1;
+		$acumulado="";
+		
+		opendir(DIRHANDLE,"$certiconten")||die "ERROR: no se puede leer directorio actual\n";  
+		foreach (readdir(DIRHANDLE)){ 
+		chomp;
+	
+			if($_ !~ /lost\+found/ && $_ !~ /^\./) 
+			{  
+				$acumulado=$acumulado.$_."|";							
+			}
+		$i=$i+1;
+		}  
+		closedir DIRHANDLE;
+		
+		@lista = split(/\|/, $acumulado);
+		@lista = sort(@lista);
+
+
+		$i=1;
+
+		foreach $verkey (@lista)
+		{
+			$nombre=$q->param("${i}x0");
+			system("cd $certiconten && /bin/mv $verkey $nombre");
+			
+			$i=$i+1;
+		}
+	
+	}
+	
+	
+	if($q->param('enviar') eq "Upload")
+	{
+
+
+	$adminName = 'PS Upload';
+	$dir = "${certiconten}/";
+	$max = 1024;
+	$print_contents = 0;
+	$overwrite = 1;
+	$domain = "";
+	$redirect = "gestorcerti.htm";
+	@types = qw~
+
+	ALL
+	gif
+	jpg
+	jpeg
+	xls
+	pdf
+	doc
+	txt
+	tx
+	zip
+
+	~;
+
+	
+	sub psjs_upload {
+
+        my ( $type_ok, $file_contents, $buffer, $destination );
+
+        my $file = $q->param($_[0]);
+
+        $destination = $dir;
+
+        my $limit = $max;
+        $limit *= 1024;
+
+        my $fileName    = $file;
+
+        my @file_type   = split(/\./, $fileName);
+       
+        my $file_type   = $file_type[$#file_type];
+
+        $fileName =~ s/^.*(\\|\/)//;
+
+        $fileName =~ s/\s+//ig;
+
+        $fileName =~ s/\./PsJsDoT/g;
+        $fileName =~ s/\-/PsJsDaSh/g;
+        if($fileName =~ /\W/){
+                $fileName =~ s/\W/n/ig;
+        }
+        $fileName =~ s/PsJsDoT/\./g;
+        $fileName =~ s/PsJsDaSh/\-/g;
+		
+		
+
+        for($b = 0; $b < @types; $b++){
+                if($file_type =~ /^$types[$b]$/i){
+                        $type_ok++;
+                }
+                if($types[$b] eq "ALL"){
+                        $type_ok++;
+                }
+        }
+
+
+        if($type_ok){
+                if(!$overwrite){
+                        $fileName = check_existence($destination,$fileName);
+                }
+ 
+                if(open(NEW, ">$destination$S{S}$fileName")){
+                        $VAR{err} .= $!;
+                        if($isWIN){ binmode NEW; } else { chmod(0644, "$destination$S{S}$fileName"); }
+                        while (read($file, $buffer, 1024)){
+                                print NEW $buffer;
+                        }
+                        close NEW;
+                } else {
+                        return qq~Error: Could not open new file on server. $!~;
+                }
+
+                if(-s "$destination$S{S}$fileName" > $limit){
+                        unlink("$destination$S{S}$fileName");
+                        return qq~File exceeded limitations : $fileName~;
+                }
+        } else {
+                return qq~Bad file type : $file_type~;
+        }
+
+        if(-s "$destination$S{S}$fileName"){
+                return qq~Success $fileName~;
+        } else {
+                unlink("$destination$S{S}$fileName");
+                return qq~Upload failed : No data in $fileName. No size on server's copy of file.
+                Check the path entered. $VAR{err}~;
+        }
+		
+		
+		
+	}
+
+
+	sub check_existence {
+        my ($dir,$filename,$newnum) = @_;
+
+        my (@file_type, $file_type, $exists, $bareName);
+
+        if(!$newnum){$newnum = "0";} # new num is empty in first call, so set it to 0
+
+        opendir(DIR, "$dir");
+        @existing_files =  readdir(DIR);
+        closedir(DIR);
+
+        foreach(@existing_files){
+                if($_ =~ /^$filename$/i){
+                        $exists = 1;
+                }
+        }
+
+        if($exists){
+                $newnum++; # increment new number (add 1)
+
+                @file_type   = split(/\./, $filename);
+                $bareName    = $file_type[0];
+                $file_type   = $file_type[$#file_type];
+
+                $bareName =~ s/\d+$//ig;
+
+                $filename = $bareName . $newnum . '.' . $file_type;
+
+                $exists = 0;
+
+                &check_existence($dir,$filename,$newnum);
+        } else {
+                return ($filename);
+        }
+	}
+	
+	
+		my @VAL = $q->param;
+
+		foreach(@VAL){
+        	$FORM{$_} = $q->param($_);
+		}
+
+
+		my @files;
+		foreach(keys %FORM){
+    		if($_ =~ /^FILE/){
+        		push(@files, $_);
+			}
+		}
+
+		my $failed;
+		my $selected;
+
+
+
+		foreach (@files){
+        	if($q->param($_)){
+            	$returned = &psjs_upload($_);
+				
+                if($returned =~ /^Success/i){                 
+                	$returned =~ s/^Success\s+//;
+                	push(@success, $returned);
+                } 
+				else 
+				{
+                	$failed .= $returned;
+                }
+                $selected++;
+        	}
+		}
+
+		if(!$selected)
+		{
+        	$failed .= qq~No hay filas seleccionadas para la carga~;
+		}
+
+		my ($fNames, $aa, $bb, @current, @currentfiles );
+
+		if(!$failed)
+		{
+		
+		print qq~Location: $redirect\n\n~;
+		}
+			
+	
+	}
+	
+	
+}
+	
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+		
+
+function isValidIP(tempIP){
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		var id = curListener.split('x')[0];
+	      var targets="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.targets.elements.length;i++)
+		{
+			if(document.targets.elements[i].checked==true)
+			{
+				if (targets!="") targets += ",";
+				targets+=document.targets.elements[i].name;
+			}
+		}
+		
+ 		
+ 		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 			{
+ 				ruledata[i][2]=targets;
+ 				document.getElementById(id+"x1").value=targets;
+ 				ruledata[i][4]=true;
+ 				break;	
+ 			}
+ 		document.getElementById(curListener).innerHTML=targets;
+
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    //	this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+	this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
++"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
++",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+ 
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+
+function toggleCB(listener,container,x,y)
+{
+	//debugger;
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-	objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		//debugger;
+		//rellenar los checkbox
+		var id = curListener.split('x')[0];
+		var i=0;	
+		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 				break;
+ 				
+		var targets = ruledata[i][2].split(",");
+		for(i=0;i<document.targets.elements.length;i++)
+		{
+			document.targets.elements[i].checked=false;
+		}
+	
+		for(i=0;i<targets.length ;i++)
+		{
+			if(targets[i]!="" && eval("document.targets."+targets[i]))
+				eval("document.targets."+targets[i]+".checked=true");
+		}
+		objContainer.el.style.visibility='visible'; 
+	}	
+}
+
+
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea('divContainer1',sd);
+	objContainer2=InitialiseScrollableArea2('divContainer2',null);
+
+	//initRules();
+} 
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha'+id);
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;
+		document.getElementById(id+'xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById(id+'xact').value=1;
+	}
+}
+
+function descargar(nombre)
+{
+	var nombre;
+	document.theform.target='new';
+	document.theform.action="/certi/"+nombre;
+	document.theform.submit();
+}
+
+function validarForm()
+{
+	var i=1;
+	while(document.getElementById(i+'x0'))
+	{
+		if (document.getElementById(i+'x0').value.search(/^[a-zA-Z0-9\.]*\$/)==-1 || document.getElementById(i+'x0').value=="")
+		{
+			alert(document.getElementById(i+'x0').value+' se esperaba un nombre válido para backup');
+			return;
+		}
+		i++;
+	}
+	
+	oscuprocessform();
+	
+	document.theform.action="gestorcerti.htm";
+	document.theform.enviar.value="Aplicar"
+	document.theform.submit();
+	
+}
+
+function upload()
+{
+oscuprocessform();
+
+document.theform.enviar.value="Upload"
+document.theform.action='gestorcerti.htm';
+document.theform.submit();
+}
+
+function exportar ()
+{
+
+var exportarapache="0";
+//var exportarmacs="0";
+//var exportarnombres="0";
+
+//if (exportarips == 0 && exportarmacs == 0 && exportarnombres == 0)
+/*if (exportarapache == 0)
+{
+	return false;	
+}*/
+
+//alert('Iniciado proceso de captura y exportación a $nombremostrar');
+
+if(document.theform.certificado.value == "")
+{
+alert('Selecciona un certificado');
+return false;
+}
+
+if(document.theform.selecexportar[0].checked)
+{
+
+	if(confirm('¿Desea exportar el certificado al servidor web Apache?'))
+	{
+		var exportarapache="1";
+	}
+	
+	var exportar="exportarapache";
+
+}
+
+//alert('continuar');
+
+if (exportarapache == 0)
+{
+	return false;	
+}
+
+	oscuprocessform();
+
+	document.theform.action = "gestorcerti.htm";
+	document.theform.env.value=exportar;
+	document.theform.submit();
+}	
+
+function rango(posicion)
+{
+var posicion;
+//alert(posicion);
+document.theform.certificado.value = document.getElementById(posicion+'x0').value;
+//document.theform.infocomentario.value = document.getElementById(posicion+'x2').value;
+
+imagenOn = new Image();
+
+for(i = 0; i < document.theform.actualselec.length;i++)
+	document.actualselec[i].src='../images/flechaselecno.gif';
+
+imagenOn.src='../images/flechaselec.gif';
+posicion=posicion-1
+
+document.actualselec[posicion].src = imagenOn.src; 
+
+imagenOn2 = new Image();
+imagenOn2.src='../images/flechaverdeexpor.gif';
+document.procesoflecha.src = imagenOn2.src; 
+
+
+/*if(i > 0)
+{ 
+document.actualselec[posicion].src = imagenOn.src; 
+}
+else
+{
+document.actualselec.src = imagenOn.src; 
+}*/
+
+return false;
+}
+
+   </script>
+   
+</head><body marginwidth="0" topmargin="0" leftmargin="0">
+
+
+
+<form name="theform" method="post" enctype="multipart/form-data" onsubmit="oscuprocessform()" action="">
+<input name="enviar" type="hidden">
+<input name="volver" type="hidden" value="$volver">
+<input name="env" type="hidden">
+<input name="certificado" type="hidden">
+
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR=#3e73a8><B>Gestor certificados</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<P><br><br><br>
+
+
+<table>
+<tr>
+<td colspan="2"><b>$openvpnkey_recuperar</b></td>
+</tr>
+<tr>
+<td width='150'><input id='FILE' name='FILE' type='file'  class='campotxt' size='25'/></td>
+<td width='35' align='center'><img  onclick='upload(\"${i}\")' style='cursor:pointer' src='../images/cargar.gif' border='0' alt='cargar'></td>
+</tr>
+</table>
+
+
+<br><br>
+
+<table border="0">
+<tr>
+<td valign="top">
+
+<table cellspacing="0" cellpadding="0" width=350 border="0">
+
+<tr>
+
+				<td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>PEM (CER/KEY)
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$openvpnkey_fecha</b></font></td><td>&nbsp;&nbsp;&nbsp;</td>
+				</tr>
+
+</table>
+	
+
+<table cellspacing="3" cellpadding="0" width=340 class="linea"  border=0>
+EOF
+
+	$i=1;
+	$acumulado="";
+	
+	#die "Uso: busca_en_dir_actual fichero\n" unless($ARGV[0]);  
+	opendir(DIRHANDLE,"$certiconten")||die "ERROR: no se puede leer directorio actual\n";  
+	foreach (readdir(DIRHANDLE)){ 
+	chomp;
+	
+	if($_ !~ /lost\+found/ && $_ !~ /^\./) 
+	{  
+		$nombre=$_;
+		$fecha=`/bin/ls -lh $certiconten/$nombre`;
+		@datatamano = split (/\s+/,$fecha);
+		$fecha = $datatamano[5]." ".$datatamano[6]." ".$datatamano[7];
+		 		
+		$acumulado=$acumulado.$nombre."|";
+	}
+				
+	$i=$i+1;
+	}  
+	closedir DIRHANDLE;
+
+
+	@lista = split(/\|/, $acumulado);
+	@lista = sort(@lista);
+
+
+	$i=1;
+
+	foreach $verkey (@lista)
+	{
+	
+		$fecha=`/bin/ls -lh $certiconten/$verkey`;
+		@datatamano = split (/\s+/,$fecha);
+		$fecha = $datatamano[5]." ".$datatamano[6]." ".$datatamano[7];
+	
+		print "<tr>\n";
+		print "<td align='center' width='40'><img src='../images/flechaselecno.gif' style='cursor:pointer' name='actualselec' onClick=rango('$i')></td>\n";
+		
+		print "<td align='left' width='25'>
+		
+		<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar&nombre=${verkey}&volver=$volver\"'><b>-</b></div>				
+																
+		</td><td width=5></td>\n";
+	
+		print "<td width='130' align='left'><input id='${i}x0' name='${i}x0' type='text' value='$verkey' class='campotxt' size=15></td>\n";
+		print "<td width='125' align='left'><input id='${i}x1' name='${i}x1' type='text' value='$fecha' class='campotxt4' size=15 readonly></td>\n";
+		print "<td width='33' align='center'><img src='../images/descargar.gif' onClick='descargar(\"$verkey\")' style='cursor:pointer' border='0' alt='descargar'></td>\n";
+	
+		print "</tr>\n";
+	
+	$i=$i+1;
+	
+	}
+
+			#print "<tr>\n";
+			#print "<td align='left' width='35'><img  onclick='window.location.href=\"?id=0&enviar=Insertar&volver=$volver\"' style='cursor:pointer' src='../images/mas.jpg' border='0' alt='crear key' ></td>\n";
+			#print "<td align='left' width='99%' colspan='5'></td>\n";
+			#print "</tr>\n";
+
+
+print <<EOF;
+</table>
+
+ <br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+              
+
+</td><td width="15" valign="top"><br><br><img src="/images/flecharojaexpor.gif" name='procesoflecha'></td>
+<td valign="top" align="center" width="260">
+<br><br>
+
+<table border="0">
+<tr><td>
+<!--<img src="/images/backupast.gif" style="cursor:pointer" onClick="exportar()">-->
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:100" align=center onClick="exportar()" class="bordenegrosombra"><b><font>Upload</font></b></div>
+
+</td>
+</tr>
+
+<tr><td colspan="3">
+
+<table>
+<tr><td colspan="2"><b>$rastreo_exportardatos:</b></td></tr>
+<tr><td><input type="radio" name="selecexportar" id="selecexportar" value="apache" checked></td><td> <font color="orange"><b>Servidor Web (Apache)</b></font></td></tr>
+<tr><td><input disabled type="radio" name="selecexportar" id="selecexportar" value="backuppc"></td><td> <font color="orange"><b>OpenVPN</b></font> No disponible</td></tr>
+<tr><td><input disabled type="radio" name="selecexportar" id="selecexportar" value="chivatoweb"></td><td> <font color="orange"><b>Auditor (Openvas)</b></font> No disponible</td></tr>
+</table>
+
+</td></tr>
+</table>              
+              
+              
+
+<br><br>
+</form>
+
+
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+ </body>
+</html>
+EOF
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

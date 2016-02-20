@@ -1,0 +1,1267 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+	
+	warn $q->param('enviar');
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		
+		warn "borrar $id";
+		
+		open(OLD, "< $rutasestaticas")    or die "can't open $rutasestaticas: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*ip\s+route.*$/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+			
+		 		if($i != $id)
+		 		{
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+		 		}
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $rutasestaticas 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+	
+		open(OLD, "< $variables")    or die "can't open $variables: $!";
+
+		 while (<OLD>)
+		 {
+                         if (/^\s*GATEWAY\s*=.*$/)
+	                     {
+	                     	chomp;
+	                     	$_ =~ s/^\s+//;
+							@data = split (/\s*=\s*/,$_);
+						 	$gateway = $data[1];
+						  }  
+		}
+		close(OLD)     or die "can't close $variables: $!";
+	
+	
+		$id=$q->param('id');
+		warn "insertar $id";
+		open(OLD, "< $rutasestaticas")    or die "can't open $rutasestaticas: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		if($id == 0)
+		{
+		 	print NEW "#Nueva regla\n";
+    		print NEW "#ip route add 0.0.0.0/0 via ".$gateway."\n\n";
+	
+		}
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*ip\s+route.*$/)
+     		{
+		#$comment
+		#$IPTABLES -A FORWARD $ip -m p2p --p2p-protocol $targets -j ACCEPT
+				chomp;
+				$_ =~ /.*/;
+			
+		 	
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+    				
+    					
+    				if($i == $id)
+		 			{
+		 				print NEW "#Nueva regla\n";
+    					print NEW "#ip route add 0.0.0.0/0 via ".$gateway."\n\n";
+						
+		 			}
+		 		
+		 		
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $rutasestaticas 1>&2");
+		
+		
+	}
+	
+	if($q->param('enviar') eq "Aplicar")
+	{
+		open(NEW, "> $rutasestaticas")    or die "cant open $rutasestaticas: $!";
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			$ipdestino=$q->param("${i}x0");
+			$ipgateway=$q->param("${i}x1");
+			$interfazvalor=$q->param("${i}xe");
+			
+			if( $ipdestino eq undef )
+			{
+				last;
+			}
+			
+			if($q->param("${i}xact") eq "1" )
+		 	{
+		 		$activar="";
+		 	}
+		 	else
+		 	{
+		 		$activar="#";
+		 	}		
+		 	
+		 	$viavalor=" via ".$ipgateway; 	
+		 	
+		 	if($interfazvalor =~ /^Red\sexterna$/)
+			{
+				$interfazvalor=" dev eth1";
+			}
+			elsif($interfazvalor =~ /^Red\sinterna$/)
+			{
+				$interfazvalor=" dev eth0";
+			}
+			elsif($interfazvalor =~ /^Red\s3$/)
+			{
+				$interfazvalor=" dev eth2";
+			}
+			elsif($interfazvalor =~ /^Red\s4$/)
+			{
+				$interfazvalor=" dev eth3";
+			}
+			elsif($interfazvalor =~ /^Red\s5$/)
+			{
+				$interfazvalor=" dev eth4";
+			}
+			elsif($interfazvalor =~ /^Red\s6$/)
+			{
+				$interfazvalor=" dev eth5";
+			}
+			elsif($interfazvalor =~ /^PPPoE\s(.+)$/)
+			{
+				$nombrepppoe=$1;
+				
+				$unit=`/bin/cat $proveeconten/${nombrepppoe}-imtpppoeprovider | grep ^unit | cut -d \\  -f 2`;
+				$unit =~ s/(\r?\n)//g;			
+				
+				$interfazvalor=" dev ppp${unit}";
+				$viavalor=" via 0.0.0.0";
+			}
+			else
+			{
+				$interfazvalor="";
+			}
+			
+			
+			#comment
+			$comment=$q->param("${i}xc");
+			if($comment eq "")
+		 	{
+		 		$comment="Comentario";
+		 	}	
+		 				
+			print NEW "#".$comment."\n";
+			print NEW "${activar}ip route add ".$ipdestino.$viavalor.$interfazvalor."\n\n";
+	
+      		$i=$i+1;
+		}
+		close(NEW)     or die "can't close $rutasestaticas: $!";
+	
+	
+		system("$networking restart >/dev/null 2>&1");
+	}
+	
+}
+
+	
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+		
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+/**
+ * function isValidNetIp()
+ */
+function isValidNetIP(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('/');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,2}\$/)==-1)
+		return false;
+	
+	
+    var lmask = parseInt(tempIP[1],10);
+
+	
+	if (lmask<0 || lmask > 32 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		var id = curListener.split('x')[0];
+	      var targets="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.targets.elements.length;i++)
+		{
+			if(document.targets.elements[i].checked==true)
+			{
+				if (targets!="") targets += ",";
+				targets+=document.targets.elements[i].name;
+			}
+		}
+		
+ 		
+ 		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 			{
+ 				ruledata[i][2]=targets;
+ 				document.getElementById(id+"x1").value=targets;
+ 				ruledata[i][4]=true;
+ 				break;	
+ 			}
+ 		document.getElementById(curListener).innerHTML=targets;
+
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    //	this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+
+//	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+//	this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+ 
+		this.el.style.cssText="position:absolute; width:200; height:200; overflow:hidden; top:0; left:0; clip:rect(0,200,200,0); visibility:visible";
+  
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+ 
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+
+function toggleCB(listener,container,x,y)
+{
+	//debugger;
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-	objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		//debugger;
+		//rellenar los checkbox
+		var id = curListener.split('x')[0];
+		var i=0;	
+		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 				break;
+ 				
+		var targets = ruledata[i][2].split(",");
+		for(i=0;i<document.targets.elements.length;i++)
+		{
+			document.targets.elements[i].checked=false;
+		}
+	
+		for(i=0;i<targets.length ;i++)
+		{
+			if(targets[i]!="" && eval("document.targets."+targets[i]))
+				eval("document.targets."+targets[i]+".checked=true");
+		}
+		objContainer.el.style.visibility='visible'; 
+	}	
+}
+
+
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function aplicarvalor(nombre)
+{
+	asignar=document.getElementById('control').value;
+	document.getElementById(asignar).value=nombre;
+	
+	clearLista();
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea('divContainer1',sd);
+	objContainer2=InitialiseScrollableArea2('divContainer2',null);
+
+	//initRules();
+} 
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha'+id);
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;
+		document.getElementById(id+'xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById(id+'xact').value=1;
+	}
+}
+
+
+function validarForm()
+{
+	var i=1;
+	while(document.getElementById(i+'x0'))
+	{
+		if (isValidNetIP(document.getElementById(i+'x0').value)==false && isValidIP(document.getElementById(i+'x0').value)==false)
+		{
+			alert(document.getElementById(i+'x0').value+' se esperaba un destino válido');
+			return;
+		}
+		i++;
+	}
+	
+	/*var i=1;
+	while(document.getElementById(i+'x1'))
+	{
+		if (isValidIP(document.getElementById(i+'x1').value)==false)
+		{
+			alert(document.getElementById(i+'x1').value+' se esperaba un gateway correcto');
+			return;
+		}
+		i++;
+	}*/
+	
+	oscuprocessform();
+	
+	document.theform.action="rutasestaticas.htm";
+	document.theform.enviar.value="Aplicar"
+	document.theform.submit();
+	
+}
+
+function toggle(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="enviar" type="hidden">
+<input name="control" id="control" type="hidden">
+
+<!--<table cellpadding=0 cellspacing=0><tr><td><img src='../images/direccionador.gif'></td><td width="10"></td><td><FONT SIZE=+1 COLOR=#3e73a8><B>$rutasestaticas_titulo1</B></FONT></td></tr></table>-->
+<CENTER>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	
+
+<br>
+
+	 <table cellpadding="0" cellspacing="0">
+    <tr><td>Con la interfaz en "Default" la ruta solo se basará en el gateway.</td></tr>
+    <tr><td>Con el gateway en "0.0.0.0" la ruta solo se basará en el interfaz.</td></tr>
+    </table>
+	 
+		<br><br>
+<!--<table cellspacing="0" cellpadding="0" width=580 border="0">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$rutasestaticas_destino
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GATEWAY
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$msn_comentario</b></font></td></tr>
+
+</table>-->
+	
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="720">
+<tr><td width="720" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$rutasestaticas_destino
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GATEWAY
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;INTERFAZ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$msn_comentario</b></font></td></tr>
+<tr><td height="5"></td></td>
+<tr><td align="center">		
+		
+		
+
+<table cellspacing="3" cellpadding="0" width=720 class="linea"  border=0>
+EOF
+
+
+
+
+
+	open(OLD, "< $rutasestaticas")    or die "can't open $rutasestaticas: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+			if (/^[\s#]*ip\s+route.*$/)
+     		{
+		
+				chomp;
+				$_ =~ /.*/;
+				@data = split (/ /,$_);
+				
+		 		$ipdestino = $data[3];
+		 		$ipgateway = $data[5];
+				
+				if ($_ =~ /^\s*#.*/)
+				{
+					$activado=0;
+				}
+				else
+				{
+					$activado=1;
+				}
+		 		
+		 		if($lastline =~ /^#.*/)
+		 		{
+		 			$lastline=~s/^#//;
+		 			$comment=$lastline;# quitar  #
+		 			$lastline="";
+		 		}	
+		 		else
+		 		{
+		 			$comment="";	
+		 		}	
+		 		
+				if ($_ =~ /dev eth1/)
+				{
+					$interfazvalor=$virtualserver_externa;
+				}
+				elsif ($_ =~ /dev eth0/)
+				{
+					$interfazvalor="Red interna";
+				}
+				elsif ($_ =~ /dev eth2/)
+				{
+					$interfazvalor="Red 3";
+				}
+				elsif ($_ =~ /dev eth3/)
+				{
+					$interfazvalor="Red 4";
+				}
+				elsif ($_ =~ /dev eth4/)
+				{
+					$interfazvalor="Red 5";
+				}
+				elsif ($_ =~ /dev eth5/)
+				{
+					$interfazvalor="Red 6";
+				}
+				elsif($_ =~ /dev ppp([0-9]+)/)
+				{
+					$nombrepppoe=`grep -r "unit ${1}" /etc/ppp/peers/`;
+					if($nombrepppoe =~ /peers\/(.+)\-imtpppoeprovider/)					
+					{
+						$nombrepppoe=$1;
+					}
+					else
+					{
+						$nombrepppoe="";
+					}
+					$nombrepppoe =~ s/(\r?\n)//g;
+		   		$interfazvalor="PPPoE $nombrepppoe";		
+				}		
+				else
+				{
+					$interfazvalor="Default";
+				}
+					
+			
+				print "<tr><td width=5></td>\n";
+				print "<td align='left' width='30'>
+				
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Insertar\"'><b>+</b></div>				
+											
+				</td>\n";
+				print "<td align='left' width='30'>
+								
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar\"'><b>-</b></div>				
+								
+				</td>\n";
+	
+				print "<td width='120' align='left'><input id='${i}x0' name='${i}x0' type='text' value='$ipdestino' class='campotxt' size=15></td>\n";
+				print "<td align='center' width=37><img src='../images/direccion.gif'></td>\n";
+				
+				print "<td width='120' align='left'><input id='${i}x1' name='${i}x1' type='text' value='$ipgateway' class='campotxt' size=15></td>\n";
+				
+				print "<td width=5></td>\n";		
+		
+				print "<td width='105' align='left'><input id='${i}xe' name='${i}xe' type='text' value='$interfazvalor' class='campotxt' size=12></td>\n";
+				
+				print "<td align='center' width=13><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"${i}xe\",objContainer2,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+		
+				print "<td width=5></td>\n";
+	
+				print "<td width='80%'><input  style='font-style:italic'  class='campotxt' type='text' id='${i}xc' name='${i}xc' size=22 value='$comment'/></td>\n";
+				print "<td align='center' width='30'>\n";
+				print "<script language='javascript'>document.write('<img id=\"flecha${i}\" src=\"'+($activado == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xact' name='${i}xact' value='$activado'/>\n";
+				print "<td width=5></td></tr>\n";
+				
+
+				$i=$i+1;
+		}
+		
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $rutasestaticas: $!";	
+
+if ($i == 1) 
+{
+			print "<tr><td width=5></td>\n";
+			print "<td align='left' width='30'>
+			
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=0&enviar=Insertar\"'><b>+</b></div>	
+							
+			</td>\n";
+			print "<td align='left' width='99%' colspan='5'></td>\n";
+			print "</tr>\n";
+}
+
+sleep(2);
+
+$tablaroute=`/sbin/route -n`;
+$tablaroute =~ s/Kernel IP routing table//g;
+$tablaroute =~ s/Destination/<b>Destination<\/b>/g;
+$tablaroute =~ s/Gateway/<b>Gateway<\/b>/g;
+$tablaroute =~ s/Genmask/<b>Genmask<\/b>/g;
+$tablaroute =~ s/Flags/<b>Flags<\/b>/g;
+$tablaroute =~ s/Metric/<b>Metric<\/b>/g;
+$tablaroute =~ s/Ref/<b>Ref<\/b>/g;
+$tablaroute =~ s/Use/<b>Use<\/b>/g;
+$tablaroute =~ s/Iface/<b>Iface<\/b>/g;
+$tablaroute =~ s/eth0/interna/g;
+$tablaroute =~ s/eth1/externa/g;
+$tablaroute =~ s/(\r?\n)/<\/td><\/tr><td><tr>\n/g;
+$tablaroute =~ s/[\s\t]+/<\/td><td bordercolor=white>/g;
+
+
+print <<EOF;
+</table>
+
+</td></tr>
+<tr><td height="10"></td></tr>
+</table>
+
+ <br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+
+<br><br><br>
+<table class="bordenegrosombra" width="500"><tr><td>
+$tablaroute
+</td></tr></table>
+</form>
+		</td>
+	</tr>
+	</table>
+	<!-- fin tabla central -->
+	</td>
+</tr>
+</table>
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer2" class="opaco1" style="visibility:hidden;">
+
+<!-- vvvvv flechitas vvvvv -->
+  <div id="divUpControl2" class="divUp2" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer2,+7)" onMouseOut="CeaseScroll(objContainer2)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown2'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer2,-7)" onMouseOut="CeaseScroll(objContainer2)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="190" height="170" class="bordecuadrof">
+<tr>
+<td valign="top" width="150">
+
+<div width="190" align="left" id="divContainer2cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="190">
+EOF
+
+	#die "Uso: busca_en_dir_actual fichero\n" unless($ARGV[0]);  
+	opendir(DIRHANDLE,"$proveeconten")||die "ERROR: no se puede leer directorio actual\n";  
+	foreach (readdir(DIRHANDLE)){ 
+	chomp;
+	
+	if($_ !~ /lost\+found/ && $_ !~ /^\./ && $_ =~ /-imtpppoeprovider$/) 
+	{  
+		$nombre=$_;
+		 		
+		$acumulado=$acumulado.$nombre."|";
+	}
+				
+	$i=$i+1;
+	}  
+	closedir DIRHANDLE;
+
+
+	@lista = split(/\|/, $acumulado);
+	@lista = sort(@lista);
+
+
+	$i=1;
+
+	foreach $verprovee (@lista)
+	{
+	
+		$usuario=`/bin/cat $proveeconten/$verprovee | grep ^user | cut -d \\  -f 2`;
+		$usuario =~ s/\"//g;
+		
+		$password=`/bin/cat $proveeconten/$verprovee | grep ^password | cut -d \\  -f 2`;
+		$password =~ s/\"//g;
+		
+		$unit=`/bin/cat $proveeconten/$verprovee | grep ^unit | cut -d \\  -f 2`;
+		$unit =~ s/\"//g;
+		
+		$tipointerfaz=`/bin/cat $proveeconten/$verprovee | grep "^plugin rp-pppoe.so" | cut -d \\  -f 3`;
+		$tipointerfaz =~ s/\"//g;
+		$tipointerfaz =~ s/\s*//g;
+		
+		if($tipointerfaz eq "eth1")
+		{
+			$tipointerfazvalor="Red externa";
+		}
+		elsif($tipointerfaz eq "eth2")
+		{
+		   $tipointerfazvalor="Red 3";
+		}
+		elsif($tipointerfaz eq "eth3")
+		{
+		   $tipointerfazvalor="Red 4";		
+		}
+		elsif($tipointerfaz eq "eth4")
+		{
+			$tipointerfazvalor="Red 5";	
+		}
+		elsif($tipointerfaz eq "eth5")
+		{
+		   $tipointerfazvalor="Red 6";		
+		}	
+		
+		$verprovee =~ s/-imtpppoeprovider$//;
+		
+		$activado=0;
+				
+		open(OLD, "< $pppoepeers")    or die "can't open $pppoepeers: $!";
+      while (<OLD>)
+      {
+	      if (/^$verprovee$/)
+   	   {
+				$activado=1;
+      	}
+      }
+      close(OLD);
+	
+		if($activado eq 1)
+		{
+		print "<tr><td height=4></td>\n";
+	
+		print "<tr><td width='50' align='center' title='$verprovee'><b><font style='font-size:8px'>PPPoE</font></b></td><td title='$verprovee'><font onclick='aplicarvalor(\"PPPoE $verprovee\")' size=1 style='cursor:pointer'>$verprovee</font></td></tr>\n";		
+		}		
+																		
+	$i=$i+1;
+	
+	}
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Default'><img src='../images/redmini.gif'></td><td title='Default'><font onclick='aplicarvalor(\"Default\")' size=1 style='cursor:pointer'>Default</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red Externa'><img src='../images/redmini.gif'></td><td title='Red Externa'><font onclick='aplicarvalor(\"Red externa\")' size=1 style='cursor:pointer'>$virtualserver_externa</font></td></tr>\n";
+
+#print "<tr><td height='4'></td></tr>";
+#print "<tr><td width='30' align='center' title='Red Interna'><img src='../images/redmini.gif'></td><td title='Red Interna'><font onclick='aplicarvalor(\"Red interna\")' size=1 style='cursor:pointer'>Red interna</font></td></tr>\n";
+
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 3'><img src='../images/redmini.gif'></td><td title='Red 3'><font onclick='aplicarvalor(\"Red 3\")' size=1 style='cursor:pointer'>Red 3</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 4'><img src='../images/redmini.gif'></td><td title='Red 4'><font onclick='aplicarvalor(\"Red 4\")' size=1 style='cursor:pointer'>Red 4</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 5'><img src='../images/redmini.gif'></td><td title='Red 5'><font onclick='aplicarvalor(\"Red 5\")' size=1 style='cursor:pointer'>Red 5</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 6'><img src='../images/redmini.gif'></td><td title='Red 6'><font onclick='aplicarvalor(\"Red 6\")' size=1 style='cursor:pointer'>Red 6</font></td></tr>\n";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+<script language="JavaScript1.2">
+
+function tryreload()
+{
+document.getElementById('oscuprocess').style.visibility='hidden';
+document.getElementById('oscuprocess2').style.visibility='hidden';          
+}
+
+setTimeout(tryreload,1000);
+
+</script>
+
+<script language="javascript">InitialiseAreas();</script>
+EOF
+#require "$imtlayers";
+print <<EOF;	
+ </body>
+</html>
+EOF

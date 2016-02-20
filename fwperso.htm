@@ -1,0 +1,130 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+use CGI::Session;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+#$cookie = $q->cookie(-name => "imtsession");
+#if ($cookie) {
+#  CGI::Session->name($cookie);
+#}
+#  $session = new CGI::Session("driver:File",$cookie,{'Directory'=>"/tmp"}) or die "$!";
+#  $sesiperfil = $session->param('sesiperfil');
+#  $sesiuser = $session->param('sesiuser');
+  
+#if ($sesiperfil eq "" || $sesiuser eq "")
+#{
+
+#Comienzo HTML^M
+#if($CONTENTHTML ne 1)
+#{
+#print "Content-type: text/html; charset=$idicharset\n";
+#print "Content-Language: $idicorto\r\n\r\n";
+#}
+#print <<EOF;
+#<html>
+#<font color="white" face="Verdana, Arial, Helvetica, sans-serif" style="FONT-SIZE: 8pt"><b>
+#<br>Sessión caducada.<br>
+#Cierre la ventana.</b></font>
+#</html>
+#EOF
+#exit;
+#}
+
+
+$nombre=$q->param("certiforzado");
+
+
+if($q->param('enviar') eq "Aplicar")
+{
+		$contenido=$q->param("contenidover");
+		$contenido =~ s/\r//g;
+		$contenido =~ s/\n$//;
+		
+		system("/bin/echo -n '$contenido' > ${fwperso}");
+
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");		
+}
+
+
+$datosfichero=`/bin/cat ${fwperso}`;
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript">
+
+function aplifichero()
+{
+	
+	
+	document.theform.action="fwperso.htm";
+	document.theform.enviar.value="Aplicar"
+	document.theform.submit();
+}
+
+</script>
+
+</head>
+<body>
+<form name="theform" method="post" action="">
+<input type="hidden" name="enviar">
+<input type="hidden" name="certiforzado" value="$nombre">
+
+<br><br><br><br>
+<br><br><br><br>
+
+<center>
+<textarea id="contenidover" name="contenidover" style="width:460; height:230; font-size: 8pt; border: 3px solid #cccccc; padding: 5px; font-family: Tahoma, sans-serif;">
+$datosfichero
+</textarea>
+
+<br>
+
+<table border='0' align='center' cellpadding='0' cellspacing='0' width='200'>
+<tr><td height="8"></td></tr>
+<tr>
+<td align='center' valign='top'><input type="image" src='../images/submit_out.gif' name='boton1' id='boton1' value='Aplicar' onmousemove=\"status='Enviar'\" onmousedown=\"this.src='../images/submit_in.gif';\"  onmouseover=\"this.src='../images/submit_over.gif';\" onmouseout=\"status=window.defaultStatus;this.src='../images/submit_out.gif';\" target='_self' border='0' onclick='aplifichero()'>
+</td>               
+</tr>
+<tr><td height="10"></td></tr>
+</table>
+<br>
+
+</td></tr></table>
+
+</center>      
+
+</form>     	
+
+EOF
+require "$imtlayers";
+print <<EOF;
+</form>
+</body>
+</html>
+EOF

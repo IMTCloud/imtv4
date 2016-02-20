@@ -1,0 +1,405 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+
+if($q->param('env') eq "1")
+{
+
+	$direccion=$q->param('direccion');
+	$cuenta=$q->param('cuenta');
+	$usuario=$q->param('usuario');
+	$password=$q->param('password');
+	$puerto=$q->param('puerto');
+	$tlsactivo=$q->param('tlsactivo');
+	
+	open(OLD, "< $muttrc")    or die "can't open $muttrc: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+			if(/^set\sfrom=/)
+     		{
+				s/^.*$/set from= ${cuenta}/;
+			}
+			
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $config: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $muttrc 1>&2");
+	
+	
+
+	open(OLD, "< $msmtprc")    or die "can't open $msmtprc: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+			if(/^domain/)
+     		{
+				s/^.*$/domain ${direccion}/;
+			}
+			
+			if(/^host/)
+     		{
+				s/^.*$/host ${direccion}/;
+			}
+  		
+			if(/^from/)
+     		{
+				s/^.*$/from ${cuenta}/;
+			}
+		
+			if(/^user/)
+     		{
+				s/^.*$/user ${usuario}/;
+			}
+
+			if(/^password/)
+     		{
+				s/^.*$/password ${password}/;
+			}
+
+			if(/^port/)
+     		{
+				s/^.*$/port ${puerto}/;
+			}
+			
+			if(/^tls/)
+     		{
+				s/^tls.*$//;
+				chomp;
+			}
+  		 	
+            print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $config: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $msmtprc 1>&2");
+
+	
+	if($tlsactivo eq 1)
+	{	
+	   open(NEW, ">> $msmtprc")     or die "can't open $msmtprc: $!";
+		
+		print NEW "tls on\n"; 
+		print NEW "tls_trust_file /usr/share/ca-certificates/mozilla/Equifax_Secure_CA.crt\n";
+		
+		close(NEW) or die "can't close $msmtprc: $!";		
+	}
+	
+}
+
+
+
+
+#Lectura
+#···············································································
+	open(OLD, "< $msmtprc")    or die "can't open $msmtprc: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^domain/)
+     		{
+				chomp;
+				@data = split (/\s+/,$_);
+				$direccion = $data[1];
+			}
+			
+			if (/^from/)
+     		{
+				chomp;
+				@data = split (/\s+/,$_);
+				$cuenta = $data[1];
+			}
+			
+			if (/^user/)
+     		{
+				chomp;
+				@data = split (/\s+/,$_);
+				$usuario = $data[1];
+			}
+
+			if (/^password/)
+     		{
+				chomp;
+				@data = split (/\s+/,$_);
+				$password = $data[1];
+			}
+
+			if (/^port/)
+     		{
+				chomp;
+				@data = split (/\s+/,$_);
+				$puerto = $data[1];
+			}
+			
+			if (/^tls\son/)
+     		{
+				$checkedtlsactivo="checked";
+			}
+
+	}
+
+	close(OLD)     or die "can't close $msmtprc: $!";
+
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+
+
+function apliconfig()
+{
+
+	if(!confirm('¿Desea aplicar los cambios?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+document.theform.submit();
+
+}
+</script>
+
+
+
+</head>
+
+	
+<body>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="volver" type="hidden" value="$volver">
+<input name="estado" type="hidden" value="$pasargroup">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/arroba.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$cuentalerta_titulo1</B></FONT></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br><br><br>
+	
+<table width="650" border="0"><tr><td align="left">
+
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>
+
+<!--<A HREF=$volver target=main><img src="../images/volver.gif" border="0"><br>$fw_volver</a> -->
+</td>
+</tr></table>
+<br>
+		<center>
+		<br><br>
+		
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="350">
+<tr><td width="350" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;<b><font color=white>$groupware_correo</b></font></td></tr>
+<tr><td height="5"></td></td>
+<tr><td align="center">
+
+<table cellpadding="0" cellspacing="0" border="0">
+<tr><td height="5"></td></tr>
+<tr>
+<td width="90">$antivirusconfig_direccion<br>$groupware_server</td><td><input type="text" name="direccion" value="$direccion" class="campotxt" size="15"></td>
+</tr>
+<tr><td height="3"></td></tr>
+<tr>
+<td>$cuentalerta_cuenta</td><td><input type="text" name="cuenta" value="$cuenta" class="campotxt" size="25"></td>
+</tr>
+<tr><td height="3"></td></tr>
+<tr>
+<td>$configfabrica_usuario</td><td><input type="text" name="usuario" value="$usuario" class="campotxt" size="25"></td>
+</tr>
+<tr><td height="3"></td></tr>
+<tr>
+<td>Password</td><td><input type="password" name="password" value="$password" class="campotxt" size="15"></td>
+</tr>
+<tr><td height="3"></td></tr>
+<tr>
+<td>$cuentalerta_puerto</td><td><input type="puerto" name="puerto" value="$puerto" class="campotxt" size="15"></td>
+</tr>
+<tr><td height="3"></td></tr>
+<tr>
+<td>TLS</td><td><input type="checkbox" name="tlsactivo" value="1" class="campotxt" $checkedtlsactivo></td>
+</tr>
+<tr><td height="5"></td></tr>
+</table>
+
+</td></tr>
+<tr><td height="20"></td></tr>
+</table>
+
+<br>
+		
+<table><tr><td><!--<img src="../images/aplicar.gif" onClick="apliconfig()" style="cursor:pointer;$imagenvisiblebase">-->
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:100" align=center onClick="apliconfig()" class="bordenegrosombra"><b><font>Modify</font></b></div>
+
+
+</td></tr></table>
+		</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+

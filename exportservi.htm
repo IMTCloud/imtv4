@@ -1,0 +1,929 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+#$icingahostmk="/omd/sites/imticinga/etc/check_mk/conf.d/wato/hosts.mk";
+
+$infotest=`/opt/imt/gestor/tools/networking/ptelnet.pl 127.0.0.1 3306`;
+$testmysqlping=`/usr/bin/mysqladmin ping | grep alive`;
+
+$tipologinfile=0;
+
+if($infotest =~ /no conecta/ || $testmysqlping eq "")
+{
+$tipologinfile=1;
+}
+
+my $dbh;
+my $sth;
+
+
+
+$dbuser="root";
+$dbpass="";
+
+
+    $dbh = DBI->connect('DBI:mysql:database=controlhosts;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+			 
+
+if($q->param('exportarobjetosvalor') eq "dhcpserver")
+{
+
+$i=1;
+		
+		while( 1 ) 
+		{
+
+			$idvalor=$q->param("id_${i}");
+			
+			$ip=$q->param("ip_${i}");
+			$mac=$q->param("mac_${i}");
+			$nombre=$q->param("nombre_${i}");
+			$tipodispo=$q->param("tipodispo_${i}");
+			
+			$nombre =~ s/\s+/_/g;
+			
+			if( $ip eq undef )
+			{
+				last;
+			}
+			
+			if($idvalor eq 1)
+			{
+			
+			$controlexistenombre=`/bin/cat $dhcpipasigmac | grep '${nombre}'`;
+			$controlexistenombre =~ s/(\r?\n)//g;
+			
+			if( $controlexistenombre eq "")
+			{
+				$anadirnum="";
+			}
+			else
+			{
+				$anadirnum = int(rand(1000));			
+			}
+			
+			open(NEW, ">> $dhcpipasigmac")     or die "can't open $dhcpipasigmac: $!";
+		
+			print NEW "host ${nombre}${anadirnum} {\n";
+			print NEW "	option host-name \"${nombre}${anadirnum}\" ;\n";
+			print NEW "	hardware ethernet $mac ;\n";
+			print NEW "	fixed-address $ip ;\n";
+			print NEW "	filename \"/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.0\";\n";
+			print NEW "}\n\n";
+		
+			close(NEW);       
+			
+			} 	
+			
+			$i++;
+        	
+		}
+	   			
+}			
+
+
+if($q->param('exportarobjetosvalor') eq "poweroffpcs")
+{
+
+$i=1;
+		
+		while( 1 ) 
+		{
+
+			$idvalor=$q->param("id_${i}");
+			
+			$ip=$q->param("ip_${i}");
+			$nombre=$q->param("nombre_${i}");
+			
+			if( $ip eq undef )
+			{
+				last;
+			}
+			
+			if($idvalor eq 1)
+			{
+			
+			open(NEW, ">> $poweroffpcsvalor")     or die "can't open $poweroffpcsvalor: $!";
+			print NEW "$ip|||sala1\n";
+			close(NEW);
+			
+			open(NEW, ">> $poweroffpcsvalorauto")     or die "can't open $poweroffpcsvalorauto: $!";
+			print NEW "#$ip|||sala1n";
+			close(NEW);        
+			
+			} 	
+			
+			$i++;
+        	
+		}
+	   			
+}	
+
+
+if($q->param('exportarobjetosvalor') eq "wakeonlan")
+{
+
+$i=1;
+		
+		while( 1 ) 
+		{
+
+			$idvalor=$q->param("id_${i}");
+			
+			$mac=uc($q->param("mac_${i}"));
+			$nombre=$q->param("nombre_${i}");
+			
+			if( $mac eq undef )
+			{
+				last;
+			}
+			
+			if($idvalor eq 1)
+			{
+			
+			open(NEW, ">> $wakeonlanvalor")     or die "can't open $wakeonlanvalor: $!";
+			print NEW "$mac|$nombre\n";
+			close(NEW);
+			
+			open(NEW, ">> $wakeonlanvalorauto")     or die "can't open $wakeonlanvalorauto: $!";
+			print NEW "#$mac|$nombre\n";
+			close(NEW);        
+			
+			} 	
+			
+			$i++;
+        	
+		}
+	   			
+}		
+
+
+
+
+
+if($q->param('exportarobjetosvalor') eq "icinga")
+{
+
+unless (-e "$icingahostmk") { 
+
+		open(NEW, "> $icingahostmk")     or die "can't open $icingahostmk: $!";
+		
+		print NEW "# Written by WATO\n";
+		print NEW "# encoding: utf-8\n\n"; 
+		print NEW "all_hosts += [\n";
+		print NEW "]\n\n\n";		
+		
+		close(NEW) or die "can't close $icingahostmk: $!";
+		
+}
+else
+{
+	$controlipaddresses=`cat $icingahostmk | grep ipaddresses`;
+	$controlipaddresses =~ s/(\r?\n)//g;
+	
+	if($controlipaddresses eq "")
+	{
+		open(NEW, ">> $icingahostmk")     or die "can't open $icingahostmk: $!";
+		print NEW "ipaddresses.update({ })\n";
+		close(NEW) or die "can't close $icingahostmk: $!";
+	}
+	
+}
+
+
+
+$i=1;
+		
+		while( 1 ) 
+		{
+
+			$idvalor=$q->param("id_${i}");
+			
+			$ip=uc($q->param("ip_${i}"));
+			$nombre=$q->param("nombre_${i}");
+			
+			$radioipnombre=$q->param("radioipnombre_${i}");
+			
+			if( $ip eq undef )
+			{
+				last;
+			}
+			
+			if($idvalor eq 1)
+			{			
+			
+			open(OLD, "< $icingahostmk")    or die "can't open $icingahostmk: $!";
+			open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+			while (<OLD>) 
+			{
+		
+				if(/^all_hosts/)
+     			{
+					$agregalinea=1;				
+				}
+				
+				if(/^\]/ && $agregalinea eq 1)
+     			{
+
+					if($radioipnombre eq 2)
+     				{
+     					$valorobjeto="$nombre";
+     				}     			
+     				else
+     				{
+     					$valorobjeto="$ip";
+   	  			}
+     			
+					print NEW "  \"$valorobjeto|snmp-only|cmk-agent|prod|snmp|lan|tcp|wato|/\" + FOLDER_PATH + \"/\",\n";
+  				}
+  				
+  				if(/ipaddresses.update\(\{(.*)\}\)/ && $radioipnombre eq 2)
+     			{
+     				$contenentrellaves=$1;
+     				
+     				$contenentrellaves=$contenentrellaves.","."'$nombre': u'$ip'";
+     				
+     				$contenentrellaves =~ s/^\s*,//;
+     				
+     				$_ =~ s/\(\{.*\}\)/\(\{$contenentrellaves\}\)/;
+     				
+     			}
+  	
+             print NEW $_            or die "can't write $aux: $!";
+			}
+			
+			
+			# Explicit IP addresses
+			#ipaddresses.update({'equipo': u'8.8.4.4', '$nombre': u'8.8.8.8'})
+			
+			# Explicit IP addresses
+			#ipaddresses.update({'equipo': u'8.8.4.4'})
+
+			close(OLD)                  or die "can't close $crontab: $!";
+			close(NEW)                  or die "can't close $aux: $!";
+	
+			system("/bin/cp $aux $icingahostmk 1>&2");			
+			      
+			
+			} 	
+			
+			$i++;
+        	
+		}
+		
+		system("/opt/imt/conf-debian-imt/icinga/accion_exportserviicinga 1>&2");
+	   			
+}		
+
+
+
+
+
+
+
+		
+$optionsvalor=$q->param("exportarobjetosvalor");	 				 
+
+if($optionsvalor eq "dhcpserver" || $optionsvalor eq "")
+{
+	$optionsvalor="dhcpserver";
+	$optionsvalortitulo="DHCP Server";
+	$controldhcpipasigmac=`/bin/cat $dhcpipasigmac`;
+	$enlaceservi="dhcpserver.htm?princi=ipmac";	 	
+}
+elsif ($optionsvalor eq "icinga")
+{
+	$optionsvalortitulo="Icinga";
+	$controlicinga=`/bin/cat $icingahostmk`;
+	#$controlicinga=`find /omd/sites/imticinga/etc/check_mk/conf.d/wato/ -name "hosts.mk" | xargs cat`;
+	$enlaceservi="icingamenuv3.htm";	
+}
+elsif ($optionsvalor eq "wakeonlan")
+{
+	$optionsvalortitulo="WakeOnlan";
+	$controlwakeonlanvalor=`/bin/cat $wakeonlanvalor`; 
+   $enlaceservi="wakeonlan.htm";	
+}
+elsif ($optionsvalor eq "poweroffpcs")
+{
+	$optionsvalortitulo="Poweroff PCs";
+	$controlpoweroffpcsvalor=`/bin/cat $poweroffpcsvalor`;
+	$enlaceservi="poweroffpcs.htm";
+}
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript">
+
+function veragrerangecapa(container)
+{
+//document.getElementById('titulocerti').value=nombre;
+//document.getElementById('contenidover').value=document.getElementById(valor+'xocul').value;
+
+var objContainer = eval(container);
+objContainer.style.display='inline';
+
+		/*oscuprocessform();
+
+      document.theform.target='mostrarplantillawebproceso';
+      document.theform.plantillawebforzado.value=nombre;
+      document.theform.action="resulwebfind.htm";
+      document.theform.submit();*/
+
+}
+
+
+function closecapa(container)
+{
+		//document.theform.redipmac.value='';
+      //document.theform.target='mostrarequiposproceso';
+      //document.theform.action="hostsregis.htm";
+      //document.theform.submit();
+
+var objContainer = eval(container);
+objContainer.style.display='none';
+
+}
+
+
+function optionCheck(){
+
+        var option = document.getElementById("options").value;
+        if(option == "dhcpserver"){
+        		document.theform.exportarobjetosvalor.value = "dhcpserver";
+        }
+        if(option == "icinga"){
+        		document.theform.exportarobjetosvalor.value = "icinga";
+        }
+        if(option == "poweroffpcs"){
+        		document.theform.exportarobjetosvalor.value = "poweroffpcs";
+        }
+        if(option == "wakeonlan"){
+        		document.theform.exportarobjetosvalor.value = "wakeonlan";
+        }
+        
+        document.theform.action="exportservi.htm";
+        document.theform.submit();
+}
+
+</script>
+
+<script language="javascript">
+
+function exportarobjetos(nombre)
+{
+
+		if(!confirm('¿Desea exportar?'))
+		return false;
+
+      /*document.theform.target='webshell';
+      document.theform.method="get";*/
+      //document.theform.exportarobjetosvalor.value = "1";
+      document.theform.action="exportservi.htm";
+      document.theform.submit();
+
+}
+
+</script>
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<link href="/icheck/skins/flat/blue.css" rel="stylesheet">
+<script src="/icheck/icheck.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/images/jquery.dataTables.min.css">
+<script type="text/javascript" language="javascript" src="/images/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+
+	\$(document).ready(function(){
+    \$('#tablaexportservi').DataTable( {
+        "paging":         false,
+        "info": true,
+        "ordering": true,
+        "scrollY":        "650px",
+        "scrollCollapse": true,
+        //"order": [[ 1, "desc" ]],
+        "searching": true,
+        //'iDisplayLength': 25
+    } );
+    
+});
+
+</script>
+
+</head>
+
+
+<body>
+
+<script>
+
+\$(document).ready(function(){
+  \$('input').iCheck({
+    checkboxClass: 'icheckbox_flat-blue',
+    radioClass: 'iradio_flat-blue'
+  });
+
+  \$('input:checkbox[name="regisall"]').on('ifChecked', function(event){
+        \$('input').iCheck('check');
+  });
+
+  \$('input:checkbox[name="regisall"]').on('ifUnchecked', function(event){
+        \$('input').iCheck('uncheck');
+  });
+
+});
+
+</script>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="exportarobjetosvalor" type="hidden" value="$optionsvalor">
+<input name="optionsobjetosvalor" type="hidden">
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+
+<CENTER>
+
+<table height=30 border="0"><tr><td width="110">
+
+<SELECT class="campotxt" name="options" id="options" onchange="optionCheck()">
+<OPTION Value="$optionsvalor" checked>$optionsvalortitulo</OPTION>
+EOF
+if($optionsvalor ne "dhcpserver")
+{
+print <<EOF;
+<OPTION Value="dhcpserver">DHCP Server</OPTION>
+EOF
+}
+if($optionsvalor ne "icinga")
+{
+print <<EOF;
+<OPTION Value="icinga">Icinga</OPTION>
+EOF
+}
+print <<EOF;
+<!--<OPTION Value="host">OCS Inventory</OPTION>
+<OPTION Value="host">Openvas</OPTION>-->
+<!--<OPTION Value="host">Pandora FMS</OPTION>-->
+EOF
+if($optionsvalor ne "poweroffpcs")
+{
+print <<EOF;
+<OPTION Value="poweroffpcs">Poweroff PCs</OPTION>
+EOF
+}
+if($optionsvalor ne "wakeonlan")
+{
+print <<EOF;
+<OPTION Value="wakeonlan">WakeOnlan</OPTION>
+EOF
+}
+print <<EOF;
+</SELECT>
+
+</td><td width="10"></td><td width="100">
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:80" align=center onclick="exportarobjetos()" class="bordenegrosombra"><b><font>Exportar</font></b></div>
+
+</td><td width="50"></td>
+<td width="400">
+
+<table><tr><td>Acceso</td><td><img src="/images/flecha4.gif"></td><td valign="center"><a href="$enlaceservi" target="main"><b><font size=3>$optionsvalortitulo</font></b></a></td></tr></table>
+
+</td>
+</tr></table>
+
+
+<div id="divtablaexportservi" style="width:650;z-index:-10;">
+
+<table id="tablaexportservi" class="display" cellpadding="0" cellspacing="0" style="font-size:12px;white-space: nowrap;">
+
+<thead>
+<tr>
+<th></th>
+EOF
+
+if($optionsvalor eq "icinga")
+{
+	$espacioicingaip="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+	$espacioicinganombre="&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+}
+else
+{
+	$espacioicingaip="";
+	$espacioicinganombre="";
+}
+
+if($optionsvalor eq "dhcpserver" || $optionsvalor eq "icinga" || $optionsvalor eq "poweroffpcs")
+{
+print <<EOF;
+<th><b>IP</b></th>
+EOF
+}
+if($optionsvalor eq "dhcpserver" || $optionsvalor eq "wakeonlan")
+{
+print <<EOF;
+<th><b>MAC</b></th>
+EOF
+}
+print <<EOF;
+<th><b>Nombre</b></th>
+<th><b>Tipo dispositivo</b></th>
+</tr>
+</thead>
+
+<tbody>
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM managedhosts where tipo='HOST' order by ip")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+$i=1;	
+
+while (@linea = $sth->fetchrow_array) {
+ 
+		  $fechaepochagente=$linea[7]; 
+ 
+ 		  $fechaepochagentevalor=localtime($fechaepochagente);
+ 		  @datafechaepochagentevalor = split (/\s+/,$fechaepochagentevalor);
+        $mest = $datafechaepochagentevalor[1];
+        $diat = $datafechaepochagentevalor[2];
+        $horat = $datafechaepochagentevalor[3];
+        $anot = $datafechaepochagentevalor[4];
+
+        if($mest =~ /Jan/) { $mest="Enero"; }
+        elsif($mest =~ /Feb/) { $mest="Febrero"; }
+        elsif($mest =~ /Mar/) { $mest="Marzo"; }
+        elsif($mest =~ /Apr/) { $mest="Abril"; }
+        elsif($mest =~ /May/) { $mest="Mayo"; }
+        elsif($mest =~ /Jun/) { $mest="Junio"; }
+        elsif($mest =~ /Jul/) { $mest="Julio"; }
+        elsif($mest =~ /Aug/) { $mest="Agosto"; }
+        elsif($mest =~ /Sep/) { $mest="Septiembre"; }
+        elsif($mest =~ /Oct/) { $mest="Octubre"; }
+        elsif($mest =~ /Nov/) { $mest="Noviembre"; }
+        elsif($mest =~ /Dec/) { $mest="Diciembre"; }
+
+		  $diatlongitud=length($diat);
+		  $mestlongitud=length($mest);
+		  
+		  if($diatlongitud eq 1)
+        {
+        		$diat="0".$diat;	
+        }
+        
+        if($mestlongitud eq 1)
+        {
+        		$mest="0".$mest;
+        }
+
+        $fechavisonormal="$diat-$mest-$anot [$horat]";        
+        
+        $netbiosnom=lc($linea[4]);
+ 		  $tipodispo=lc($linea[6]);
+ 		  $tipodispo = ucfirst($tipodispo);
+		  $tipodispocomple=$tipodispo; 		  
+ 		  
+ 		  #$tipodispolongitud=length($tipodispo);
+ 		  
+ 		  #if($tipodispolongitud > 17)
+        #{
+        #   $tipodispo = substr($tipodispo,0,16);
+        #   $tipodispo = $tipodispo."..";
+        #}
+        
+if($optionsvalor eq "dhcpserver")
+{
+		   if($controldhcpipasigmac =~ /$linea[1]/)
+			{
+				$oculcheck="hidden";
+				$valorcheck=0;
+				$color1="gray";
+				$color2="gray";
+				$cajadisab="readonly";
+				$bini="";
+				$bfin="";
+				$colorotro="gray";
+				$bgotro="white";
+			}
+			else
+			{
+				$oculcheck="checkbox";
+				$valorcheck=1;
+				$color1="#3e73a8";
+				$color2="#3e73a8";
+				$cajadisab="";
+				$bini="<b>";
+				$bfin="</b>";
+				$colorotro="white";
+				$bgotro="#3e73a8";
+			}
+}  
+
+
+if($optionsvalor eq "poweroffpcs")
+{
+		   if($controlpoweroffpcsvalor =~ /$linea[2]/)
+			{
+				$oculcheck="hidden";
+				$valorcheck=0;
+				$color1="gray";
+				$color2="gray";
+				$cajadisab="readonly";
+				$bini="";
+				$bfin="";
+				$colorotro="gray";
+				$bgotro="white";
+			}
+			else
+			{
+				$oculcheck="checkbox";
+				$valorcheck=1;
+				$color1="#3e73a8";
+				$color2="#3e73a8";
+				$cajadisab="";
+				$bini="<b>";
+				$bfin="</b>";
+				$colorotro="white";
+				$bgotro="#3e73a8";
+			}
+}  
+
+
+if($optionsvalor eq "wakeonlan")
+{
+			$macmayus=uc($linea[1]);
+
+		   if($controlwakeonlanvalor =~ /$macmayus/)
+			{
+				$oculcheck="hidden";
+				$valorcheck=0;
+				$color1="gray";
+				$color2="gray";
+				$cajadisab="readonly";
+				$bini="";
+				$bfin="";
+				$colorotro="gray";
+				$bgotro="white";
+			}
+			else
+			{
+				$oculcheck="checkbox";
+				$valorcheck=1;
+				$color1="#3e73a8";
+				$color2="#3e73a8";
+				$cajadisab="";
+				$bini="<b>";
+				$bfin="</b>";
+				$colorotro="white";
+				$bgotro="#3e73a8";
+			}
+}  
+
+
+if($optionsvalor eq "icinga")
+{
+
+		   if($controlicinga =~ /$linea[2]/)
+			{
+				$oculcheck="hidden";
+				$radiodisabled="disabled";
+				$valorcheck=0;
+				$color1="gray";
+				$color2="gray";
+				$cajadisab="readonly";
+				$bini="";
+				$bfin="";
+				$colorotro="gray";
+				$bgotro="white";
+			}
+			else
+			{
+				$oculcheck="checkbox";
+				$radiodisabled="";
+				$valorcheck=1;
+				$color1="#3e73a8";
+				$color2="#3e73a8";
+				$cajadisab="";
+				$bini="<b>";
+				$bfin="</b>";
+				$colorotro="white";
+				$bgotro="#3e73a8";
+			}
+}  
+
+
+		$mostrarlinea=1;
+
+		if($optionsvalor eq "wakeonlan" && $linea[1] eq "")
+		{
+			$mostrarlinea=0;
+		}
+		
+		
+		if($optionsvalor eq "dhcpserver" && $linea[1] eq "")
+		{
+			$mostrarlinea=0;
+		}
+ 
+		if($mostrarlinea eq 1)
+		{ 
+ 
+print "<tr>".
+ 		"<td><input type='$oculcheck' name='id_${i}' value=$valorcheck></td>";
+ 		
+ 		if($optionsvalor eq "icinga")
+		{
+		
+		if($netbiosnom =~ /[0-9]+_[0-9]+_[0-9]+_[0-9]+/)
+		{
+			$checkedradioip="checked";
+			$checkedradionombre="";
+		}
+		else
+		{
+			$checkedradioip="";
+			$checkedradionombre="checked";
+		}		
+		
+		$optionicingaip="$espacioradioicingaip<input type='radio' name='radioipnombre_${i}' value='1' $checkedradioip $radiodisabled> ";
+		$optionicinganombre="$espacioradioicinganombre<input type='radio' name='radioipnombre_${i}' value='2' $checkedradionombre $radiodisabled> ";
+		}
+		else
+		{
+		$optionicingaip="";
+		$optionicinganombre="";
+		} 		
+ 		
+		if($optionsvalor eq "dhcpserver" || $optionsvalor eq "icinga" || $optionsvalor eq "poweroffpcs")
+		{
+print "<td align='left' width='130' style='font-size:10px'>${optionicingaip}$bini<font color='$color1'>$linea[2]</font>$bfin<input type='hidden' name='ip_${i}' value='$linea[2]'></td>";
+		}
+		
+		if($optionsvalor eq "dhcpserver" || $optionsvalor eq "wakeonlan")
+		{		
+print "<td align='left' width='140' style='font-size:10px'>$bini<font color='$color1'>$linea[1]</font>$bfin<input type='hidden' name='mac_${i}' value='$linea[1]'></td>";
+		}
+
+print	"<td align='left' style='font-size:10px'>${optionicinganombre}$netbiosnom<input type='hidden' name='nombre_${i}' value='$netbiosnom' class='campotxt' size='14' style='font-size:10px'></td>".
+		"<td align='left' style='font-size:10px' title='$tipodispocomple'>$tipodispo</td>".
+		"</tr>";
+		"<!--<tr><td height='1'></td></tr>-->";
+		
+		$i=$i+1;
+		
+		}
+		
+    }
+
+print <<EOF;
+</tbody>	 
+</table>
+</div>
+
+
+
+<div  style="position:absolute; left:300; top:50; display:none;" onclick="void(0);event.cancelBubble=true;" id="mostraragrerangecapa">
+
+<table width="300" cellspacing="0" height="15"><tr><td class="barratituloazul2" align="center">
+<font color="white" size=1 face=verdana><b></font><font color="white">Agregar dirección</font></b><!--&nbsp;<img src="/images/masazulpeque.gif" id="avanzadabutton">-->
+</td>
+<td align="center" width=30>
+
+<img src="../images/close.png" border="0" style="cursor:pointer" onClick="closecapa('mostraragrerangecapa')">
+</td>
+</tr></table>
+
+
+
+<table class="bordenegrosombrasinredontop" bgcolor="white" width="300" height="100%" cellpadding=0 cellspacing=0 style="border-left-color:#3e73a8;border-right-color:#3e73a8;border-top-color:white;border-bottom-color:#3e73a8; border-width: 1px;" border=0>
+<tr><td width="4"></td><td valign="top" style="border-color:white; border-width: 0px;">
+
+<TABLE CELLPADDING=0 border="0" width=300 style="background-image:url(../images/azulsombramini.gif); background-repeat:repeat-x;">
+<tr><td height="5"></td></tr>
+</table>
+
+<!--<iframe name="mostrarequiposproceso" frameborder="no" scrolling="no" width=480 height=340></iframe>-->
+<br>
+
+<table border="0" cellpadding="0" cellspacing="0">		
+<tr><td width=20></td><td width="50">Nombre</td><td><input type='text' name='dhcp_inirangoagre' value='' class='campotxt' size='13'></td><td width="5"></td><td><div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 28;
+  -moz-border-radius: 20;
+  border-radius: 20px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer" align=center onclick="agregamanualrango()" class="bordenegrosombra">Agregar</div></td></tr>	
+<tr><td height="5"></td></tr>
+<tr><td width=20></td><td width="50">Tipo</td><td><SELECT class="campotxt" id="options" onchange="optionCheck()">
+
+<OPTION Value="host">HOST</OPTION>
+<OPTION Value="range">RANGE</OPTION>
+<OPTION Value="subnet">SUBNET</OPTION>
+
+</SELECT></td></tr>
+<tr><td height="8"></td></tr>
+<tr><td></td><td colspan="10"><div id="ipcapa" style="display:inline"><table cellpadding="0" cellspacing="0"><tr><td width="50" align="left">IP</td><td><input type='text' name='ip' id="ip" value='' class='campotxt' size='13'></td></tr><tr><td height="7"></td></tr></table></div></td></tr>
+<tr><td></td><td colspan="10"><div id="ipiniciocapa" style="display:none"><table cellpadding="0" cellspacing="0"><tr><td width="50" align="left">Inicio rango</td><td><input type='text' name='ipinicio' id="ipinicio" value='' class='campotxt' size='13'></td></tr></table></div></td></tr>
+<tr><td></td><td colspan="10"><div id="ipfinalcapa" style="display:none"><table cellpadding="0" cellspacing="0"><tr><td width="50" align="left">Final rango</td><td><input type='text' name='ipfinal' id="ipfinal" value='' class='campotxt' size='13'></td></tr></table></div></td></tr>
+<tr><td></td><td colspan="10"><div id="ipredcapa" style="display:none"><table cellpadding="0" cellspacing="0"><tr><td width="50" align="left">IP red</td><td><input type='text' name='ipred' id="ipred" value='' class='campotxt' size='13'></td></tr></table></div></td></tr>
+<tr><td></td><td colspan="10"><div id="mascararedcapa" style="display:none"><table cellpadding="0" cellspacing="0"><tr><td width="50" align="left">Mascara red</td><td><input type='text' name='mascarared' id="mascarared" value='' class='campotxt' size='13'></td></tr></table></div></td></tr>
+<tr><td></td><td colspan="10"><div id="maccapa"><table cellpadding="0" cellspacing="0"><tr><td width="50" align="left">MAC</td><td><input type='text' name='mac' id="mac" value='' class='campotxt' size='13'></td><td width="5"></td><td>Opcional</td></tr></table></div></td></tr>
+<tr><td></td><td height=5></td></tr>
+					
+</table>		
+
+
+<br><br>
+
+</td></tr></table>
+
+</div>
+
+<script type="text/javascript" >
+
+function tryreload()
+{
+document.getElementById('oscuprocess').style.visibility='hidden';
+document.getElementById('oscuprocess2').style.visibility='hidden';          
+}
+
+setTimeout(tryreload,1000);
+
+</script>
+
+EOF
+#require "$imtlayers";
+print <<EOF;
+</form>
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+
+<!--<iframe name="mostrarequiposproceso" frameborder="no" scrolling="no" width=480 height=340></iframe>-->

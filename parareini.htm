@@ -1,0 +1,551 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+$uptime=`/usr/bin/uptime`;
+$uptime =~ s/(\r?\n)/\<br\>/g;
+
+@data = split (/\s*,\s*/,$uptime);
+
+if($data[1]=~/user/)
+{
+$k=0;
+}
+else
+{
+$k=1;
+}
+
+$user = $data[1+$k];
+
+
+
+if($q->param('env') eq "1")
+{
+	system("/sbin/poweroff 1>&2");
+	print "Location: parareini.htm\r\n\r\n"; 
+	exit;
+}
+
+if($q->param('env') eq "2")
+{
+	system("/sbin/reboot 1>&2");
+	print "Location: parareini.htm\r\n\r\n";
+	exit;
+}
+
+
+if($q->param('env') eq "aplihorario")
+{
+		
+		$horapoweroff=$q->param('hora1');
+		$horareboot=$q->param('hora2');
+		$horapoweron=$q->param('hora3');
+		
+		$xactpoweroff=$q->param('xact1');
+		$xactreboot=$q->param('xact2');
+		$xactpoweron=$q->param('xact3');
+		
+		$seguir=0;
+		
+		open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			if(/^(#{2})+/)
+			{
+				$seguir=1;
+			}
+			
+			if($seguir eq 1)
+			{
+			
+			if (/\/sbin\/poweroff/)
+     		{
+				$_ =~ s/^\s+//;
+								
+				@data = split (/:/,$horapoweroff);
+				$hora = $data[0];
+		 		$minuto = $data[1];
+				
+				if($xactpoweroff eq "1")
+	   			{
+					$almo="";
+				}
+				else
+     			{
+     				$almo="#";
+     			}
+				
+				s/^.*$/${almo}$minuto $hora * * * \/sbin\/poweroff/;
+			}
+			
+			if (/\/sbin\/reboot/)
+     		{
+				$_ =~ s/^\s+//;
+				
+				@data = split (/:/,$horareboot);
+				$hora = $data[0];
+		 		$minuto = $data[1];
+				
+				if($xactreboot eq "1")
+	   			{
+					$almo="";
+				}
+				else
+     			{
+     				$almo="#";
+     			}
+				
+				s/^.*$/${almo}$minuto $hora * * * \/sbin\/reboot/;
+			}
+			
+  		
+             print NEW $_            or die "can't write $aux: $!";
+			}
+		}
+
+		close(OLD)                  or die "can't close $crontab: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+
+		system("/usr/bin/crontab $aux");
+	
+		
+		
+				
+		if($xactpoweron eq "1")
+	   	{		
+			@data = split (/:/,$horapoweron);
+			$hora = $data[0];
+ 			$minuto = $data[1];
+			
+			system("/bin/echo \"2010-03-03 ${hora}:${minuto}:00\" > /proc/acpi/alarm");
+		}
+		else
+		{
+			system("/bin/echo '0000-00-00 00:00:00' > /proc/acpi/alarm");
+		}
+						
+	
+}
+
+
+$activado1=0;
+$activado2=0;
+$activado3=0;
+
+#lectura inicial de backup
+#···············································································	
+
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+		
+	while (<OLD>) 
+	{
+			if (/\/sbin\/poweroff/)
+     		{
+				chomp;
+				
+				$comprobarpoweroff= /^#/;
+				
+				$_ =~ s/^\s*#//;
+				
+				@data = split (/\s+/,$_);
+				$minutopoweroff = $data[0];
+		 		$horapoweroff = $data[1];
+				
+				if($comprobarpoweroff ne 1)								
+				{
+					$activado1=1;
+				}
+			}
+			
+			if (/\/sbin\/reboot/)
+     		{
+				chomp;
+				
+				$comprobarreboot= /^#/;
+				
+				$_ =~ s/^\s*#//;
+				
+				@data = split (/\s+/,$_);
+				$minutoreboot = $data[0];
+		 		$horareboot = $data[1];								
+				
+				if($comprobarreboot ne 1)								
+				{
+					$activado2=1;
+				}
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $crontab: $!";
+
+
+
+$horarioacpi=`/bin/cat /proc/acpi/alarm`;
+if($horarioacpi =~ /^([0-9]{4}-[0-9]{2}-[0-9]{2})\s/)
+{
+$comprodiames = $1;
+
+	if($comprodiames ne "0010-00-00")
+	{
+		$activado3=1;
+	}
+
+}
+$horarioacpi =~ s/^[0-9]{4}-[0-9]{2}-[0-9]{2}\s//;
+@data = split (/\s*:\s*/,$horarioacpi);
+$horapoweron = $data[0];
+$minutopoweron = $data[1];
+
+
+
+#Comienzo HTML
+#if($CONTENTHTML ne 1)
+#{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+#}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+
+
+function controlamulti(id)
+{
+		hora=document.getElementById('hora'+id).value;
+		var parte = hora.split(':');
+
+		if (document.getElementById('hora'+id).value.search(/^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}\$/)==-1 || document.getElementById('hora'+id).value=="" || parte[0]>23)
+		{
+			
+			alert(document.getElementById('hora'+id).value+' formato de hora incorrecto');
+			document.theform.submit();
+		}
+}
+
+
+
+function enviar(opc)
+{
+
+var opcion = opc
+
+if(opcion==1)
+  {
+	if(!confirm('Información:\\n$user conectado por SSH\\n\\n¿Desea APAGAR el dispositivo?'))
+	return false;
+  }
+
+if(opcion==2)
+  {
+	if(!confirm('Información:\\n$user conectado por SSH\\n\\n¿Desea REINICIAR el dispositivo?'))
+	return false;
+  }
+  
+  //oscuprocessform();
+		    
+theform.env.value = opcion;
+document.theform.submit();
+
+
+}
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha'+id);
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+		document.getElementById('xact'+id).value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById('xact'+id).value=1;
+	}
+}	
+
+
+
+function aplihorario()
+{
+//oscuprocessform();
+
+document.theform.env.value="aplihorario";
+document.theform.action='parareini.htm';
+document.theform.submit();
+}
+
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+
+<form name="theform" method="post">
+<input name="env" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/remotos.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$parareini_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br><br><br>
+		<center>
+		<table border="0" class="bordenegrosombra" width="540" height="320">
+		<tr><td align="center">
+		<!--bordercolor="#3e73a8"-->
+		
+		<br>
+		
+		<table cellspacing="0" cellpadding="0" border="0" width="460" class="bordenegrosombra"><tr><td>	
+		<tr><td colspan="7">
+		<table cellspacing="0" cellpadding="0" border="0" width="100%">
+		<tr><td  height="23" class="barratituloazul2">&nbsp;&nbsp;<b><font color=white>$parareini_inmediata</b></font></td></tr>
+		</table>
+		</td></tr>
+		<tr><td height="10"></td></tr>
+		<tr><td width="20"></td>
+		<td align="center"><!--<img src="../images/poweroff.gif" onClick="enviar(1)" style="cursor:pointer">-->
+
+		<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:100;height:50" align=center onClick="enviar(1)" class="bordenegrosombra"><br><b><font>$parareini_apagar</font></b></div>
+		
+		<!--<br><font size=2 face=verdana class="subtitulo"><b>$parareini_apagar</b></font>-->
+		</td>
+		<td width=50></td>
+		<td align="center"><!--<img src="../images/reboot.gif" onClick="enviar(2)" style="cursor:pointer">-->
+
+		<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:100;height:50" align=center onClick="enviar(2)" class="bordenegrosombra"><br><b><font>$parareini_reiniciar</font></b></div>
+	
+		<!--<br><font size=2 face=verdana class="subtitulo"><b>$parareini_reiniciar</b></font>-->
+		</td>
+		<td width="20"></td>
+		</tr>
+		<tr><td height="15"></td></tr>
+		</table>		
+		
+		</td></tr>		
+		<tr><td height="20"></td></tr>
+		<tr><td colspan="8" align="center">		
+		
+		<table cellspacing="0" cellpadding="0" border="0" width="460" class="bordenegrosombra">
+		<tr><td>		
+				
+		<table cellspacing="0" cellpadding="0" border="0" width="460">
+		<tr><td  height="23" class="barratituloazul2">&nbsp;&nbsp;<b><font color=white>$parareini_programadohora</b></font></td></tr>
+		</table>
+			
+		<table border="0">
+		<tr><td height="15"></td></tr>
+		<tr><td width=10></td>
+		<td align=center>
+		<script language='javascript'>document.write('<img id=\"flecha1\" src=\"'+($activado1 == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(1)\" >');</script>
+		<input  type='hidden' id='xact1' name='xact1' value='$activado1'/>
+		</td>
+		<td><input type="text" value="${horapoweroff}:${minutopoweroff}" name='hora1' id='hora1' class="campotxt" size="4" onchange='controlamulti(1)'> hora</td>
+		<td width="5"></td>
+		<td align=center>
+		<script language='javascript'>document.write('<img id=\"flecha2\" src=\"'+($activado2 == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(2)\" >');</script>
+		<input  type='hidden' id='xact2' name='xact2' value='$activado2'/>
+		</td>
+		<td><input type="text" value="${horareboot}:${minutoreboot}" name='hora2' id='hora2' class="campotxt" size="4" onchange='controlamulti(2)'> hora</td>
+		<td width="5"></td>
+		<td align=center>
+		<script language='javascript'>document.write('<img id=\"flecha3\" src=\"'+($activado3 == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(3)\" >');</script>
+		<input  type='hidden' id='xact3' name='xact3' value='$activado3'/>
+		</td>
+		<td><input type="text" value="${horapoweron}:${minutopoweron}" name='hora3' id='hora3' class="campotxt" size="4" onchange='controlamulti(3)'> hora</td>		
+		<td width=10></td>		
+		</tr>
+		<tr>
+		<td></td>
+		<td><b>Apagar</b></td>
+		<td></td><td></td>
+		<td><b>Reiniciar</b></td>
+		<td></td><td></td>
+		<td><b>Encender</b></td>
+		</tr>
+		</table>
+		
+		</td></tr>
+		<tr><td height="10"></td></tr>		
+		</table>
+		
+		<br><br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="$controlbuttonmod" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="aplihorario()">
+					
+                  <input type="$controlbuttonmod" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+		<br>
+		
+		</td></tr>
+		</table>		
+		</td></tr>
+		</table>
+		<br>
+		$parareini_comentario1<br>$parareini_comentario2<br>
+		<!--<br><table width="450"><tr><td align="center"><img src="../images/sonoro.gif">&nbsp;$parareini_aviso_part1 <b><font color="9e3c12">$parareini_aviso_part2</font></b> $parareini_aviso_part3</td></tr></table>-->
+		</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+
+
+

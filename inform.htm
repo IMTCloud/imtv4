@@ -1,0 +1,111 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{	
+			if (/^\s*VRS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$version = $data[1];
+			}		
+
+	}
+close(OLD);
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+</head>
+
+	
+<body>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR=#3e73a8 class="color"><B>Inform Executive</B></FONT></td>
+</tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+
+<br><br><br><br>
+<br>
+<br>
+
+<center>
+<table border="0" cellpadding="2" cellspacing="0" width="900" height="3000" style="background:white" class="bordenegrosombra">
+<tr><td height=15></td></tr>
+<tr><td width="15"></td><td valign="top" align=center>
+
+
+<iframe src="chartinfosystem.htm"  frameborder="no" scrolling="no" width=700 height=140></iframe>
+<br><br><br>
+<iframe src="tabledhcpleases.htm"  frameborder="no" scrolling="no" width=750 height=600></iframe>
+<br><br><br>
+<iframe src="graficabackupline.htm"  frameborder="no" scrolling="no" width=750 height=350></iframe>
+<br><br><br>
+<iframe src="tablebackupline.htm"  frameborder="no" scrolling="no" width=750 height=950></iframe>
+<br><br><br>
+<iframe src="tableopenvpnregis.htm"  frameborder="no" scrolling="no" width=750 height=950></iframe>
+<br><br><br>
+
+
+
+</td></tr></table>
+
+
+<br><br>
+
+<center>
+<table><tr><td height="5"></td></tr><tr><td>
+<center>
+<a href="https://www.imtcloud.com" target="new"><b><font size=3 style="color:black;cursor:pointer;text-shadow: 1px 1px 1px gray;font-weight: bold;">www.imtcloud.com</font></b></a><br>
+<b>$inicio_versiactual: <a href="update.htm">$version</a></b><br>
+Copyright &copy; 2005-$yearactual Infodesain Technology S.L.
+</center>
+</td></tr></table>
+</center> 
+</form>
+</body>
+</html>
+EOF
+
+
+
+

@@ -1,0 +1,573 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+#Modificación estado
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$dyndns=$q->param('estado');
+
+	$seguir=0;
+
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^(#{2})+/)
+		{
+			$seguir=1;
+		}
+			
+		if($seguir eq 1)
+		{
+			
+			if(/\/usr\/sbin\/ddclient/)
+     		{
+				if($dyndns eq "0")
+	   			{
+					s/#*//;
+				}
+				else
+     			{
+     				s/^#*/#/;
+     			}
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+			}
+	}
+
+	close(OLD)                  or die "can't close $crontab: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/usr/bin/crontab $aux");
+	
+}
+
+if($q->param('env') eq "2")
+{
+
+	$dominio=$q->param('dominio');
+	$usuario=$q->param('usuario');
+	$password=$q->param('password');
+	$intersincro=$q->param('intersincro');
+
+	open(OLD, "< $dyndnsconf")    or die "can't open $dyndnsconf: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+			if(/^.*\s+##dominio$/)
+     		{
+				s/^.*$/$dominio ##dominio/;
+			}
+  		
+			if(/^login=.*$/)
+     		{
+				s/^.*$/login\=$usuario/;
+			}
+
+			if(/^password=.*$/)
+     		{
+				s/^.*$/password\=$password/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $dyndnsconf: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $dyndnsconf 1>&2");
+	
+	
+	
+	$seguir=0;
+
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^(#{2})+/)
+		{
+			$seguir=1;
+		}
+			
+		if($seguir eq 1)
+		{
+			
+			if(/\/usr\/sbin\/ddclient/)
+     		{
+					s/\*\/[0-9]+/\*\/${intersincro}/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+			}
+	}
+
+	close(OLD)                  or die "can't close $crontab: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/usr/bin/crontab $aux");
+	
+	
+}
+
+
+
+
+#Lectura de estado Groupware
+#···············································································
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+		
+	while (<OLD>) 
+	{
+			if (/\/usr\/sbin\/ddclient/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$activodyndns= /^#/;
+				
+				if ($activodyndns ne 1)
+				{
+					$pasardyndns = 1;
+					$estadodyndns = "activado.gif";
+				}
+				else
+				{
+					$pasardyndns = 0;
+					$estadodyndns = "desactivado.gif";
+				}
+			}
+			
+			
+			if($_ =~ /^#*\*\/([0-9]+) \* \* \* \* \/usr\/sbin\/ddclient/)			
+			{
+				$intersincro=$1;
+			}
+
+	}
+
+	close(OLD)     or die "can't close $crontab: $!";
+
+
+
+if($intersincro eq 30)
+{
+	$selected30="selected";
+}
+elsif($intersincro eq 15)
+{
+	$selected15="selected";
+}
+elsif($intersincro eq 10)
+{
+	$selected10="selected";
+}
+elsif($intersincro eq 5)
+{
+	$selected5="selected";
+}
+
+
+
+#Lectura de dyndnsconf Groupware
+#···············································································
+	open(OLD, "< $dyndnsconf")    or die "can't open $dyndnsconf: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^.*\s+##dominio$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*##/,$_);
+				$dominio = $data[0];
+			}
+
+			if (/^login=.*$/)
+     		{
+				chomp;
+				$_ =~ s/[\';\s+]//g;
+				@data = split (/\s*=\s*/,$_);
+				$usuario = $data[1];
+			}
+
+			if (/^password=.*$/)
+     		{
+				chomp;
+				$_ =~ s/[\';\s+]//g;
+				@data = split (/\s*=\s*/,$_);
+				$password = $data[1];
+			}
+
+	}
+
+	close(OLD)     or die "can't close $dyndnsconf: $!";
+
+
+
+#$infotestdyndns=`$ptelnet checkip.dyndns.org 80`;
+	
+#if($infotestdyndns =~ /no conecta/) {	$conecdyndns="noconecta.gif";} else { $conecdyndns="conecta.gif"; }
+
+$infotestlogin=`/usr/bin/timeout 5 /usr/sbin/ddclient -v | /bin/grep "Current IP Address"`;	
+
+if($infotestlogin =~ /Current\sIP\sAddress/) {	$conectlogin="OK";} else { $conectlogin="NO"; }
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+
+function isStringsEqual(s1,s2){
+
+	if (s1.length != s2.length)
+
+		return false;
+
+	for(i=0;i<s1.length;i++) {
+
+		if (s1.charAt(i) != s2.charAt(i))
+
+			return false;
+
+	}
+
+	return true;
+
+}
+
+
+
+function enviar(est)
+{
+
+if (est == 1)
+{
+estado = "desactivar";
+}
+else
+{
+estado = "activar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' DynDNS?'))
+	return false;
+
+oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+function apliconfig()
+{
+
+	if(!confirm('¿Desea aplicar los cambios?'))
+	return false;
+	
+  
+if (!isStringsEqual(document.theform.password.value,document.theform.passwdrepit.value)) {
+		alert('$pwdadmin_alert3');
+		return;
+	}	  
+	
+oscuprocessform();	
+	
+theform.env.value = 2;
+document.theform.submit();
+
+}
+
+
+function verpassw()
+{
+
+thisInput = document.getElementById('password');
+valordefecto = document.getElementById('password').value;
+
+changeInputType(thisInput,'text',valordefecto,false,true);
+
+/*document.theform.password.type = "text";
+
+if(document.getElementById('password').type = "password")
+{
+	document.getElementById('password').type = "text";
+}
+else
+{
+	document.getElementById('password').type = "password";
+}*/
+
+}
+
+
+function changeInputType(
+  oldElm, // a reference to the input element
+  iType, // value of the type property: 'text' or 'password'
+  iValue, // the default value, set to 'password' in the demo
+  blankValue, // true if the value should be empty, false otherwise
+  noFocus) {  // set to true if the element should not be given focus
+ 
+  if(!oldElm || !oldElm.parentNode || (iType.length<4) || 
+    !document.getElementById || !document.createElement) return;
+  var newElm = document.createElement('input');
+  newElm.type = iType;
+  if(oldElm.name) newElm.name = oldElm.name;
+  if(oldElm.id) newElm.id = oldElm.id;
+  if(oldElm.className) newElm.className = oldElm.className;
+  if(oldElm.size) newElm.size = oldElm.size;
+  if(oldElm.tabIndex) newElm.tabIndex = oldElm.tabIndex;
+  if(oldElm.accessKey) newElm.accessKey = oldElm.accessKey;
+  newElm.onfocus = function(){return function(){
+    if(this.hasFocus) return;
+    var newElm = changeInputType(this,'password',iValue,
+      (this.value.toLowerCase()==iValue.toLowerCase())?true:false);
+    if(newElm) newElm.hasFocus=true;
+  }}();
+  newElm.onblur = function(){return function(){
+    if(this.hasFocus)
+    if(this.value=='' || (this.value.toLowerCase()==iValue.toLowerCase())) {
+      changeInputType(this,'text',iValue,false,true);
+    }
+  }}();
+ // hasFocus is to prevent a loop where onfocus is triggered over and over again
+  newElm.hasFocus=false;
+  oldElm.parentNode.replaceChild(newElm,oldElm);
+  if(!blankValue) newElm.value = iValue;
+  if(!noFocus || typeof(noFocus)=='undefined') {
+    window.tempElm = newElm;
+    setTimeout("tempElm.hasFocus=true;tempElm.focus();",1);
+  }
+  return newElm;
+}
+
+
+
+</script>
+
+
+
+</head>
+
+	
+<body>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="volver" type="hidden" value="$volver">
+<input name="env" type="hidden">
+<input name="estado" type="hidden" value="$pasardyndns">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/dyndns.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$dyndns_titulo1</B></FONT></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br><br><br>
+		<center>
+		<br><br>
+		<table width="600" border="0"><tr><!--<td align="left">
+<A HREF=$volver target=main><img src="../images/volver.gif" border="0"><br>$fw_volver</a> 
+</td>--><td align="center">		
+		
+		<table style="$imagenvisiblebase"><tr>
+<td><img src="../images/$estadodyndns" onClick="enviar('$pasardyndns')" style="cursor:pointer"></td><td width="4"></td><td><b>$dyndns_activar</b></td><td width="40"></td>
+</tr></table>
+
+</td></tr></table>
+		<br>
+		<br>
+
+
+<!--<table cellspacing="0" cellpadding="0" border="0" width="310">
+<tr><td  height="23" background="../images/barratitulo.gif">&nbsp;&nbsp;<b><font color=white>$dyndns_config</b></font></td></tr>
+</table>
+<table border="2" class="bordecuadro" width="310" height="130"><tr><td align="center" class="bordecuadrof">-->
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="400">
+<tr><td width="400" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;<b><font color=white>$dyndns_config</b></font></td></tr>
+<tr><td height="5"></td></tr>
+<tr><td align="center">	
+
+<table cellpadding="0" cellspacing="0" border="0">
+<tr>
+<td></td><td></td><td><font size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>checkip.dyndns.org</b></font></td><td><b>Login $conectlogin</b><!--<img src="/images/${conecdyndns}">--></td><td width="8"></td>
+</tr>
+<!--<tr>
+<td></td><td></td><td><font size="2" face="Verdana, Arial, Helvetica, sans-serif"><b>Login $conectlogin</b></font></td><td></td><td width="8"></td>
+</tr>-->
+<tr><td height="5"></td></tr>
+<tr>
+<td align="right" width="130">$dyndns_dominio</td><td width="15"></td><td><input type="text" name="dominio" value="$dominio" class="campotxt" size="25"></td>
+</tr>
+<tr><td height="5"></td></tr>
+<tr>
+<td align="right">$configfabrica_usuario</td><td width="5"></td><td><input type="text" name="usuario" value="$usuario" class="campotxt" size="15"></td>
+</tr>
+<tr><td height="8"></td></tr>
+<tr>
+<td align="right">Password</td><td width="5"></td><td><table cellpadding="0" cellspacing="0"><tr><td><input type="password" name="password" id="password" value="$password" class="campotxt" size="15"></td><td width="5"></td><td align="left"><img src="/images/lupaminiver" style="cursor:pointer" onClick="verpassw()"></td></tr></table></td>
+</tr>
+<tr><td height="8"></td></tr>
+<TR>
+<TD align="right">$pwdadmin_reescribir</TD><td width="5"></td><TD><INPUT TYPE="password" id="passwdrepit" NAME="passwdrepit" SIZE=15 class="campotxt">
+</TD></TR>
+<tr><td height="8"></td></tr>
+<TR>
+<TD align="right">Intervalo sincronizar</TD><td width="5"></td><TD>
+<select name="intersincro" id="intersincro" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="30" $selected30>30</option>
+<option value="15" $selected15>15</option>
+<option value="10" $selected10>10</option>
+<option value="5" $selected5>5</option>
+</select>
+</TD></TR>
+<tr><td height="15"></td></tr>
+</table>
+
+</td></tr></table>
+
+</td></tr></table>
+
+<br>
+		
+<table><tr><td><img src="../images/aplicar.gif" onClick="apliconfig()" style="cursor:pointer;$imagenvisiblebase"></td></tr></table>
+		</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+</body>
+</html>
+EOF
+
+
+
+

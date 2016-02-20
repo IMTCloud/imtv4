@@ -1,0 +1,1230 @@
+#! /usr/bin/perl -wX
+
+
+use PDF::Report;
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_FAX_OCR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+ 
+
+if($q->param('env') eq "1")
+{
+
+	$faxmail=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*FAXOCR\s*=\s*.*$/)
+     		{
+				s/^.*$/FAXOCR\=$faxmail/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	
+}
+
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+	
+	warn $q->param('enviar');
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		
+		warn "borrar $id";
+		
+		open(OLD, "< $faxmailocr")    or die "can't open $faxmailocr: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			unless (/^#/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+			
+		 		if($i != $id)
+		 		{
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+		 		}
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $faxmailocr 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+		$id=$q->param('id');
+		warn "insertar $id";
+		open(OLD, "< $faxmailocr")    or die "can't open $faxmailocr: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		if($id == 0)
+		{
+    		print NEW "||\n";
+	
+		}
+	
+		while (<OLD>) 
+		{
+			unless (/^#/)
+     		{
+		
+				chomp;
+				$_ =~ /.*/;
+			
+		 	
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+    				
+    					
+    				if($i == $id)
+		 			{
+    					print NEW "||\n";
+	
+		 			}
+		 		
+		 		
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $faxmailocr 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Aplicar")
+	{
+	
+		
+		$email=$q->param('email');
+		$sale=0;
+		
+		open(OLD, "< $notificarvar")    or die "can't open $notificarvar: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			if($sale eq 0)
+			{
+				if (/emailfaxdefault=/)     
+     			{
+					s/^.*$/emailfaxdefault=$email/;
+					$sale=1;
+				}
+			}
+			
+             print NEW $_            or die "can't write $aux: $!";
+		}
+	
+		close(OLD)                  or die "can't close $notificarvar: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+		
+		system("/bin/cp $aux $notificarvar  >/dev/null 2>&1");
+	
+	
+	
+	
+		open(NEW, "> $faxmailocr")    or die "cant open $faxmailocr: $!";
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			$clave=$q->param("${i}x0");
+			
+			$email=$q->param("${i}x1");
+			
+			$comentario=$q->param("${i}xc");
+			
+
+			if( $clave eq undef )
+			{
+				last;
+			}
+#comment
+			$comentario=$q->param("${i}xc");
+			if($comentario eq "")
+		 	{
+		 		$comentario="Comentario";
+		 	}	
+		 	
+		 	
+		 	
+			#warn "Aplicar $i $user $clave $comment\n";
+			
+			print NEW $clave."|".$email."|".$comentario."\n";
+
+
+my $pdf = new PDF::Report( 
+                          PageSize => 'A4', 
+                          PageOrientation => 'Portrait' 
+); 
+
+$pdf->newpage(1); 
+$pdf->setFont('Arial'); 
+$pdf->setSize(24); 
+my ($width, $height) = $pdf->getPageDimensions(); 
+
+my $center1= "$clave"; 
+
+$pdf->centerString(0, $width, $height-200, $center1); 
+
+$pdf->setFont('Arial'); 
+$pdf->setSize(24); 
+
+#my $text1= "$clave"; 
+#my $text2= "Segundo texto de prueba"; 
+#my $text3= "Tercer texto de prueba"; 
+
+#$pdf->addParagraph($text1, 30, $height-200, $width-60, 30, 25, 10); 
+#$pdf->addParagraph($text2, 30, $height-100, $width-60, 20, 25, 10); 
+#$pdf->addParagraph($text3, 30, $height-120, $width-60, 20, 25, 10); 
+
+open(PDF, "> $faxocrpdfs/portada$i.pdf") or die "ERROR: No puedo escribir en ejemplo.pdf: $!\n"; 
+print PDF $pdf->Finish(); 
+close(PDF); 
+
+
+      		$i=$i+1;
+		}
+		close(NEW)     or die "can't close $faxmailocr: $!";
+
+	}
+
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*FAXOCR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$faxocr = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($faxocr eq "1") 
+{
+	$estadofaxmailocr = "activado.gif";
+	$pasarfaxmailocr = 0;
+}
+else
+{	
+	$estadofaxmailocr = "desactivado.gif";
+	$pasarfaxmailocr = 1;
+}
+
+
+#lectura de notificarvar - email
+#···············································································	
+
+	open(OLD, "< $notificarvar")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+
+			if (/emailfaxdefault\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$email = $data[1];
+				last;
+			}
+						
+	}
+
+	close(OLD)     or die "can't close $variables: $!";
+
+
+$dhcpvalor2=`/bin/cat $dhcpextestado2`;
+$dhcpvalor2 =~ s/(\r?\n)//g;
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+function isValidMAC(tempIP){
+	if (tempIP == null || tempIP=="" || tempIP.search(/^([0-9A-Fa-f]{2}[\\-:]){5}[0-9A-Fa-f]{2}\$/) == -1)
+		return (false);
+
+	return (true);
+}		
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+function rangoip(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('-');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,3}\$/)==-1)
+		return false;
+	
+	
+    var lrango = parseInt(tempIP[1],10);
+
+	
+	if (lrango<1 || lrango > 254 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+/**
+ * function isValidNetIp()
+ */
+function isValidNetIP(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('/');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,2}\$/)==-1)
+		return false;
+	
+	
+    var lmask = parseInt(tempIP[1],10);
+
+	
+	if (lmask<1 || lmask > 32 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	
+} 
+
+
+
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		var id = curListener.split('x')[0];
+	      var targets="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.targets.elements.length;i++)
+		{
+			if(document.targets.elements[i].checked==true)
+			{
+				if (targets!="") targets += ",";
+				targets+=document.targets.elements[i].name;
+			}
+		}
+		
+ 		
+ 		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 			{
+ 				ruledata[i][2]=targets;
+ 				document.getElementById(id+"x1").value=targets;
+ 				ruledata[i][4]=true;
+ 				break;	
+ 			}
+ 		document.getElementById(curListener).innerHTML=targets;
+
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    //	this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+	this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
++"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
++",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+ 
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+
+function toggle(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+
+
+
+pcimg =  new Image(18,19);
+pcimg.src = "../images/pc.gif"
+
+redimg =  new Image(23,19);
+redimg.src = "../images/redmini.gif"
+
+inetimg =  new Image(16,19);
+inetimg.src = "../images/minimundo.gif"
+
+routerimg =  new Image(20,20);
+routerimg.src = "../images/dispomini.gif"
+
+serviimg =  new Image(20,20);
+serviimg.src = "../images/servimini.gif"
+
+
+
+function aplicarvalor(tipo)
+{
+
+	asignar=document.getElementById('control').value;
+	document.getElementById(asignar+'h1').value=tipo;
+	
+	
+	if(tipo != undefined)
+	{
+		
+		if(curListener)
+		{
+		
+		//debugger;
+		
+			var prefijo = curListener.split("x")[0];
+			var imagen = document.getElementById(prefijo+"xt1");
+			
+			switch(tipo)
+			{
+				case "ESTACION":
+					imagen.src = pcimg.src;
+					imagen.alt = tipo;	
+				break;
+				case "SERVIDOR":
+					imagen.src = serviimg.src;
+					imagen.alt = tipo;	
+				break;
+				case "ROUTER":
+					imagen.src = routerimg.src;
+					imagen.alt = tipo;	
+				break;
+				case "RED":
+					imagen.src = redimg.src;
+					imagen.alt = tipo;	
+				break;
+				case "INTERNET":
+					imagen.src = inetimg.src;
+					imagen.alt = tipo;	
+				break;
+			}
+
+		}	
+	
+	}
+	
+	
+	clearLista();
+}
+
+
+
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea('divContainer1',sd);
+	objContainer2=InitialiseScrollableArea2('divContainer2',null);
+
+	//initRules();
+} 
+
+
+function validarForm()
+{
+	oscuprocessform();
+	
+	document.theform.action="faxmailocr.htm";
+	document.theform.enviar.value="Aplicar"
+	document.theform.submit();
+	
+}
+
+
+function enviaracti(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' Fax-Email OCR?'))
+	return false;
+	
+oscuprocessform();	
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+function descargar(nombre)
+{
+	var nombre;
+	document.theform.action="/pdfs/portada"+nombre+".pdf";
+	document.theform.submit();
+}
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer2">
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" bordercolor="#3e73a8" width="100%" height="310" border="1">
+<tr>
+<td valign="top" width="100%">
+<div width="100%" align="left" id="divContainer2cnt">
+<form name="targets" action="">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="220">
+<tr><td height='4'></td></tr>
+<tr><td width='30' align='center' title='Estación'><img src='../images/pc.gif' ></td><td title='Estación'><font onclick='aplicarvalor(\"ESTACION\")' size=1 style='cursor:pointer'>Estación</font></td></tr>
+<tr><td height='4'></td></tr>
+<tr><td width='32' align='center' title='Servidor'><img src='../images/servimini.gif' ></td><td title='Servidor'><font onclick='aplicarvalor(\"SERVIDOR\")' size=1 style='cursor:pointer'>Servidor</font></td></tr>
+<tr><td height='4'></td></tr>
+<tr><td width='30' align='center' title='Router'><img src='../images/dispomini.gif' ></td><td title='Router'><font onclick='aplicarvalor(\"ROUTER\")' size=1 style='cursor:pointer'>Router</font></td></tr>
+<tr><td height='4'></td></tr>
+<tr><td width='30' align='center' title='Red'><img src='../images/redmini.gif' ></td><td title='Red'><font onclick='aplicarvalor(\"RED\")' size=1 style='cursor:pointer'>Red</font></td></tr>
+<tr><td height='4'></td></tr>
+<tr><td width='30' align='center' title='Internet'><img src='../images/minimundo.gif' ></td><td title='Internet'><font onclick='aplicarvalor(\"INTERNET\")' size=1 style='cursor:pointer'>Internet, IP Wan</font></td></tr>
+<tr><td height='4'></td></tr>
+
+</table>
+</form>
+</div>
+</td>
+</tr>
+</table>
+</div>
+
+
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="volver" type="hidden" value="$volver">
+<input name="enviar" type="hidden"><input name="env" type="hidden"><input name="estado" type="hidden">
+<input type="hidden" name="control" id='control'>
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/faxocr.gif' border='0'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$faxmailocr_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<P>
+
+<br><br><br>
+		<!--<table><tr>
+<td><img src="../images/$estadofaxmailocr" onClick="enviaracti('$pasarfaxmailocr')" style="cursor:pointer"></td><td width="4"></td><td>$faxmailocr_activar</td><td width="40"></td>
+</tr></table>-->
+
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>
+
+		<br>
+		<br>
+
+<table><tr><td valign="top">
+
+<table>
+		<tr><td><img src="../images/cartaverde.gif" border=0></td><td><table border="0"><tr><td>$faxmailocr_general:</td></tr><tr><td><input type="text" name="email" value="$email" class="campotxt" size="28"></td></tr></table>
+</td></tr></table>
+
+</td><td width="50"></td><td valign="center">
+
+<b>$faxmailocr_formato:</b>
+<table>
+<tr><td><input value="1" name="envioinforme" type="radio" $checked_email checked></td><td>.TIF</td>
+<td width="20"></td>
+<td><input value="2" name="envioinforme" type="radio" $checked_recurso disabled></td><td>.PDF</td></tr>
+</table>
+
+</td></tr></table>
+
+
+<br><br>
+				
+<!--<table cellspacing="0" cellpadding="0" width=630 border="0">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$faxmailocr_clave
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$faxmailocr_email
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$faxmailocr_comentario</b></font></td></tr>
+
+</table>-->
+
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="750">
+<tr><td width="100%" height="23" class="barratituloazul" align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$faxmailocr_clave
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$faxmailocr_email
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$faxmailocr_comentario</b></font></td></tr>
+<tr><td height="5"></td></td>
+<tr><td align="center">	
+
+
+<table cellspacing="3" cellpadding="0" class="linea"  border=0 width="750">
+EOF
+
+
+
+
+
+	open(OLD, "< $faxmailocr")    or die "can't open $faxmailocr: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+			unless (/^#/)
+     		{
+		
+				chomp;
+				$_ =~ /.*/;
+				@data = split (/\|/,$_);
+				
+		 		$clave = $data[0];
+		 		$email = $data[1];
+				$comentario = $data[2];
+		 		#warn $_."\n";
+		 		
+		 		
+				print "<tr><td width=10></td>\n";
+				#print "<td align='left' width='30'><img  onclick='window.location.href=\"?id=${i}&enviar=Insertar\"' style='cursor:pointer' src='../images/mas.jpg' border='0' alt='insertar' ></td>\n";
+				#print "<td align='left' width='30'><img  onclick='window.location.href=\"?id=${i}&enviar=Borrar\"' style='cursor:pointer' src='../images/no.jpg' border='0' alt='borrar' ></td>\n";
+				
+				print "<td align='left' width='24'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Insertar\"'><b>+</b></div>				
+				
+				</td>\n";
+				
+				print "<td width=1></td><td align='left' width='24'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar\"'><b>-</b></div>				
+				
+				</td><td width=5></td>\n";
+				
+				print "<td width='170' align='left'><input id='${i}x0' name='${i}x0' type='text' value='$clave' class='campotxt' size=24></td>\n";
+
+				print "<td width='170' align='left'><input id='${i}x1' name='${i}x1' type='text' value='$email' class='campotxt' size=24></td>\n";				
+				
+	
+				print "<td width='180'><input  style='font-style:italic'  class='campotxt' type='text' id='${i}xc' name='${i}xc' size=26 value='$comentario'/></td>\n";
+				print "<td width='30'><img src='/images/acrobatmini.gif' onClick='descargar(\"$i\")' style='cursor:pointer'></td>";
+				
+				print "<td width=10></td></tr>\n";
+				print "<script language='javascript'>\n";
+				print "	ruledata.push(new Array('$i','','$targets'));\n";
+				print "</script>\n";
+
+				$i=$i+1;
+		}
+		
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $faxmailocr: $!";	
+
+if ($i == 1) 
+{
+			print "<tr>\n";
+			print "<td align='left' width='20'>
+			
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=0&enviar=Insertar\"'><b>+</b></div>				
+							
+			
+			</td>\n";
+			print "<td align='left' width='99%' colspan='5'></td>\n";
+			print "</tr>\n";
+}
+
+
+print <<EOF;
+</table>
+
+</td></tr>
+<tr><td height=10></td></tr>
+</table>
+
+ <br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+
+<br><br>
+</form>
+		</td>
+	</tr>
+	</table>
+	<!-- fin tabla central -->
+	</td>
+</tr>
+</table>
+<script language="javascript">InitialiseAreas(); </script>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+ </body>
+</html>
+EOF

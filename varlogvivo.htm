@@ -1,0 +1,192 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+use CGI::Session;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+$cookie = $q->cookie(-name => "session");
+if ($cookie) {
+  CGI::Session->name($cookie);
+}
+
+  $session = new CGI::Session("driver:File",$cookie,{'Directory'=>"/tmp"}) or die "$!";
+  $sesiperfil = $session->param('sesiperfil');
+  $sesiuser = $session->param('sesiuser');
+  
+if ($sesiperfil eq "" || $sesiuser eq "")
+{
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html\r\n\r\n";
+}
+print <<EOF;
+<html>
+<font color="black" face="Verdana, Arial, Helvetica, sans-serif" style="FONT-SIZE: 8pt"><b>
+<br>Sessión caducada.<br>
+Cierre la ventana.</b></font>
+</html>
+EOF
+exit;
+}
+
+
+use POE qw/Wheel::FollowTail/;
+
+$| = 1;
+
+my $filename=$q->param('varlogvivofichero');
+my $filtro=$q->param('varlogvivofiltro');
+
+if($filtro ne "" && $filtro ne "none")
+{
+	$filtrolog=$filtro;
+}
+else
+{
+	$filtrolog=".*";
+}
+
+if ($filename eq "")
+{
+print "Content-type: text/html\r\n\r\n";
+print <<EOF;
+<html>
+<font color="black" face="Verdana, Arial, Helvetica, sans-serif" style="FONT-SIZE: 8pt"><b>
+<br>Revise log disponible para inspeccionar.<br>
+Cierre la ventana.</b></font>
+</html>
+EOF
+exit;
+}
+
+
+die "Usage: $0 <filename>\n"                     unless $filename;
+die "$0: $filename: No such file or directory\n" unless -e $filename;
+die "$0: $filename: Permission denied\n"         unless -r $filename;
+
+print "Content-type: text/html\r\n\r\n";
+print <<EOF;
+
+<html>
+<body bgcolor=black>
+<div id="scroll" style="height: 390px; overflow: auto;float:center;width:685px;">
+
+<table width=660 style='font-family:Arial; font-size: 11px; color: #FFFFFF;' cellpadding=2 cellspacing=2>
+EOF
+
+POE::Session->create
+  ( inline_states =>
+      { _start => sub { $_[HEAP]->{wheel} =
+              POE::Wheel::FollowTail->new(
+                Filename   => $_[ARG0],
+                InputEvent => 'got_line',
+                ErrorEvent => 'got_error',
+                SeekBack   => 1024,
+              );
+            $_[HEAP]->{first} = 0;
+        },
+        got_line => sub { 
+		$linea=$_[ARG0] ;
+		$linea =~ s/\^M/<br>/g ;
+		
+		if($linea =~ /$filtrolog/)
+		{		
+		print "<tr><td>$linea</td></tr>" ;
+		print "<script>m = document.getElementById( 'scroll' ); m.scrollTop = 99999999;</script>";
+		}
+		
+		print ""		
+		
+		if $_[HEAP]->{first}++ },
+        got_error => sub { warn "<tr><td>$_[ARG0]</td></tr>" },
+      },
+    args => [$filename],
+  );
+
+$poe_kernel->run();
+
+print "</table></div>";

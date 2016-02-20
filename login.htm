@@ -1,0 +1,424 @@
+#! /usr/bin/perl -wX
+
+
+use CGI::Session;
+use CGI;
+use CGI qw(:standard); 
+use CGI::Cookie;
+use DBI;
+use Geo::IP;
+my $gi = Geo::IP->new(GEOIP_STANDARD);
+
+$q = new CGI;
+
+# Get the CGI form data
+$query = new CGI;
+
+
+#require "/opt/imt/web/modulos/imthwd.htm";
+#require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+if($ENV{'CONTENT_LENGTH'} eq "")
+{
+	print "Location: entrada.htm\n\n";
+    exit(0);
+}
+
+
+use Digest::MD5 qw(md5_hex);
+my $skey = '1qaz2wsx3edc4rfv5tgb6yhn7ujm8ik9ol'; # secret key
+my $code = $q->param('code'); # user put code
+my $session = $q->param('hv_sess');
+my $hash = $q->param('hv_hash');
+my $expire = 60*2; # seconds expire session
+
+if (time - $session > $expire) { 
+print "Location: entrada.htm\n\n";
+exit(0);
+}
+if ($hash ne md5_hex($code,$skey,$session) ) { 
+print "Location: entrada.htm\n\n";
+exit(0);
+}
+
+
+
+if ($query->param('logout') eq 1) {
+  # Logout part
+  # Get the session id
+  $cookie = $query->cookie(-name => "controlimt");
+  if ($cookie) {
+    CGI::Session->name($cookie);
+  }
+  # Expire the server session
+  $session = new CGI::Session("driver:File",$cookie,{'Directory'=>"/tmp"}) or die "$!";
+  $session->clear();
+  $session->expire('+2h');
+  # Remove the session cookie
+  print "Set-Cookie: session=$id; domain=.$host; path=/; expires=Sat, 8-Oct-2001 01:01:01 GMT\n";
+  # Goes back to the identification page
+  #print "Location: ".$ENV{'HTTP_REFERER'}."\n\n";
+  print "Location: entrada.htm\n\n";
+  exit(0);
+}
+
+#$infotest=`/opt/imt/gestor/tools/networking/ptelnet.pl 127.0.0.1 3306`;
+$testmysqlping=`/usr/bin/mysqladmin ping | grep alive`;
+
+$tipologinfile=0;
+
+if($testmysqlping eq "")
+#if($infotest =~ /no conecta/ || $testmysqlping eq "")
+{
+	##system("$mysqld restart >/dev/null 1>&2 &");
+
+	##print "Location: entrada.htm?logout=2\n\n";
+	##exit(0);
+	
+   $passfile=`/bin/cat /write/passimt-backup`;
+   $passfile =~ s/(\r?\n)//g; 
+      
+   $pwd = $query->param('passwordTxt');
+   $pwd =~ s/(?:\012\015|\012|\015)//g;
+   $pwd =~ s/[\'|\%]//g;	
+	
+	if($passfile eq $pwd)
+	{
+	  $tipologinfile=1;
+	}
+	else
+	{
+	  system("$mysqld restart >/dev/null 1>&2 &");
+   
+	  print "Location: entrada.htm?logout=2\n\n";
+	  exit(0);
+	}
+}
+
+#if($tipologinfile eq 1)
+#{
+#     print "Location: entrada.htm?logout=9\n\n";
+#	   exit(0);
+#} 
+
+$tamanovarlog=`df -h | grep "\/var\/log" | grep "100%"`;
+
+if($tamanovarlog ne "")
+{
+	$tamanomayor=`find /var/log -type f -printf "%p:%s\n" | sort -t":" -k2 -n | tail -1`;
+	@array = split(/\:/,$tamanomayor);
+    $archivomayor=$array[0];
+	system("echo '' > $archivomayor");
+}
+
+#system("/usr/bin/mysqlcheck -r controlweb >/dev/null 2>&1");
+#system("/usr/bin/mysqlcheck -o controlweb >/dev/null 2>&1");
+
+
+
+# Fetch login and password
+$login = $query->param('userid');
+$login =~ s/(?:\012\015|\012|\015)//g;
+$login =~ s/[\'|\%]//g;
+$pwd = $query->param('passwordTxt');
+$pwd =~ s/(?:\012\015|\012|\015)//g;
+$pwd =~ s/[\'|\%]//g;
+$perfil = $query->param('perfil');
+$perfil =~ s/(?:\012\015|\012|\015)//g;
+$perfil =~ s/[\'|\%]//g;
+
+# Initiate the session
+$session = new CGI::Session("driver:File",undef,{'Directory'=>"/tmp"});
+
+my $dbh;
+my $sth;
+
+if($tipologinfile eq 0)
+{  
+  
+$dbuser="root";
+$dbpass="";
+
+
+    $dbh = DBI->connect('DBI:mysql:database=controlweb;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+    $sth = $dbh->prepare("SELECT COUNT(*) as total from authreg where username='$login' COLLATE latin1_general_cs and password='$pwd' COLLATE latin1_general_cs and perfil='$perfil' and activado='1'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+@linea = $sth->fetchrow_array;
+
+}
+
+
+
+ my ($seconds) = @_;
+
+  my %mn = ('Jan','01', 'Feb','02', 'Mar','03', 'Apr','04',
+            'May','05', 'Jun','06', 'Jul','07', 'Aug','08',
+            'Sep','09', 'Oct','10', 'Nov','11', 'Dec','12' );
+  my $sydate=gmtime(time+$seconds);
+  my ($day, $month, $num, $time, $year) = split(/\s+/,$sydate);
+  
+  $time=`date`;
+  @datatime = split(/\s+/,$time);
+  $time=$datatime[3];
+  
+  my    $zl=length($num);
+  if ($zl == 1) { 
+    $num = "0$num";
+  }
+
+  if($month eq "Jan"){$month= "01";}
+  elsif($month eq "Feb"){$month= "02";}
+  elsif($month eq "Mar"){$month= "03";}
+  elsif($month eq "Apr"){$month= "04";}
+  elsif($month eq "May"){$month= "05";}
+  elsif($month eq "Jun"){$month= "06";}
+  elsif($month eq "Jul"){$month= "07";}
+  elsif($month eq "Aug"){$month= "08";}
+  elsif($month eq "Sep"){$month= "09";}
+  elsif($month eq "Oct"){$month= "10";}
+  elsif($month eq "Nov"){$month= "11";}
+  elsif($month eq "Dec"){$month= "12";}
+
+  my $date="$year-$month-$num";
+
+
+
+$ip=$ENV{'REMOTE_ADDR'}; 
+my $country = lc($gi->country_code_by_addr($ip));
+
+
+# Check the credentials and populate the status variable
+if ($linea[0] > 0 || $tipologinfile eq 1) {
+  $sesiperfil = $perfil;
+  $sesiuser = $login;
+  $sesiip = $ip;
+  
+  $sesiidioma=$query->param('idioma');       
+} else {
+
+if($tipologinfile eq 0)
+{ 
+$sth = $dbh->prepare("REPAIR TABLE pasoreg")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+$sth = $dbh->prepare("INSERT INTO pasoreg (user, date, time, ipaddress, result, country) VALUES ('$login','$date','$time','$ip','NO','$country')")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+ 
+  #print "Location: ".$ENV{'HTTP_REFERER'}."\n\n";
+  print "Location: entrada.htm\n\n";
+  #print "Content-type: text/plain\n\nNope !";
+  exit(0);
+}
+
+
+
+# Write the session variable on the server
+$session->param('sesiperfil',$sesiperfil);
+$session->param('sesiuser',$sesiuser);
+$session->param('sesiip',$sesiip);
+$session->param('sesiidioma',$sesiidioma);
+$session->expire('+2h');
+
+
+
+# Send the cookie linking the user to the server session
+$id = $session->id();
+$host = $ENV{'HTTP_HOST'};
+
+
+
+#-------------------ROUTINE FILE STARTS HERE------------------------------
+# This routine takes (name,value,minutes_to_live,path,domain) as arguments
+# to set a cookie.
+# 0 minutes means a current browser session cookie life
+sub set_cookie() {
+
+  my ($name,$value,$expires,$path,$domain) = @_;
+
+  $name=&cookie_scrub($name);
+  $value=&cookie_scrub($value);
+
+  $expires=$expires * 60;
+
+  my $expire_at=&cookie_date($expires);
+  my $namevalue="$name=$value";
+
+  my $COOKIE="";
+
+  if ($expires != 0) {
+     $COOKIE= "Set-Cookie: $namevalue; expires=$expire_at; ";
+  }
+   else {
+     $COOKIE= "Set-Cookie: $namevalue; ";   #current session cookie if 0
+   }
+  if ($path ne ""){
+     $COOKIE .= "path=$path; ";
+  }
+  if ($domain ne ""){
+     $COOKIE .= "domain=$domain; ";
+  }
+   
+
+  return $COOKIE;
+}
+
+# This routine removes cookie of (name) by setting the expiration
+# to a date/time GMT of (now - 24hours)
+sub remove_cookie() {
+
+  my ($name,$path,$domain) = @_;
+
+  $name=&cookie_scrub($name);
+  my $value="";
+  my $expire_at=&cookie_date(-86400);
+  my $namevalue="$name=$value";
+
+  my $COOKIE= "Set-Cookie: $namevalue; expires=$expire_at; ";
+  if ($path ne ""){
+     $COOKIE .= "path=$path; ";
+  }
+  if ($domain ne ""){
+     $COOKIE .= "domain=$domain; ";
+  }
+
+  return $COOKIE;
+}
+
+
+# given a cookie name, this routine returns the value component
+# of the name=value pair
+sub get_cookie() {
+
+  my ($name) = @_;
+
+  $name=&cookie_scrub($name);
+  my $temp=$ENV{'HTTP_COOKIE'};
+  @pairs=split(/\; /,$temp);
+  foreach my $sets (@pairs) {
+    my ($key,$value)=split(/=/,$sets);
+    $clist{$key} = $value;
+  }
+  my $retval=$clist{$name};
+
+  return $retval;
+}
+
+# this routine accepts the number of seconds to add to the server
+# time to calculate the expiration string for the cookie. Cookie
+# time is ALWAYS GMT!
+sub cookie_date() {
+
+  my ($seconds) = @_;
+
+  my %mn = ('Jan','01', 'Feb','02', 'Mar','03', 'Apr','04',
+            'May','05', 'Jun','06', 'Jul','07', 'Aug','08',
+            'Sep','09', 'Oct','10', 'Nov','11', 'Dec','12' );
+  my $sydate=gmtime(time+$seconds);
+  my ($day, $month, $num, $time, $year) = split(/\s+/,$sydate);
+  my    $zl=length($num);
+  if ($zl == 1) { 
+    $num = "0$num";
+  }
+
+  my $retdate="$day $num-$month-$year $time GMT";
+
+  return $retdate;
+}
+
+
+# don't allow = or ; as valid elements of name or data
+sub cookie_scrub() {
+
+  my($retval) = @_;
+
+  $retval=~s/\;//;
+  $retval=~s/\=//;
+
+  return $retval;
+}
+
+
+# usual kluge so require does not fail....
+
+     my $XyZ=1;
+
+#-------------------ROUTINE FILE ENDS HERE--------------------------------
+
+#$cookie=&set_cookie("session","$id",0,"/","$host");
+#print "Content-type: text/html\r\n\r\n";
+#print "$cookie";
+#print "Set-Cookie: session=$id; domain=.$host; path=/\n";
+print "Set-Cookie: controlimt=$id; path=/\n";
+
+
+
+
+
+#$idioma = $query->param('idioma');
+
+		#open(OLD, "< $home")    or die "can't open $home: $!";
+		#open(NEW, "> $aux")     or die "can't open $aux: $!";
+
+		#$idioma=$q->param('idioma');		
+
+		#while (<OLD>) 
+		#{
+			#if (/^\s*IDIOMA\s*=.*$/)     
+     		#{
+
+					#s/^.*$/IDIOMA\=$idioma/;
+
+			#}
+            #print NEW $_            or die "can't write $aux: $!";
+		#}
+
+		#close(OLD)                  or die "can't close $home: $!";
+		#close(NEW)                  or die "can't close $aux: $!";
+	
+#system("/bin/cp $aux $home >/dev/null 2>&1");
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+
+#$sesiperfil = $session->param('sesiperfil');
+#$sesiuser = $session->param('sesiuser');
+
+if($tipologinfile eq 0)
+{ 
+$sth = $dbh->prepare("INSERT INTO pasoreg (user, date, time, ipaddress, result, country) VALUES ('$sesiuser','$date','$time','$sesiip','OK','$country')")
+               	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+system("$notificar emailaccesoweb $sesiuser $date $time $sesiip $country >/dev/null 2>&1 &");
+
+system("$get_variables >/dev/null 2>&1 &");
+
+print "Location: index.htm\n\n";
+
+
+# Clean the server
+if (int(rand(10)) == 1) {
+  # expire old sessions
+  $filez = "/tmp/*";
+  while ($file = glob($filez)) {
+    @stat=stat $file; 
+    $days = (time()-$stat[9]) / (60*60*24);
+    unlink $file if ($days > 3);
+  }
+}
+
+exit(0);

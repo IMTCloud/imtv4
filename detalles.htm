@@ -1,0 +1,267 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_ANTIVIRUS_HTTP_FTP_POP3\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+	}
+close(OLD);
+
+
+$dbuser="root";
+$dbpass="";
+
+
+    my $dbh = DBI->connect('DBI:mysql:database=antivirus;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+               	  		 
+						 
+               	  		 
+						 
+if($q->param('env') eq "actividad")
+{
+my $sth = $dbh->prepare("UPDATE actividad set scanpop3scanned=0,scanpop3infected=0,scansmtpscanned=0,scansmtpinfected=0,scanhttpscanned=0,scanhttpinfected=0,scanftpscanned=0,scanftpinfected=0")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+
+
+
+if($q->param('env') eq "listado")
+{
+my $sth = $dbh->prepare("DELETE FROM virusdata")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>Infodesain-Ultimos virus</title>
+
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+							
+<script language="javascript">
+
+
+function limpiar(opc)
+{
+
+if (opc == 'actividad')
+{
+tabla = "actividad";
+}
+else
+{
+tabla = "últimos virus";
+}
+
+	if(!confirm('¿Desea limpiar el listado de '+ tabla +'?'))
+	return false;
+	
+	oscuprocessform();
+		    
+theform.env.value = opc;
+document.theform.submit();
+
+}
+</script>
+
+
+
+<script>
+
+        var  trial=0;
+        var inten = 'intentando recargar..';
+
+        function tryreload()
+        {
+                  location.href="detalles.htm?volver=$volver";
+                  setTimeout(tryreload,2000);
+        }
+
+</script>
+
+
+</head>
+<body onload="javascript:setTimeout(tryreload,35000)"> 
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="volver" type="hidden" value="$volver">
+
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR=#3e73a8><B>$detalles_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<P><br><br>
+
+<table width="650" border="0"><tr><td align="left">
+
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>
+
+</td>
+</tr></table>
+
+
+<b><font face="verdana" size="2">$detalles_actiav</font></b><br><br>
+<table width='540'  align='center' cellpadding='1' cellspacing='2' >
+
+<tr>
+<td colspan='5' height="23" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;
+<font color="white"><b>$detalles_actividad&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;POP3
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HTTP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FTP
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SMTP</font></b>
+</td>
+</tr>
+</table>
+<table width='540'  align='center' cellpadding='1' cellspacing='2' border="0">
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM actividad")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+	
+
+ while (@linea = $sth->fetchrow_array) {
+ print  "<tr>".
+        "<td bordercolor='#3e73a8' width='105' align='center'><b>$detalles_escaneados</b></td>".
+        "<td align='center' width='105'>$linea[1]</td>".
+		"<td align='center' width='115'>$linea[5]</td>".
+		"<td align='center'>$linea[7]</td>".
+		"<td align='center'>0</td>	</tr>". 
+		"<tr><td height='5'></td></tr>".
+		"<td bordercolor='#3e73a8' width='105' align='center'><b>$detalles_infectados</b></td>".
+		"<td align='center'>$linea[0]</td>".
+		"<td align='center'>$linea[4]</td>".
+		"<td align='center'>$linea[6]</td>".
+		"<td align='center'>0</td>	</tr>". 
+		"<tr><td height='5'></td></tr>";	 
+    }
+
+print <<EOF;		 
+</table>
+  
+<img src="../images/reset_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="limpiar('actividad')">
+
+<p><br><p>
+
+
+
+
+
+
+<table border='0' width='600'  align='center' cellpadding='1' cellspacing='2' >
+
+<tr>
+<td colspan='5' height="23" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;<font color="white"><b>$detalles_ultimosav</b></font>
+</td>
+</tr>
+
+  <tr> 
+    <td width='27%' align="center"><div align='center'><strong>$detalles_virus&nbsp; </strong></div></td>
+    <td width='13%' align="center"><div align='center'><strong>$detalles_servicio&nbsp; </strong></div></td>
+    <td width='15%' align="center"><div align='center'><strong>$detalles_antivirus&nbsp; </strong></div></td>
+    <td width='23%' align="center"><div align='center'><strong>$detalles_fecha&nbsp;</strong></div></td>
+    <td width='27%' align="center"><div align='center'><strong>$detalles_archivo&nbsp; </strong></div></td>
+  </tr>    
+
+  <!--
+</table>
+</body></html>-->
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM virusdata ORDER BY timestamp DESC limit 20")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+	
+
+ while (@linea = $sth->fetchrow_array) {
+ print  "<tr>".
+        "<td >$linea[1] </td>".
+         "<td align='center'>$linea[2]</td>".
+		 " <td align='center'>$linea[5]</td>".
+		 "  <td align='center'>$linea[3]</td>".
+		  "  <td align='center'>$linea[7] </td>	</tr>"; 
+			 
+    }
+
+ 
+print <<EOF;		 
+   </table><br>
+   <img src="../images/reset_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="limpiar('listado')">
+
+ </form>
+ 
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+        
+    $sth->finish;
+    	
+    $dbh->disconnect;
+                     

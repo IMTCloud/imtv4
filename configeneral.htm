@@ -1,0 +1,194 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+if($versionimt =~ /imt3/)
+{
+	$versienlace="v3";
+}
+else
+{
+	$versienlace="";
+}
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+</head>
+
+	
+<body>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="modofw" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/herramientas.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$configeneral_titulo1</B></FONT></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br><br><br>
+<!--<table>
+		<tr><td width="440" height="23" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;<font color="white"><b>$poliacceso_menu:</b></font></td></tr>
+</table>-->
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="480" height="250">
+<tr><td width="480" height="23" class="barratituloazul"  align="center">&nbsp;&nbsp;&nbsp;<font color="white"><b>$poliacceso_menu:</b></font></td></tr>
+
+<tr><td align="center">
+
+
+
+
+<table border="0">
+<tr><td height='5'>&nbsp;</td></tr>
+<TR>
+<td width="130" align="center">
+<A HREF=cuentalerta.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra'><br>$configeneral_correo1<br>$configeneral_correo2</div></a>
+</td>
+<td width="20"></td>
+<td width="130" align="center">
+<A HREF=interfaz.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra'><br>$configeneral_interfaz</div></A>
+</td>
+<td width="20"></td>
+<td align="center"><A HREF=gestorkernel.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra'><br>Selección de kernel</div></A></td>
+</tr>
+<tr><td height='30' colspan="3" align="center"></td></tr>
+<TR>
+<td width="130" align="center"><A HREF=ntpserver.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra'><br>$configeneral_fecha</div></A></td>
+<td width="20"></td>
+<td align="center"><A HREF=idioma.htm target=main><div id=\"permitirnetworkservice\" class='panelminicuadro' align=center class='bordenegrosombra'><br>$configeneral_idioma</div></A></td>
+<!--<td width="20"></td>
+<td align="center"><A HREF=# target=main><img src="../images/gnulinux.gif" border="0"><br><br>GNU/Linux</A><br><b><A HREF=aptweb.htm target=main>apt-web</a> | <A HREF=aptweb.htm target=main>kernel</a></b></td>-->
+</tr>
+
+
+
+</td></tr>
+<tr><td height="5"></td></tr>
+</table>
+
+  </center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+
+
+

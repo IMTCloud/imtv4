@@ -1,0 +1,1160 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));	
+
+
+
+#lectura de modulos
+#···············································································	
+
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_SISTEMA_PORTSHADOW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$IMT_SISTEMA_PORTSHADOW = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $modulos: $!";
+	
+
+
+#lectura de variables
+#···············································································	
+
+	open(OLD, "< $variables")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*WEBPORT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$WEBPORT = $data[1];
+				$WEBPORTIMT = $WEBPORT;
+			}
+			
+			if (/^\s*SHELLPORT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$SHELLPORT = $data[1];
+				$SHELLPORTIMT = $SHELLPORT;
+			}
+	
+			if (/^\s*WEBMONIT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$WEBMONIT = $data[1];
+				$WEBMONITIMT = $WEBMONIT;
+			}
+	
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+	
+
+if($q->param('enviar') eq "portshadow")
+{
+
+			$webimt=$q->param("imtxweb");
+			$shellimt=$q->param("imtxshell");
+
+			if($webimt ne 1 && $shellimt ne 1)
+			{
+				$comen="#";
+				$PORTWEBSHELL=",";
+			}
+			else
+			{
+				$comen="";
+				
+				if($webimt eq 1 && $shellimt ne 1)
+				{
+					$PORTWEBSHELL=$WEBPORT;
+					$WEBPORTIMT=$WEBPORT;
+				}
+				elsif($webimt ne 1 && $shellimt eq 1)
+				{
+					$PORTWEBSHELL=$SHELLPORT;
+					$SHELLPORTIMT=$SHELLPORT;
+				}
+				else
+				{
+					$PORTWEBSHELL=$WEBPORT.",".$SHELLPORT;
+				}
+				
+			}
+			
+			
+
+open(NEW, "> $knockimtconf")     or die "can't open $knockimtconf: $!";
+		
+		$secuencia=$q->param('secuencia');
+		$timeout=$q->param('timeout');
+		
+		$timeout = $timeout *60;
+		
+		print NEW "${comen}[remoto]\n"; 
+		print NEW "${comen}sequence = ${secuencia}\n"; 
+		print NEW "${comen}seq_timeout = ${timeout}\n"; 
+		print NEW "${comen}tcpflags = syn\n"; 
+		print NEW "${comen}start_command = /sbin/iptables -I INPUT -s %IP% -p tcp --syn -m multiport --dports $PORTWEBSHELL,$WEBMONIT -j ACCEPT\n"; 
+		print NEW "${comen}cmd_timeout = ${timeout}\n"; 
+		print NEW "${comen}stop_command = /sbin/iptables -D INPUT -s %IP% -p tcp --syn -m multiport --dports $PORTWEBSHELL,$WEBMONIT -j ACCEPT\n"; 
+
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");
+		system("$portknocking restart  >/dev/null 2>&1");
+		
+$xact=$q->param('xact');
+system("/bin/echo $xact > $accremote");
+}
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+	
+	warn $q->param('enviar');
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		
+		warn "borrar $id";
+		
+		open(OLD, "< $localiptables")    or die "can't open $localiptables: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*\$IPTABLES.*$/)
+     		{
+		#$comment
+		#$IPTABLES -A FORWARD $ip -m p2p --p2p-protocol $targets -j ACCEPT
+				chomp;
+				$_ =~ /.*/;
+			
+		 		if($i != $id)
+		 		{
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+		 		}
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $localiptables 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+		$id=$q->param('id');
+		warn "insertar $id";
+		open(OLD, "< $localiptables")    or die "can't open $localiptables: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		if($id == 0)
+		{
+		 	print NEW "#Nueva regla\n";
+    		print NEW "\$IPTABLES -A INPUT -s 0.0.0.0 -p tcp --dport \$WEBPORT,\$WEBMONIT -j ACCEPT\n\n";
+	
+		}
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*\$IPTABLES.*$/)
+     		{
+		#$comment
+		#$IPTABLES -A FORWARD $ip -m p2p --p2p-protocol $targets -j ACCEPT
+				chomp;
+				$_ =~ /.*/;
+			
+		 	
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+    				
+    					
+    				if($i == $id)
+		 			{
+		 				print NEW "#Nueva regla\n";
+    					print NEW "\$IPTABLES -A INPUT -s 0.0.0.0 -p tcp --dport \$WEBPORT,\$WEBMONIT -j ACCEPT\n\n";
+	
+		 			}
+		 		
+		 		
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $localiptables 1>&2");
+		
+		
+	}
+	
+	if($q->param('enviar') eq "Aplicar")
+	{
+		open(NEW, "> $localiptables")    or die "cant open $localiptables: $!";
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			$ip=$q->param("${i}x0");
+			
+			if( $ip eq undef )
+			{
+				last;
+			}
+#comment
+			$comment=$q->param("${i}xc");
+			if($comment eq "")
+		 	{
+		 		$comment="Comentario";
+		 	}	
+		 	
+		 	$targets=$q->param("${i}x1");
+		 	
+			warn "Aplicar $i $ip $targets $comment\n";
+			
+			
+			$web=$q->param("${i}xweb");
+			$shell=$q->param("${i}xshell");
+			
+			
+			if($web ne 1 && $shell ne 1)
+			{
+				$comen="#";
+				$coma=",";
+			}
+			else
+			{
+				$comen="";
+				$coma="";
+			}
+			
+			if($web eq 1)
+			{
+				$WEBPORT="\$WEBPORT";
+			}
+			else
+			{
+				$WEBPORT="";
+			}
+			
+			if($shell eq 1)
+			{
+				$SHELLPORT="\$SHELLPORT";
+			}
+			else
+			{
+				$SHELLPORT="";
+			}
+			
+			if($web eq 1 && $shell eq 1)
+			{
+				$coma=",";
+			}
+			else
+			{
+				$coma="";
+			}
+			
+			print NEW "#".$comment."\n";
+			print NEW "${comen}\$IPTABLES -A INPUT -s ".$ip." -p tcp -m multiport --dports $WEBPORT${coma}$SHELLPORT,\$WEBMONIT -j ACCEPT&\n\n";
+	
+      		$i=$i+1;
+		}
+		close(NEW)     or die "can't close $localiptables: $!";
+	
+	
+	$opcionfw=$q->param('blockAll');
+	
+	if($opcionfw eq "")
+	{
+ 	$opcionfw=0;
+	}
+	system("/bin/echo $opcionfw > $fwlocal");
+	
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");
+		system("$prerouting >/dev/null 2>&1");
+	}
+	
+}
+
+
+$fwlocal=`/bin/cat $fwlocal`;
+$fwlocal =~ s/(\r?\n)//g;
+
+	if($fwlocal eq "0") 
+	{
+		$blockAllcheck = "";
+	}
+	
+	if($fwlocal eq "1")
+	{
+		$blockAllcheck = "checked";
+	}
+
+
+if ($IMT_SISTEMA_PORTSHADOW eq "1")
+{
+
+#lectura de base de datos a actualizar desde freshclam
+#···············································································	
+
+	open(OLD, "< $knockimtconf")    or die "can't open $knockimtconf: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^[\s#]*sequence\s=/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s=\s/,$_);
+		 		$secuencia = $data[1];
+			}
+			
+			if (/^[\s#]*seq_timeout\s=/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s=\s/,$_);
+		 		$timeout = $data[1];
+				
+				$timeout=$timeout / 60;
+			}
+			
+			if (/^[\s#]*start_command\s=/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/ /,$_);
+		 		$PORTWEBSHELL = $data[13];
+				
+				
+				if($PORTWEBSHELL =~ /$WEBPORTIMT/)
+				{
+					$activadowebimt=1;
+				}
+				else
+				{
+					$activadowebimt=0;
+				}
+				
+				
+				
+				if($PORTWEBSHELL =~ /$SHELLPORTIMT/)
+				{
+					$activadoshellimt=1;
+				}
+				else
+				{
+					$activadoshellimt=0;
+				}
+				
+				
+				
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $knockimtconf: $!";
+
+
+
+
+}
+	
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+		
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		var id = curListener.split('x')[0];
+	      var targets="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.targets.elements.length;i++)
+		{
+			if(document.targets.elements[i].checked==true)
+			{
+				if (targets!="") targets += ",";
+				targets+=document.targets.elements[i].name;
+			}
+		}
+		
+ 		
+ 		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 			{
+ 				ruledata[i][2]=targets;
+ 				document.getElementById(id+"x1").value=targets;
+ 				ruledata[i][4]=true;
+ 				break;	
+ 			}
+ 		document.getElementById(curListener).innerHTML=targets;
+
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    //	this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+	this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
++"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
++",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+ 
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+
+function toggleCB(listener,container,x,y)
+{
+	//debugger;
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-	objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		//debugger;
+		//rellenar los checkbox
+		var id = curListener.split('x')[0];
+		var i=0;	
+		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 				break;
+ 				
+		var targets = ruledata[i][2].split(",");
+		for(i=0;i<document.targets.elements.length;i++)
+		{
+			document.targets.elements[i].checked=false;
+		}
+	
+		for(i=0;i<targets.length ;i++)
+		{
+			if(targets[i]!="" && eval("document.targets."+targets[i]))
+				eval("document.targets."+targets[i]+".checked=true");
+		}
+		objContainer.el.style.visibility='visible'; 
+	}	
+}
+
+
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea('divContainer1',sd);
+	objContainer2=InitialiseScrollableArea2('divContainer2',null);
+
+	//initRules();
+} 
+
+
+
+
+
+bolaact =  new Image(27,25);
+bolaact.src = "../images/gre.gif"
+bolades =  new Image(27,25);
+bolades.src = "../images/udp.gif"
+
+function toggleBolaweb(id)
+{
+	var bola = document.getElementById('bolaweb'+id);
+	
+	if(bola.src == bolaact.src)
+	{
+		bola.src = bolades.src;	
+		document.getElementById(id+'xweb').value=0;
+	}
+	else
+	{
+		bola.src = bolaact.src;	
+		document.getElementById(id+'xweb').value=1;
+	}
+}	
+
+function toggleBolashell(id)
+{
+	var bola = document.getElementById('bolashell'+id);
+	
+	if(bola.src == bolaact.src)
+	{
+		bola.src = bolades.src;	
+		document.getElementById(id+'xshell').value=0;
+	}
+	else
+	{
+		bola.src = bolaact.src;	
+		document.getElementById(id+'xshell').value=1;
+	}
+}	
+
+
+function validarForm()
+{
+	var i=1;
+	while(document.getElementById(i+'x0'))
+	{
+		if (document.getElementById(i+'x0').value!="")
+		{
+			if (isValidIP(document.getElementById(i+'x0').value)==false && document.getElementById(i+'x0h').value.search(/^[a-zA-Z0-9\-]+\$/)==-1 && document.getElementById(i+'x0h').value.search(/^[a-zA-Z0-9\-]+\.[a-zA-Z]+\$/)==-1)
+			{
+				alert(document.getElementById(i+'x0').value+' se esperaba una IP válida o nombre de máquina correcto');
+				return;
+			}
+		}
+		else
+		{
+			alert('Campo origen IP vacio');
+			return;
+		}
+		i++;
+	}
+	
+	oscuprocessform();
+	
+	document.theform.action="accesolocal.htm";
+	document.theform.enviar.value="Aplicar"
+	document.theform.submit();
+	
+}
+
+
+function validarForm2()
+{
+
+	oscuprocessform();
+	
+	document.theform.action="accesolocal.htm";
+	document.theform.enviar.value="portshadow"
+	document.theform.submit();
+	
+}
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="enviar" type="hidden">
+<input name="volver" type="hidden" value="$volver">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR=#3e73a8><B>$accesoremoto_titulo1 ($poliacceso_desderedlocal)</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<p><br><br>
+
+<table width="650" border="0"><tr><td align="left">
+
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>
+ 
+</td>
+</tr></table>
+
+<table width="500" border="0">
+<tr><td width="400"></td><td width="10"><img src="../images/gre.gif" border="0"></td><td>$accesoremoto_permitido</td>
+<td width="5"></td>
+<td width="10"><img src="../images/udp.gif" border="0"></td><td>$accesoremoto_bloqueado</td></tr>
+</table>
+
+<br>
+	
+		<center>
+		<input type="checkbox" name="blockAll" value="1" $blockAllcheck>$accesolocal_bloqueo
+		<br><br>
+		<HR NOSHADE class="barracolor" width="450">
+
+
+<P>
+    $accesolocal_accesopermi  
+
+	 
+		<br><br>
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra2" width="540">
+<tr><td width="100%" height="23" class="barratituloazul2">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$msn_origenip
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$msn_comentario</b></font></td></tr>
+
+<tr><td height=5></td></tr><tr><td align="center">
+	
+		
+		<!--<input type="checkbox" name="blockAll" value="1"> Bloquear todo el trafico P2P
+		<br>-->
+		
+
+
+<table cellspacing="3" cellpadding="0" width=500 class="linea"  border=0>
+EOF
+
+
+
+
+
+	open(OLD, "< $localiptables")    or die "can't open $localiptables: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+			if (/^[\s#]*\$IPTABLES.*$/)
+     		{
+		#$comment
+		#$IPTABLES -A FORWARD $ip -m p2p --p2p-protocol $targets -j ACCEPT
+		
+				chomp;
+				$_ =~ /.*/;
+				@data = split (/ /,$_);
+				
+		 		$ip = $data[4];
+		 		$targets = $data[7];
+		 		#warn $_."\n";
+		 		
+		 		if($lastline =~ /^#.*/)
+		 		{
+		 			$lastline=~s/^#//;
+		 			$comment=$lastline;# quitar  #
+		 			$lastline="";
+		 		}	
+		 		else
+		 		{
+		 			$comment="";	
+		 		}	
+				
+				if ($_ =~ /\$WEBPORT/)
+				{
+					$activadoweb=1;
+				}
+				else
+				{
+					$activadoweb=0;
+				}
+				
+				if ($_ =~ /\$SHELLPORT/)
+				{
+					$activadoshell=1;
+				}
+				else
+				{
+					$activadoshell=0;
+				}
+			
+				print "<tr><td width=5></td>\n";
+				#print "<td align='left' width='30'><img  onclick='window.location.href=\"?id=${i}&enviar=Insertar&volver=$volver\"' style='cursor:pointer;$imagenvisiblebase' src='../images/mas.jpg' border='0' alt='insertar' ></td>\n";
+				#print "<td align='left' width='30'><img  onclick='window.location.href=\"?id=${i}&enviar=Borrar&volver=$volver\"' style='cursor:pointer;$imagenvisiblebase' src='../images/no.jpg' border='0' alt='borrar' ></td>\n";
+	
+				print "<td align='left' width='24'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Insertar&volver=$volver\"'><b>+</b></div>				
+				
+				</td>\n";
+				
+				print "<td width=1></td><td align='left' width='24'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar&volver=$volver\"'><b>-</b></div>				
+				
+				</td><td width=5></td>\n";	
+	
+				print "<td width='105' align='left'><input id='${i}x0' name='${i}x0' type='text' value='$ip' class='campotxt' size=15></td>\n";
+				print "<td align='center' id='${i}xt'></td>\n";
+				print "<td align='center' width=2><!--<img style='cursor:hand' src='../images/flechabajo.gif' onclick='toggleCB(\"${i}xt\",objContainer2,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;' alt='Protocolos'/>--></td>\n";
+				
+				print "<td width='170'><input  style='font-style:italic'  class='campotxt' type='text' id='${i}xc' name='${i}xc' size=20 value='$comment'/></td>\n";
+				
+				
+				print "<script language='javascript'>document.write('<td width=\"20\"><img id=\"bolaweb${i}\" src=\"'+($activadoweb == 1?bolaact.src:bolades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleBolaweb(${i})\" >');</script></td>\n";
+				print "<td width='30'><b><font color='black'>web</font></b></td>\n";
+				print "<input  type='hidden' id='${i}xweb' name='${i}xweb' value='$activadoweb'/>\n";
+				
+
+				print "<script language='javascript'>document.write('<td width=\"20\"><img id=\"bolashell${i}\" src=\"'+($activadoshell == 1?bolaact.src:bolades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleBolashell(${i})\" >');</script></td>\n";
+				print "<td width='30'><b><font color='black'>shell</font></b></td>\n";
+				print "<input  type='hidden' id='${i}xshell' name='${i}xshell' value='$activadoshell'/>\n";
+				
+				$i=$i+1;
+		}
+		
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $localiptables: $!";	
+
+if ($i == 1) 
+{
+			print "<tr><td width=5></td>\n";
+			print "<td align='left' width='30'>
+	
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=0&enviar=Insertar&volver=$volver\"'><b>+</b></div>	
+						
+			
+			</td>\n";
+			print "<td align='left' width='99%' colspan='5'></td>\n";
+			print "</tr>\n";
+}
+
+
+print <<EOF;
+</table>
+
+</td></tr><tr><td height=15></td></tr></table>
+
+ <br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()" style="$imagenvisiblebase">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()" style="$imagenvisiblebase"></td>
+                </tr>
+              </table>
+
+<br>
+
+
+</form>
+		</td>
+	</tr>
+	</table>
+
+<script language="javascript">InitialiseAreas(); </script>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+ </body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

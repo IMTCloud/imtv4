@@ -1,0 +1,1493 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+use Net::Ping;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_POWEROFF_PCS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+
+#Modificación estado
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$estado=$q->param('estado');
+	
+	$seguir=0;
+	
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^(#{2})+/)
+		{
+			$seguir=1;
+		}
+			
+		if($seguir eq 1)
+		{
+		
+			if(/poweroffpcs\/poweroffpcsautomatico/)
+     		{
+				if($estado eq "0")
+	   			{
+					s/#+//;
+				}
+				else
+     			{
+     				s/^/#/;
+     			}
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+		} 
+	}
+
+	close(OLD)                  or die "can't close $crontab: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/usr/bin/crontab $aux");
+	
+}
+
+
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		
+		warn "borrar $id";
+		
+		$tipo=$q->param('tipo');
+		
+		
+		open(OLD, "< $poweroffpcsvalor$tipo")    or die "can't open $poweroffpcsvalor$tipo: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			if (/.+/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+			
+		 		if($i != $id)
+		 		{
+    				print NEW $_."\n";	
+		 		}
+		 			
+				$i=$i+1;
+			}
+
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $poweroffpcsvalor$tipo 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+		$id=$q->param('id');
+		warn "insertar $id";
+		$tipo=$q->param('tipo');
+		
+		if($tipo eq "auto")
+		{
+			$activarinser="#";
+		}
+		
+		open(OLD, "< $poweroffpcsvalor$tipo")    or die "can't open $poweroffpcsvalor$tipo: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		if($id == 0)
+		{
+    		print NEW "${activarinser}0.0.0.0|||Comentario\n";
+	
+		}
+	
+		while (<OLD>) 
+		{
+			if (/.+/)
+     		{		
+				chomp;
+				$_ =~ /.*/;
+					 			 			
+    				print NEW $_."\n";	
+    				   					
+    				if($i == $id)
+		 			{
+    					print NEW "${activarinser}0.0.0.0|||Comentario\n";
+	
+		 			}
+		 				 				 			
+				$i=$i+1;
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $poweroffpcsvalor$tipo 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Aplicarmanual")
+	{
+	
+		open(NEW, "> $poweroffpcsvalor")    or die "cant open $poweroffpcsvalor: $!";
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			
+			$ip=$q->param("${i}x1");
+			$user=$q->param("${i}x2");
+			$password=$q->param("${i}x3");
+			
+
+			if( $ip eq undef )
+			{
+				last;
+			}
+			#comment
+			$comentario=$q->param("${i}xc1");
+			if($comentario eq "")
+		 	{
+		 		$comentario="Comentario";
+		 	}	
+
+			$_=~ s/\-/\:/g;		 	
+
+			if($q->param("${i}xact1") eq 1)
+		 	{
+		 		system("/usr/bin/net rpc shutdown -s -f -I $ip -U $user%$password >/dev/null 2>&1");
+				system("$sshpoweroff $ip $user $password >/dev/null 2>&1");
+		 	}
+			
+			print NEW $ip."|".$user."|".$password."|".$comentario."\n";
+	
+      		$i=$i+1;
+		}
+		close(NEW)     or die "can't close $poweroffpcsvalor: $!";
+
+	}
+	
+	
+	if($q->param('enviar') eq "Aplicarautomatico")
+	{
+	
+		open(NEW, "> $poweroffpcsvalorauto")    or die "cant open $poweroffpcsvalorauto: $!";
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			$ip=$q->param("${i}x1");
+			$user=$q->param("${i}x2");
+			$password=$q->param("${i}x3");
+			
+
+			if( $ip eq undef )
+			{
+				last;
+			}
+
+			#comment
+			$comentario=$q->param("${i}xc1");
+			if($comentario eq "")
+		 	{
+		 		$comentario="Comentario";
+		 	}	
+
+			$_=~ s/\-/\:/g;		 	
+			
+			if($q->param("${i}xact2") eq "1")
+		 	{
+		 		$activar="";
+		 	}
+		 	else
+		 	{
+		 		$activar="#";
+		 	}
+			
+			print NEW "$activar".$ip."|".$user."|".$password."|".$comentario."\n";
+	
+      		$i=$i+1;
+		}
+		close(NEW)     or die "can't close $poweroffpcsvalorauto: $!";
+		
+	
+	$horaini=$q->param("horaini");
+	$fechaini=$q->param("fechaini");	
+	
+	$exceptodiasfinde=$q->param('exceptodiasfinde');
+	
+	if($exceptodiasfinde eq 1)
+	{
+		$exceptodiasfindevalor="1-5";
+	}
+	else
+	{
+		$exceptodiasfindevalor="*";	
+	}
+		
+	$seguir=0;
+	
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^(#{2})+/)
+		{
+			$seguir=1;
+		}
+			
+		if($seguir eq 1)
+		{
+		
+			@data = split (/:/,$horaini);
+			$hora0 = $data[0];
+			$hora1 = $data[1];
+				
+			@data = split (/\//,$fechaini);
+			$fecha0 = $data[0];
+			$fecha1 = $data[1];
+		
+		
+		
+			$poweroffpcsautomatico =~ s/\//\//;
+		
+			if (/^[\s#]*.+\s+.+poweroffpcs\/poweroffpcsautomatico/)
+     		{
+			
+				if($_ =~ /^#+/)
+				{
+					$comen="#";
+				}
+				else
+				{
+					$comen="";
+				}
+			
+				$_ =~ s/^.*$/${comen}$hora1 $hora0 $fecha0 $fecha1 $exceptodiasfindevalor $poweroffpcsautomatico/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+		} 
+	}
+
+	close(OLD)                  or die "can't close $crontab: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/usr/bin/crontab $aux");
+				
+	}
+
+
+
+#Lectura de estado
+#···············································································
+	open(OLD, "< $crontab")    or die "can't open $crontab: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^[\s#]*(.+)\s+.+poweroffpcs\/poweroffpcsautomatico/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				
+				$fechaccion=$1;
+					
+				@data = split (/\s+/,$fechaccion);
+				$valorminuto = $data[0];
+				$valorhora = $data[1];
+				$valordiames = $data[2];
+				$valormes = $data[3];
+				$valordias = $data[4];
+				
+				$activopoweroffpcs= /^#/;
+				
+				if ($activopoweroffpcs ne 1)
+				{
+					$pasarpoweroffpcs = 1;
+					$estadopoweroffpcs = "activado.gif";
+				}
+				else
+				{
+					$pasarpoweroffpcs = 0;
+					$estadopoweroffpcs = "desactivado.gif";
+				}
+				
+				if ($valordias eq "1-5")
+				{
+					$valordiaschecked="checked";
+				}	
+								
+			}
+
+	}
+
+	close(OLD)     or die "can't close $crontab: $!";
+
+
+
+$seccionpoweroffpcs=$q->param('seccion');
+
+if($seccionpoweroffpcs eq "" || $seccionpoweroffpcs eq "manual")
+{
+	$valorseccion=$poweroffpcsvalor;
+	$seccionpoweroffpcs="manual";
+	$tipopoweroffpcs="";
+}
+
+if($seccionpoweroffpcs eq "automatico")
+{
+	$valorseccion=$poweroffpcsvalorauto;
+	$seccionpoweroffpcs="automatico";
+	$tipopoweroffpcs="auto";
+}
+
+
+
+$seccion=$q->param('seccion');
+
+if($seccion eq "")
+{
+	$seccion="manual";
+}
+
+$colorseccionmanual="black";
+$colorseccionauto="black";
+
+$fondoseccionmanual="white";
+$fondoseccionauto="white";
+
+
+if($seccion eq "manual")
+{
+	$colorseccionmanual="white";
+	$fondoseccionmanual="#3e73a8";
+}
+elsif($seccion eq "automatico")
+{
+	$colorseccionauto="white";
+	$fondoseccionauto="#3e73a8";
+}
+
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+		
+
+function isValidMAC(tempIP){
+	if (tempIP == null || tempIP=="" || tempIP.search(/^([0-9A-Fa-f]{2}[\\-:]){5}[0-9A-Fa-f]{2}\$/) == -1)
+		return (false);
+
+	return (true);
+}
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		var id = curListener.split('x')[0];
+	      var targets="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.targets.elements.length;i++)
+		{
+			if(document.targets.elements[i].checked==true)
+			{
+				if (targets!="") targets += ",";
+				targets+=document.targets.elements[i].name;
+			}
+		}
+		
+ 		
+ 		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 			{
+ 				ruledata[i][2]=targets;
+ 				document.getElementById(id+"x1").value=targets;
+ 				ruledata[i][4]=true;
+ 				break;	
+ 			}
+ 		document.getElementById(curListener).innerHTML=targets;
+
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    //	this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+	this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
++"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
++",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+ 
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+
+
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+
+function toggle(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+
+
+
+pcimg =  new Image(18,19);
+pcimg.src = "../images/pc.gif"
+
+redimg =  new Image(23,19);
+redimg.src = "../images/redmini.gif"
+
+inetimg =  new Image(16,19);
+inetimg.src = "../images/minimundo.gif"
+
+routerimg =  new Image(20,20);
+routerimg.src = "../images/dispomini.gif"
+
+serviimg =  new Image(20,20);
+serviimg.src = "../images/servimini.gif"
+
+
+
+function aplicarvalor4(nombre,valor,tipo)
+{
+
+	asignar=document.getElementById('control').value;
+	document.getElementById(asignar).value=valor;
+	//document.getElementById(asignar+'h').title=valor;
+	
+	clearLista();
+}
+
+
+
+flechaact1 =  new Image(27,25);
+flechaact1.src = "../images/encender.gif"
+flechades1 =  new Image(27,25);
+flechades1.src = "../images/apagado.gif"
+
+flechaact2 =  new Image(27,25);
+flechaact2.src = "../images/bombillaactivado.gif"
+flechades2 =  new Image(27,25);
+flechades2.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla1(id)
+{
+	var flecha = document.getElementById('flecha1'+id);
+	
+	if(flecha.src == flechaact1.src)
+	{
+		flecha.src = flechades1.src;	
+		document.getElementById(id+'xact1').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact1.src;	
+		document.getElementById(id+'xact1').value=1;
+	}
+}	
+
+function toggleRegla2(id)
+{
+	var flecha = document.getElementById('flecha2'+id);
+	
+	if(flecha.src == flechaact2.src)
+	{
+		flecha.src = flechades2.src;	
+		document.getElementById(id+'xact2').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact2.src;	
+		document.getElementById(id+'xact2').value=1;
+	}
+}	
+
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function toggle2(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+			
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;		
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea('divContainer1',sd);
+	//objContainer2=InitialiseScrollableArea2('divContainer2',null);
+	objContainer4=InitialiseScrollableArea2('divContainer4',null);
+	//initRules();
+} 
+
+
+function controlamulti()
+{
+		horaini=document.getElementById('horaini').value;
+		var parte = horaini.split(':');
+
+		if (document.getElementById('fechaini').value.search(/^\\*:[0-5]{1}[0-9]{1}\$/)==-1 && document.getElementById('fechaini').value.search(/^[0-2]{1}[0-9]{1}:\\*\$/)==-1 && document.getElementById('fechaini').value.search(/^\\*\\/\\*\$/)==-1)
+		{
+		
+		if (document.getElementById('horaini').value.search(/^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}\$/)==-1 || document.getElementById('horaini').value=="" || parte[0]>23)
+		{
+			alert(document.getElementById('horaini').value+' formato de hora incorrecto\\nLos cambios no se guardarán');
+			return;
+			//document.theform.submit();
+		}
+		
+		}
+
+						
+		fechaini=document.getElementById('fechaini').value;
+		//var parte = fechaini.split('\/');
+		// || document.getElementById('fechaini').value.search(/^\\*\\/[0-5]{1}[0-9]{1}\$/)==-1  || document.getElementById('fechaini').value.search(/^[0-2]{1}[0-9]{1}\\/\\*\$/)==-1
+		
+		if (document.getElementById('fechaini').value.search(/^\\*\\/[0-5]{1}[0-9]{1}\$/)==-1 && document.getElementById('fechaini').value.search(/^[0-5]{1}[0-9]{1}\\/\\*\$/)==-1 && document.getElementById('fechaini').value.search(/^\\*\\/\\*\$/)==-1)
+		{
+		
+		if (document.getElementById('fechaini').value.search(/^[0-3]{1}[0-9]{1}\\/[0-5]{1}[0-9]{1}\$/)==-1 || document.getElementById('fechaini').value=="")
+		{
+			alert(document.getElementById('fechaini').value+' formato de fecha incorrecto\\nLos cambios no se guardarán');
+			return;
+			//document.theform.submit();
+		}
+
+		}
+		
+
+}
+
+
+function validarForm(tipo)
+{
+	var tipo;
+	var i=1;
+	while(document.getElementById(i+'x'+tipo))
+	{
+		if (isValidMAC(document.getElementById(i+'x'+tipo).value)==false)
+		{
+			alert(document.getElementById(i+'x'+tipo).value+' se esperaba una MAC válida');
+			return;
+		}
+		i++;
+	}
+	
+	oscuprocessform();
+	
+	document.theform.action="poweroffpcs.htm";
+	document.theform.enviar.value="Aplicar"+tipo;
+	document.theform.submit();
+	
+}
+
+
+
+function enviarestado(est)
+{
+
+if (est == 1)
+{
+estado = "desactivar";
+}
+else
+{
+estado = "activar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' Poweroff PCs?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function cambio(opc)
+{
+oscuprocessform();  
+   
+theform.seccion.value = opc;
+document.theform.submit();
+
+}
+
+
+function verpassw(valor)
+{
+
+thisInput = document.getElementById(valor+'x3');
+valordefecto = document.getElementById(valor+'x3').value;
+
+changeInputType(thisInput,'text',valordefecto,false,true);
+
+}
+
+
+function changeInputType(
+  oldElm, // a reference to the input element
+  iType, // value of the type property: 'text' or 'password'
+  iValue, // the default value, set to 'password' in the demo
+  blankValue, // true if the value should be empty, false otherwise
+  noFocus) {  // set to true if the element should not be given focus
+ 
+  if(!oldElm || !oldElm.parentNode || (iType.length<4) || 
+    !document.getElementById || !document.createElement) return;
+  var newElm = document.createElement('input');
+  newElm.type = iType;
+  if(oldElm.name) newElm.name = oldElm.name;
+  if(oldElm.id) newElm.id = oldElm.id;
+  if(oldElm.className) newElm.className = oldElm.className;
+  if(oldElm.size) newElm.size = oldElm.size;
+  if(oldElm.tabIndex) newElm.tabIndex = oldElm.tabIndex;
+  if(oldElm.accessKey) newElm.accessKey = oldElm.accessKey;
+  newElm.onfocus = function(){return function(){
+    if(this.hasFocus) return;
+    var newElm = changeInputType(this,'password',iValue,
+      (this.value.toLowerCase()==iValue.toLowerCase())?true:false);
+    if(newElm) newElm.hasFocus=true;
+  }}();
+  newElm.onblur = function(){return function(){
+    if(this.hasFocus)
+    if(this.value=='' || (this.value.toLowerCase()==iValue.toLowerCase())) {
+      changeInputType(this,'text',iValue,false,true);
+    }
+  }}();
+ // hasFocus is to prevent a loop where onfocus is triggered over and over again
+  newElm.hasFocus=false;
+  oldElm.parentNode.replaceChild(newElm,oldElm);
+  if(!blankValue) newElm.value = iValue;
+  if(!noFocus || typeof(noFocus)=='undefined') {
+    window.tempElm = newElm;
+    setTimeout("tempElm.hasFocus=true;tempElm.focus();",1);
+  }
+  return newElm;
+}
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer4" class="opaco1" style="visibility:hidden">
+
+<!-- vvvvv flechitas vvvvv -->
+  <div id="divUpControl2" class="divUp" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer4,+7)" onMouseOut="CeaseScroll(objContainer4)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer4,-7)" onMouseOut="CeaseScroll(objContainer4)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="310" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+
+<div width="100%" align="left" id="divContainer4cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="220">
+EOF
+		
+
+open(OLD, "< $fwipred")    or die "can't open $fwipred: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+	  unless (/:/)
+      {
+		chomp;
+		$_ =~ /.*/;
+		@data = split (/\|/,$_);
+		
+		$nombre = $data[0];
+		$tipo = $data[1];
+		$ip = $data[2];
+		$comentario = $data[3];
+
+
+		if ($tipo eq "ESTACION")
+		{
+			$imagen="../images/pc.gif";
+		}
+		elsif ($tipo eq "SERVIDOR")
+		{
+			$imagen="../images/servimini.gif";
+		}
+		elsif ($tipo eq "ROUTER")
+		{
+			$imagen="../images/dispomini.gif";
+		}
+		elsif ($tipo eq "RED")
+		{
+			$imagen="../images/redmini.gif";
+		}
+		elsif ($tipo eq "INTERNET")
+		{
+			$imagen="../images/minimundo.gif";
+		}
+
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$ip'><img src='$imagen'></td><td title='$ip'><font onclick='aplicarvalor4(\"$nombre\",\"$ip\",\"$tipo\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+	  $i=$i+1;
+      }
+	}
+close(OLD) or die "can't close $fwipred: $!";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+	 
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="enviar" type="hidden"><input name="env" type="hidden"><input name="estado" type="hidden">
+<input type="hidden" name="control" id='control'><input type="hidden" name="seccion" id='seccion' value="$seccionpoweroffpcs">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/poweroffpc.gif' border=0></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>Poweroff PCs</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+
+<br>
+
+<center>
+<table><tr>
+<td><img src="../images/$estadopoweroffpcs" onClick="enviarestado('$pasarpoweroffpcs')" style="cursor:pointer"></td><td width="4"></td><td>$rat_activar</td><td width="40"></td>
+</tr></table>
+<br>
+
+<table><tr><td valign="top">
+
+<table border=0 cellpadding="0" cellspacing="0" width=630><tr>
+<td width="420" align="left"><font face="Verdana, Arial, Helvetica, sans-serif" size="+1"><b><!--$seccionpoweroffpcs--></b></font></td>
+<td align="right"><div style="cursor:pointer" onClick="cambio('manual')"><table class="bordenegrosombrasinredonbottom" style="background:$fondoseccionmanual" height=30><tr><td width="5"></td><td><b><font color="$colorseccionmanual">Manual</font></b></td><td width="5"></td></tr></table></div></td>
+<td align="right"><div style="cursor:pointer " onClick="cambio('automatico')"><table class="bordenegrosombrasinredonbottom" style="background:$fondoseccionauto" height=30><tr><td width="5"></td><td><b><font color="$colorseccionauto">Automático</font></b></td><td width="5"></td></tr></table></div></td>
+</tr></table>
+<!--<table cellspacing="0" cellpadding="0" width=630 border="0">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>IP
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$p2p_comentario</b></font></td></tr>
+
+</table>-->
+	
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="680">
+<tr><td width="680" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>IP
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$p2p_comentario</b></font></td></tr>
+
+<tr><td align="center">	
+
+
+<table cellspacing="3" cellpadding="0" width=680 class="linea"  border=0>
+EOF
+
+
+
+
+
+	open(OLD, "< $valorseccion")    or die "can't open $valorseccion: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+			if (/^.*/)
+     		{
+		
+				chomp;
+				$_ =~ /.*/;
+																
+				if ($_ =~ /^\s*#.*/)
+				{
+					$activado=0;
+				}
+				else
+				{
+					$activado=1;
+				}
+				
+				if($seccionpoweroffpcs eq "manual")
+				{
+					$activado=0;
+				}
+				
+				$_ =~ s/^#+//g;
+				
+				@data = split (/\|/,$_);
+		 		$ip = $data[0];
+				$user = $data[1];
+				$password = $data[2];
+				$comentario = $data[3];
+		 		
+		 		
+		 		$p=Net::Ping->new('icmp');		 		
+		 		
+		 		if ($p->ping($ip, 1))
+		 		{
+					$imagenupdown="seleccion";
+					$estadoupdown="Host UP";
+				}
+				else
+				{				
+					$imagenupdown="negado";
+					$estadoupdown="Host DOWN";
+				}				
+				
+				$p->close();
+		 		
+				print "<tr><td width=20></td>\n";
+				#print "<td align='left' width='30'><img  onclick='window.location.href=\"?id=${i}&enviar=Insertar&tipo=${tipopoweroffpcs}&seccion=${seccionpoweroffpcs}&volver=$volver\"' style='cursor:pointer' src='../images/mas.jpg' border='0' alt='insertar' ></td>\n";
+				#print "<td align='left' width='30'><img  onclick='window.location.href=\"?id=${i}&enviar=Borrar&tipo=${tipopoweroffpcs}&seccion=${seccionpoweroffpcs}&volver=$volver\"' style='cursor:pointer' src='../images/no.jpg' border='0' alt='borrar' ></td>\n";
+				
+				print "<td align='left' width='24'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Insertar&tipo=${tipopoweroffpcs}&seccion=${seccionpoweroffpcs}&volver=$volver\"'><b>+</b></div>				
+				
+				</td>\n";
+				
+				print "<td width=1></td><td align='left' width='24'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar&tipo=${tipopoweroffpcs}&seccion=${seccionpoweroffpcs}&volver=$volver\"'><b>-</b></div>				
+				
+				</td><td width=5></td>\n";
+				
+				print "<td width='130' align='left'><input id='${i}x1' name='${i}x1' type='text' value='$ip' class='campotxt' size=16></td>\n";
+
+				print "<td align='center' width=16><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle2(\"${i}x1\",objContainer4,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+
+				print "<td width='10'></td>\n";				
+												
+				print "<td width='177'><table>\n";
+				print "<tr><td><b>$configfabrica_usuario:</b></td><td width='97' align='left'><input id='${i}x2' name='${i}x2' type='text' value='$user' class='campotxt' size=10></td></tr>\n";
+				print "<tr><td><b>Password:</b></td><td width='97' align='left'><input id='${i}x3' name='${i}x3' type='password' value='$password' class='campotxt' size=10></td><td width='2'></td><td align='left'><img src='/images/lupaminiver' style='cursor:pointer' onClick='verpassw(${i})'></td></tr>\n";
+				print "</table></td>\n";
+				
+				print "<td width='5'></td>\n";
+					
+				print "<td width='80%'><input  style='font-style:italic'  class='campotxt' type='text' id='${i}xc1' name='${i}xc1' size=18 value='$comentario'/></td>\n";
+		
+				print "<td align='center' width='30'><img src='/images/${imagenupdown}.gif' title='${estadoupdown}'></td>\n";			
+										
+				print "<td align='center' width='30'>\n";
+
+				if($seccionpoweroffpcs eq "manual")
+				{			
+				print "<script language='javascript'>document.write('<img id=\"flecha1${i}\" src=\"'+(0 == 1?flechaact1.src:flechades1.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla1(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xact1' name='${i}xact1' value='$activado'/>\n";
+				}
+
+				if($seccionpoweroffpcs eq "automatico")
+				{	
+				print "<script language='javascript'>document.write('<img id=\"flecha2${i}\" src=\"'+($activado == 1?flechaact2.src:flechades2.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla2(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xact2' name='${i}xact2' value='$activado'/>\n";
+				}
+				
+				print "<td width='20'></td></tr>\n";
+
+				$i=$i+1;
+		}
+		
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $poweroffpcsvalor: $!";	
+
+if ($i == 1) 
+{
+			print "<tr><td width=20></td>\n";
+			print "<td align='left' width='24'>
+			
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=0&enviar=Insertar&tipo=${tipopoweroffpcs}&seccion=${seccionpoweroffpcs}&volver=$volver\"'><b>+</b></div>				
+							
+			
+			</td>\n";
+			print "<td align='left' width='99%' colspan='5'></td>\n";
+			print "</tr>\n";
+}
+
+
+print <<EOF2;
+</table>
+
+</td></tr></table>
+
+ <br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onMouseMove="status='Enviar'" onMouseDown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onMouseOut="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onClick="validarForm('$seccionpoweroffpcs')">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onMouseMove="status='Enviar'" onMouseDown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onMouseOut="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+			  
+			  
+</td>
+<td width="20"></td>
+<td>
+EOF2
+
+if($seccionpoweroffpcs eq "automatico")
+{	
+
+print <<EOF2;
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="110" class="bordenegrosombra">
+<tr>
+<td valign="top" width="110">
+
+
+
+
+<table width="150"><tr><td>
+
+<table>
+<tr><td><b>$poweroffpcs_hora</b></td></tr>
+<tr><td title="Hora Inicio"><input class='campotxt' type='text' id='horaini' name='horaini' size=4 value="${valorhora}:${valorminuto}" onChange='controlamulti(horaini.value)' title='Hora Inicio'></td></tr>
+</table>
+
+<table>
+<tr><td><b>$poweroffpcs_fecha</b></td></tr>
+<tr><td title="Fecha Inicio"><input class='campotxt' type='text' id='fechaini' name='fechaini' size=4 value="${valordiames}/${valormes}" onChange='controlamulti(fechaini.value)' title='Fecha'> $poweroffpcs_dia</td></tr>
+</table>
+
+<table><tr>
+<td><input type="checkbox" name="exceptodiasfinde" value="1" $valordiaschecked></td><td>Excepto los días sábado y domingo</td> 
+</tr></table>
+
+</td></tr>
+
+</table>
+
+
+<br>
+
+
+
+</td>
+</tr>
+</table>
+EOF2
+
+}	
+
+print <<EOF;
+
+
+</td>
+</tr></table>
+
+<br><br>
+</form>
+<script language="javascript">InitialiseAreas(); </script>
+		</td>
+	</tr>
+	</table>
+	<!-- fin tabla central -->
+	</td>
+</tr>
+</table>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+ </body>
+</html>
+EOF

@@ -1,0 +1,2654 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+my $dbh;
+my $sth;
+
+$dbuser="root";
+$dbpass="";
+
+
+    $dbh = DBI->connect('DBI:mysql:database=controlhosts;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+if($q->param('enviar') ne "Cancelar")
+{
+	
+	warn $q->param('enviar');
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		
+		warn "borrar $id";
+		
+		open(OLD, "< $virtualserver")    or die "can't open $msniptables: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*\$IPTABLES -t nat -A PREROUTING.*$/)
+     		{
+		#$comment
+		#$IPTABLES -A FORWARD $ip -m p2p --p2p-protocol $targets -j ACCEPT
+				chomp;
+				$_ =~ /.*/;
+				
+				
+				if(/##TCPUDP2/)
+				{
+					$i=$i-1;
+				}
+				
+											
+		 		if($i != $id)
+		 		{	
+					if($saltar ne 1)
+					{
+		 				if($lastline =~ /^#.*/)
+		 				{
+		 					$comment=$lastline;# quitar  #
+		 					$lastline="";
+		 					print NEW $comment."\n";
+		 				}	
+		 				#else
+		 				#{
+		 				#	$comment="#Comentario";	
+		 				#}	
+		 			
+    					print NEW $_."\n";	
+					}
+					else
+					{
+						$saltar=0;
+					}
+		 		}
+				else
+				{
+					if(/##TCPUDP1/)
+					{
+						$saltar=1;
+					}
+					$i=$i+1;
+				}
+				
+								
+					$i=$i+1;
+				
+				
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $virtualserver 1>&2");
+		
+	}
+	
+
+	
+	if($q->param('enviar') eq "3")
+	{
+
+		$id=$q->param('id');
+		
+		open(OLD, "< $virtualserver")    or die "can't open $virtualserver: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			
+			$elimiregis=$q->param("${i}elimiregis");		
+		
+			if (/.*\$IPTABLES.*$/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+				
+				
+				if(/##TCPUDP2/)
+				{
+					$i=$i-1;
+				}
+				
+											
+		 		if($i != $id)
+		 		{	
+					if($saltar ne 1 && $elimiregis ne 1)
+					{
+		 				if($lastline =~ /^#.*/)
+		 				{
+		 					$comment=$lastline;# quitar  #
+		 					$lastline="";
+		 					print NEW $comment."\n";
+		 				}	
+		 				#else
+		 				#{
+		 				#	$comment="#Comentario";	
+		 				#}	
+		 			
+    					print NEW $_."\n";	
+					}
+					else
+					{
+						$saltar=0;
+					}
+		 		}
+				else
+				{
+					if(/##TCPUDP1/)
+					{
+						$saltar=1;
+					}
+					$i=$i+1;
+				}
+		 			
+					
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $virtualserver 1>&2");
+			
+	}	
+	
+
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+		$id=$q->param('id');
+		warn "insertar $id";
+
+		$valorepoch=`date +%s`;
+		$valorepoch =~ s/(\r?\n)//g;		
+		
+		open(OLD, "< $virtualserver")    or die "can't open $msniptables: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		if($id == 0)
+		{
+		 	print NEW "#Nueva regla\n";
+    		print NEW "#\$IPTABLES -t nat -A PREROUTING -s 0.0.0.0/0 -i \$ethx -p tcp --dport 0 -m comment --comment \"$valorepoch\" -j DNAT --to-destination 0.0.0.0:0 ##0\n\n";
+	
+		}
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*\$IPTABLES -t nat -A PREROUTING.*$/)
+     		{
+		#$comment
+		#$IPTABLES -A FORWARD $ip -m p2p --p2p-protocol $targets -j ACCEPT
+				chomp;
+				$_ =~ /.*/;
+			
+		 	
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+    				
+					if(/##TCPUDP1$/)
+					{
+						$id=$id+1;
+					}
+    					
+    				if($i == $id)
+		 			{
+		 				print NEW "#Nueva regla\n";
+    					print NEW "#\$IPTABLES -t nat -A PREROUTING -s 0.0.0.0/0 -i \$ethx -p tcp --dport 0 -m comment --comment \"$valorepoch\" -j DNAT --to-destination 0.0.0.0:0 ##0\n\n";
+		 			}
+		 		
+		 		
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $virtualserver 1>&2");
+		
+
+	}
+	
+	
+if($q->param('enviar') eq "Aplicar")
+{
+
+		$geoip=$q->param('geoip');
+	
+		if($geoip ne "1")
+		{
+			$geoip=0;
+		}
+		
+		open(OLD, "< $estado")    or die "can't open $estado: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		
+			if(/^\s*GEOIPFW\s*=\s*.*$/)
+     		{
+				s/^.*$/GEOIPFW\=$geoip/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $estado: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+	
+		system("/bin/cp $aux $estado 1>&2");
+
+
+		open(NEW4, "> $fwvirtualservergeoip")    or die "cant open $fwvirtualservergeoip: $!";
+
+		open(NEW3, "> $preproxyvirtualserver")    or die "cant open $preproxyvirtualserver: $!";
+
+		open(NEW2, "> $fwvirtualserver")    or die "cant open $fwvirtualserver: $!";
+		
+		open(NEW, "> $virtualserver")    or die "cant open $virtualserver: $!";
+		
+		$i=1;
+		$k=1;	
+		
+		while( 1 ) 
+		{
+			
+			$entradaxe=$q->param("${i}xe");
+			$origenxo=$q->param("${i}xo");
+			
+			if($origenxo !~ /^([0-9]+\.){3}[0-9]+/ && $origenxo !~ /^\$[a-z0-9]+/)
+			{
+				$origenxo="0.0.0.0/0";
+			}
+			
+			if($entradaxe =~ /^Red\sexterna$/)
+			#if($entradaxe !~ /^([0-9]+\.){3}[0-9]+$/)
+			{
+				$entrada="-i \$ethx";
+			}
+			elsif($entradaxe =~ /^Red\sinterna$/)
+			{
+				$entrada="-i eth0";
+			}
+			elsif($entradaxe =~ /^Red\s3$/)
+			{
+				$entrada="-i eth\$i1";
+			}
+			elsif($entradaxe =~ /^Red\s4$/)
+			{
+				$entrada="-i eth\$i2";
+			}
+			elsif($entradaxe =~ /^Red\s5$/)
+			{
+				$entrada="-i eth\$i3";
+			}
+			elsif($entradaxe =~ /^Red\s6$/)
+			{
+				$entrada="-i eth\$i4";
+			}
+			elsif($entradaxe =~ /^PPPoE\s(.+)$/)
+			{
+				$nombrepppoe=$1;
+				
+				$unit=`/bin/cat $proveeconten/${nombrepppoe}-imtpppoeprovider | grep ^unit | cut -d \\  -f 2`;
+				$unit =~ s/(\r?\n)//g;			
+				
+				$entrada="-i ppp${unit}";
+			}
+			else
+			{
+				if($entradaxe !~ /^([0-9]+\.){3}[0-9]+$/)			
+				{
+					$entrada="-i \$ethx";	
+				}
+				else				
+				{
+					$entrada="-d $entradaxe";
+				}
+				
+			}
+
+			$commentid=$q->param("${i}commentid");
+
+			if($commentid eq "")
+			{
+				$valorepoch=`date +%s`;
+				$valorepoch =~ s/(\r?\n)//g;			
+			
+				$commentid=$valorepoch+$k;
+				$k++;
+			}			
+			
+			#$protocolo=$q->param("${i}x0");
+			#$protocolo =~ /^(tcp|udp|gre)/;
+			#$protocolo = $1;
+			
+			
+			if($q->param("${i}xpro") eq "0")
+		 	{
+		 		$protocolo="tcp";
+		 	}
+		 	elsif($q->param("${i}xpro") eq "1")
+		 	{
+		 		$protocolo="udp";
+		 	}
+		 	elsif($q->param("${i}xpro") eq "2")
+		 	{
+		 		$protocolo="47";
+		 	}
+			
+			elsif($q->param("${i}xpro") eq "3")
+		 	{
+		 		$protocolo="tcpudp";
+		 	}
+			
+				
+			
+			$publico=$q->param("${i}x1");
+			$publico =~ /^([0-9]+([,:][0-9]+)*)/;
+			$publico = $1;
+			
+			
+			$privado=$q->param("${i}x2");
+
+			$ip=$q->param("${i}x3");
+			
+			if( $ip eq undef )
+			{			
+				last;
+			}
+			
+			$ip =~ /^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/;
+			$ip = $1;	
+			
+			$comment=$q->param("${i}xc");
+			$comment =~ /^([\w\s]+)/;
+			$comment = $1;
+			
+			
+			#warn ">  $protocolo : $publico : $privado : $ip";
+			
+			if($comment eq undef)
+		 	{
+		 		last;
+		 	}	
+				
+			if($comment eq "")
+		 	{
+		 
+		 		$comment="Comentario";
+		 	}	
+		 	
+			if( $protocolo eq undef )
+			{
+			
+				last;
+			}
+			
+			if( $publico eq undef && $protocolo ne 47)
+			{
+				last;
+			}
+			
+			if( $ip eq undef && $ip !~ /^([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/)
+			{			
+				last;
+			}
+
+			if($q->param("${i}xact") eq "1" )
+		 	{
+		 		$activar="";
+		 	}
+		 	else
+		 	{
+		 		$activar="#";
+		 	}
+
+			if($ip eq "0.0.0.0" || $publico eq 0)
+		 	{
+		 		$activar="#";
+		 	}	
+
+
+			@proto_lista=("$protocolo");
+			
+			if($protocolo eq "tcpudp")
+			{
+				@proto_lista=("tcp","udp");
+				$grupoproto="TCPUDP";
+			}
+			else
+			{
+				$grupoproto="";
+			}
+			
+			$activar2="0";
+			
+			if($q->param("${i}xact2") eq "1" && $q->param("${i}xact") ne "0")
+		 	{
+		 		$activar2="1";
+				
+				if ((index($publico,',') != -1 ) || (index($publico,':') != -1 ) || ($protocolo eq 47))
+				{
+					$puertosegun=$publico;
+				}
+				else
+				{
+					$puertosegun=$privado;
+				}
+				
+				if($protocolo eq 47)
+				{
+					if($geoip ne "1")
+					{
+						print NEW2 "\$IPTABLES -A FORWARD -p ".$protocolo." -s $origenxo -d ".$ip." -j ACCEPT\n";
+					}
+					else
+					{
+					
+						open(OLD, "< $fwgeoiplist")    or die "can't open $fwgeoiplist: $!";
+
+						while (<OLD>) 
+						{
+							chomp;
+							$_ =~ s/^\s+//;
+		 					$inputcountries = $_;
+
+		 					print NEW4 "\$IPTABLES -A FORWARD -m geoip --src-cc $inputcountries -p ".$protocolo." -s $origenxo -d ".$ip." -j ACCEPT\n";					
+						}
+
+						close(OLD)     or die "can't close $fwgeoiplist: $!";				
+
+					}
+				
+				}				
+				else
+				{
+				
+					if($geoip ne "1")
+					{
+						print NEW2 "\$IPTABLES -A FORWARD -p ".$protocolo." -s $origenxo -m multiport --dports ".$puertosegun." -d ".$ip." -j ACCEPT\n";
+					}
+					else
+					{
+
+						open(OLD, "< $fwgeoiplist")    or die "can't open $fwgeoiplist: $!";
+		
+						while (<OLD>) 
+						{
+							chomp;
+							$_ =~ s/^\s+//;
+		 					$inputcountries = $_;
+
+		 					print NEW4 "\$IPTABLES -A FORWARD -m geoip --src-cc $inputcountries -p ".$protocolo." -s $origenxo -m multiport --dports ".$puertosegun." -d ".$ip." -j ACCEPT\n";					
+						}
+
+						close(OLD)     or die "can't close $fwgeoiplist: $!";				
+
+					}				
+				
+				
+				}					
+		 	}
+		 	else
+		 	{
+		 		$activar2="0";
+		 	}
+			
+			$n=1;
+
+			#comment
+			
+			if ((index($publico,',') != -1 ) || (index($publico,':') != -1 ) && ($protocolo ne 47))
+			#if ((index($publico,',') != -1 ) || (index($publico,':') != -1 ))
+			{
+				$privado = "";
+				
+				if( $entrada eq "-d " )
+				{
+					last;
+				}
+				
+				if($protocolo eq 47)
+				{
+					$portinfo="";
+				}
+				else
+				{
+					$portinfo=" -m multiport --dports $publico";
+				}
+				
+				foreach $proto ( @proto_lista ) {
+					print NEW "#".$comment."\n";
+					print NEW "$activar\$IPTABLES -t nat -A PREROUTING -s $origenxo $entrada -p ".$proto.$portinfo." -m comment --comment \"$commentid\" -j DNAT --to-destination ".$ip." ##".${grupoproto}.${n}." ##".${activar2}."\n";	
+					$n++;
+				}
+			}
+			elsif ($protocolo eq 47)
+			{					
+					print NEW "#".$comment."\n";
+    				print NEW "$activar\$IPTABLES -t nat -A PREROUTING -s $origenxo $entrada -p 47 -m comment --comment \"$commentid\" -j DNAT --to-destination ".$ip." ##${activar2}\n";
+					$n++;
+			}		 
+			else
+			{	
+				if( $privado eq undef )
+				{
+					$privado=~ /^([0-9]+)/;
+					$privado=$1;
+					last;
+				}
+				
+				foreach $proto ( @proto_lista ) {
+					print NEW "#".$comment."\n";
+    				print NEW "$activar\$IPTABLES -t nat -A PREROUTING -s $origenxo $entrada -p ".$proto." --dport ".$publico." -m comment --comment \"$commentid\" -j DNAT --to-destination ".$ip.":".$privado." ##${activar2}\n";
+					
+					
+					#if($proto eq "tcp" && $publico eq 80 && $privado eq "80")
+					if($proto eq "tcp" && $privado eq "80")
+					{
+					print NEW3 "$activar\$IPTABLES -t nat -A PREROUTING -s $ip -d 0.0.0.0/0 -p tcp --dport 80 -j RETURN\n";					
+					}
+					
+					
+					$n++;
+				}
+			}
+			
+			
+		 		
+			
+      		$i=$i+1;
+		}
+		close(NEW)     or die "can't close $virtualserver: $!";
+		
+		close(NEW2)     or die "can't close $fwvirtualserver: $!";
+		
+		close(NEW3)     or die "can't close $preproxyvirtualserver: $!";
+		
+		close(NEW4)     or die "can't close $fwvirtualservergeoip: $!";
+
+		#system("$cleanall >/dev/null 2>&1");
+		#system("$firewall >/dev/null 2>&1");	
+		#system("$prerouting >/dev/null 2>&1");
+		
+		system("$accioncfp >/dev/null 2>&1");
+
+	}	
+	
+	
+}
+
+
+$numred=`/bin/cat $controlnumred`;
+$numred =~ s/(\r?\n)//g;
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*GEOIPFW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$geoipfw = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($geoipfw eq "1") 
+{
+	$checkedgeoip = "checked";
+}
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<link href="/icheck/skins/flat/blue.css" rel="stylesheet">
+<script src="/icheck/icheck.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/images/jquery.dataTables.min.css">
+<script type="text/javascript" language="javascript" src="/images/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+
+	\$(document).ready(function(){
+    \$('#tablavirtualserver').DataTable( {
+        "paging":         false,
+        "info": true,
+        "ordering": true,
+        //"scrollY":        "650px",
+        //"scrollCollapse": true,
+        //"order": [[ 1, "desc" ]],
+        "searching": true,
+        //'iDisplayLength': 25
+    } );
+    
+});
+
+</script>
+
+
+<script language="javascript">
+		
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+
+function isValidPorts(tempPorts){
+	if (tempPorts == null || tempPorts=="" || tempPorts.search(/^[0-9]+([,:][0-9]+)*\$/)==-1)
+		return (false);
+
+
+	return (true);
+}
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		var id = curListener.split('x')[0];
+	      var targets="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.targets.elements.length;i++)
+		{
+			if(document.targets.elements[i].checked==true)
+			{
+				if (targets!="") targets += ",";
+				targets+=document.targets.elements[i].name;
+			}
+		}
+		
+ 		
+ 		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 			{
+ 				ruledata[i][2]=targets;
+ 				document.getElementById(id+"x1").value=targets;
+ 				ruledata[i][4]=true;
+ 				break;	
+ 			}
+ 		document.getElementById(curListener).innerHTML=targets;
+
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject3(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:460; height:250; overflow:hidden; top:0; left:0; clip:rect(0,460,250,0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:200; height:200; overflow:hidden; top:0; left:0; clip:rect(0,200,200,0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+function InitialiseScrollableArea3(name,data)
+{ 
+    var obj=new ConstructObject3(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+pcimg =  new Image(18,19);
+pcimg.src = "../images/pc.gif"
+
+redimg =  new Image(23,19);
+redimg.src = "../images/redmini.gif"
+
+inetimg =  new Image(16,19);
+inetimg.src = "../images/minimundo.gif"
+
+routerimg =  new Image(20,20);
+routerimg.src = "../images/dispomini.gif"
+
+serviimg =  new Image(20,20);
+serviimg.src = "../images/servimini.gif"
+
+vpnimg =  new Image(20,20);
+vpnimg.src = "../images/miniredvpn.gif"
+
+
+
+tcpimg =  new Image(20,20);
+tcpimg.src = "../images/tcp.gif"
+udpimg =  new Image(20,20);
+udpimg.src = "../images/udp.gif"
+greimg =  new Image(20,20);
+greimg.src = "../images/gre.gif"
+tcpudpimg =  new Image(20,20);
+tcpudpimg.src = "../images/tcpyudp.gif"
+
+
+
+
+function toggleProtocol(id)
+{
+	var proto = document.getElementById(id+'xt2');
+	var protoval = document.getElementById(id+'xpro');
+	
+	document.getElementById(id+'x1').disabled = false;
+	document.getElementById(id+'x2').disabled = false;
+	
+	switch(parseInt(protoval.value))
+	{
+		case 0:
+			protoval.value=1;
+			proto.src = udpimg.src;
+			proto.alt = "UDP";
+			break;
+		case 1:
+			protoval.value=2;
+			proto.src = greimg.src;
+			proto.alt = "GRE";
+			document.getElementById(id+'x1').disabled = true;
+			document.getElementById(id+'x2').disabled = true;
+			//document.getElementById(id+'x1').value = "0";
+			//document.getElementById(id+'x2').value = "";
+			break;
+		case 2:
+			protoval.value=3;
+			proto.src = tcpudpimg.src;
+			proto.alt = "TCP y UDP";
+			break;
+		case 3:
+			protoval.value=0;
+			proto.src = tcpimg.src;
+			proto.alt = "TCP";
+			break;	
+	}
+
+
+
+if(( document.getElementById(id+'x1').value.indexOf(',') != -1) || ( document.getElementById(id+'x1').value.indexOf(':') != -1))
+		document.getElementById(id+'x2').disabled = true;
+	else
+		document.getElementById(id+'x2').disabled = false;
+		
+	if( document.getElementById(id+'xpro').value == '2'){
+		document.getElementById(id+'x1').value = "0";
+		document.getElementById(id+'x1').disabled = true;
+		document.getElementById(id+'x2').disabled = true;
+		
+	}
+
+
+
+}
+
+
+
+
+function aplicarvalor(nombre)
+{
+
+	asignar=document.getElementById('control').value;
+	document.getElementById(asignar).value=nombre;
+	
+	clearLista();
+}
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea2('divContainer1',null);
+	objContainer2=InitialiseScrollableArea2('divContainer2',null);
+	objContainer3=InitialiseScrollableArea3('divContainer3',null);
+	//objContainer4=InitialiseScrollableArea1('divContainer4',null);
+	//initRules();
+} 
+
+
+function toggle(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha'+id);
+
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;
+		document.getElementById(id+'xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById(id+'xact').value=1;
+	}
+
+}
+
+
+flechaact2 =  new Image(27,25);
+flechaact2.src = "../images/fwpermisomini.gif"
+flechades2 =  new Image(27,25);
+flechades2.src = "../images/fwpermisominidesac.gif"
+
+function toggleRegla2(id)
+{
+	var flechaf = document.getElementById('flechaf'+id);
+	
+	if(flechaf.src == flechaact2.src)
+	{
+		flechaf.src = flechades2.src;
+		document.getElementById(id+'xact2').value=0;
+	}
+	else
+	{
+		flechaf.src = flechaact2.src;	
+		document.getElementById(id+'xact2').value=1;
+	}
+
+}
+
+
+
+function validarForm(theform)
+{
+
+	var el;
+
+
+	for(i=0;i< theform.elements.length;i++)
+	{
+
+		el = theform.elements[i];
+		
+		el.value = trim(el.value);
+	
+		if (el.name.substring(el.name.length-2,el.name.length) == "x1") 
+			if (!isValidPorts(el.value))
+			{
+				alert("El valor "+el.value+" no es una entrada válida para el puerto publico");
+				return;
+			}
+		
+		if (el.name.substring(el.name.length-2,el.name.length) == "x2" && el.disabled == false) 
+			if (el.value != null && el.value.search(/^[0-9]+\$/)==-1)
+			{
+				alert("El valor "+el.value+" no es una entrada válida para el puerto privado");
+				return;
+			}
+		
+		//if (el.name.substring(el.name.length-2,el.name.length) == "x3")
+		//{ 
+			//if (!isValidIP(el.value)
+			//{
+			//	alert("El valor "+el.value+" no es una entrada válida para la IP interna");
+				//return;
+			//}
+		//}	
+		
+		if (el.name.substring(el.name.length-2,el.name.length) == "x4") 
+			if (el.value != null && el.value.search(/^[\w\s]*\$/)==-1)
+			{
+				alert("Hay caracteres ilegales en uno de los comentarios");
+				return;
+			}
+		
+	}
+
+/*
+var registros="casa hogar terreno daniel";
+
+alert(registros);
+
+expresion="casa2";
+
+if (registros.indexOf(expresion) != -1){
+alert('encontrado');
+return;
+}
+*/
+
+
+
+	var regiscomple=" ";
+	var regis="";
+
+	var i=1;
+	while(document.getElementById(i+'x1'))
+	{	
+		//alert(document.getElementById(i+'xact').value);
+		if (document.getElementById(i+'xact').value == "1")
+		{	
+			ipdesti=document.getElementById(i+'x3').value;
+			//alert(ipdesti);
+			if (!isValidIP(ipdesti))
+			{
+				alert("El valor "+ipdesti+" no es una entrada válida para la IP interna");
+				return;
+			}			
+				
+			//alert("activo");
+			entra=document.getElementById(i+'xe').value;
+			regis=document.getElementById(i+'x1').value;
+			proto=document.getElementById(i+'xpro').value;
+			regisespa=" "+entra+regis+proto+" ";	
+	
+			//alert(regiscomple);	
+			//alert(document.getElementById(i+'x1').value);
+	
+			if (regiscomple.value != "" && regiscomple.indexOf(regisespa)!=-1)
+			{
+				alert('Recuerde que tiene repetido y activo el puerto público '+regis+'.');
+				//return;
+			}					
+		
+			regiscomple=regiscomple + entra + regis + proto +" ";
+		}		
+		i++;		
+	}
+
+oscuprocessform();
+	
+	document.theform.action="virtualserver.htm";
+	document.theform.enviar.value="Aplicar"
+	document.theform.submit();
+	
+}
+
+
+function borrar(opc)
+{
+
+
+	if(!confirm('¿Desea borrar los registros seleccionados?'))
+	return false;
+
+oscuprocessform();
+		    
+theform.enviar.value = opc;
+document.theform.submit();
+
+}
+
+
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+
+<script>
+
+\$(document).ready(function(){
+  \$('input').iCheck({
+    checkboxClass: 'icheckbox_flat-blue',
+    radioClass: 'iradio_flat-blue'
+  });
+
+  \$('input:checkbox[name="regisall"]').on('ifChecked', function(event){
+        \$('input').iCheck('check');
+  });
+
+  \$('input:checkbox[name="regisall"]').on('ifUnchecked', function(event){
+        \$('input').iCheck('uncheck');
+  });
+
+});
+
+</script>
+			
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+
+
+
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+<script language="javascript">
+function controlamulti(index)
+{
+
+	if(( document.getElementById(index+'x1').value.indexOf(',') != -1) || ( document.getElementById(index+'x1').value.indexOf(':') != -1))
+		document.getElementById(index+'x2').disabled = true;
+	else
+		document.getElementById(index+'x2').disabled = false;
+		
+	if( document.getElementById(index+'xpro').value == '2'){
+		document.getElementById(index+'x1').value = "0";
+		document.getElementById(index+'x1').disabled = true;
+		document.getElementById(index+'x2').disabled = true;
+		
+	}
+}
+</script>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="enviar" type="hidden"><input type="hidden" name="control" id='control'>
+
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/vpn.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$virtualserver_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<br><br><br>
+
+<table width="690" border="0"><tr>
+<td>
+
+<table border=0><tr><td valign=top><input type="checkbox" name="geoip" name="geoip" value=1 $checkedgeoip></td><td>Aplicado firewall de control externo basado en GeoIP<br>(controlado paises con acceso)</td></tr>
+	<tr><td></td><td><a href="geoip.htm"><b>Ir a sección</b></a></td></tr>	
+	</table>
+
+</td>
+<td width=80></td>
+<td align="right">
+	
+	<table border="0">
+<tr><td colspan="6">
+<table>
+<tr><td><img src='../images/fwpermisomini.gif'></td><td>$virtualserver_abrir</td></tr>
+</table>
+</td></tr>
+<tr>
+<td><img src='../images/tcp.gif'></td><td><b>TCP</b></td><td width="6"></td>
+<td><img src='../images/tcpyudp.gif'></td><td><b>TCP y UDP</b></td><td width="20"></td>
+</tr>
+<tr>
+<td><img src='../images/udp.gif'></td><td><b>UDP</b></td><td width="6"></td>
+<td><img src='../images/gre.gif'></td><td><b>GRE</b></td><td></td>
+</tr>
+</table>
+
+</td></tr></table>
+	 
+		<br>
+
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="1050">
+<tr><td width="1050" height="23" class="barratituloazul"></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td align="center">
+
+<br>
+
+<div align="center" onclick="void(0);event.cancelBubble=true;" id="divContainer3" class="divshow">
+
+<!-- vvvvv flechitas vvvvv -->
+  <div id="divUpControl2" class="divUp3" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer3,+7)" onMouseOut="CeaseScroll(objContainer3)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown3'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer3,-7)" onMouseOut="CeaseScroll(objContainer3)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table cellpadding=0 cellspacing=0><tr><td height=2></td></tr></table>
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="430" height="250" class="bordenegrosombra2">
+<tr>
+<td valign="top" width="430">
+
+<div width="430" align="left" id="divContainer3cnt">
+
+<table border=0>
+<tr><td height=5></td></tr>
+<tr>
+<td width=5></td><td valign="top">
+
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="150">
+<tr><td colspan=2>
+<b>Predefinidos sistema</b>
+</td></tr>
+EOF
+		
+
+system("$variables intsubnet > $aux");
+open(OLD, "< $aux")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+	chomp;
+	$subnetint = $_;
+	}
+close(OLD);
+
+system("$variables extsubnet > $aux");
+open(OLD, "< $aux")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+	chomp;
+	$subnetext = $_;
+	}
+close(OLD);
+
+
+open(OLD, "< $pptpdconf")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^localip\s+.*/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s/,$_);
+		 		$ip = $data[1];
+				@data = split (/\./,$ip);
+				$subnetvpnpptp = $data[0].".".$data[1].".".$data[2].".0/24"
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+
+	open(OLD, "< $openvpncnf")    or die "can't open $openvpncnf: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^ifconfig\s/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s/,$_);
+				$ip1 = $data[1];
+				$mask1 = $data[2];
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $openvpncnf: $!";
+
+$subnetopenvpn=`$net_address2 $ip1 $mask1`;
+
+
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='0.0.0.0/0'><img src='../images/minimundo.gif' ></td><td title='0.0.0.0/0'><font onclick='aplicarvalor(\"0.0.0.0/0\")' size=1 style='cursor:pointer'>Internet</font></td></tr>\n";
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$subnetint'><img src='../images/redmini.gif' ></td><td title='$subnetint'><font onclick='aplicarvalor(\"$subnetint\")' size=1 style='cursor:pointer'>Red Interna</font></td></tr>\n";
+		if ($subnetext ne "")
+		{
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$subnetext'><img src='../images/redmini.gif' ></td><td title='$subnetext'><font onclick='aplicarvalor(\"$subnetext\")' size=1 style='cursor:pointer'>Red Externa</font></td></tr>\n";
+		}
+		print "<tr><td height='4'></td></tr>";
+		
+		
+		
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_VPN_PPTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				$vpnpptp=$data[1];
+				
+			}
+	}
+close(OLD);
+		
+		
+		
+		
+		
+if($vpnpptp eq 1)
+{		
+		
+print "<tr><td width='30' align='center' title='$subnetvpnpptp'><img src='../images/miniredvpn.gif' ></td><td title='$subnetvpnpptp'><font onclick='aplicarvalor(\"$subnetvpnpptp\")' size=1 style='cursor:pointer'>Red VPN PPTP</font></td></tr>\n";
+		
+		
+
+open(OLD, "< $pptpduser")    or die "can't open $pptpduser: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		unless (/^#/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			@data = split (/\s/,$_);
+		
+			$nombre = $data[0];
+			$ip = $data[3];
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$ip'><img src='../images/miniredvpn.gif'></td><td title='$ip'><font onclick='aplicarvalor(\"$ip\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+			$i=$i+1;
+		}
+	}
+close(OLD) or die "can't close $pptpduser: $!";
+
+
+}
+
+
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_OPENVPN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				$openvpn=$data[1];
+				
+			}
+	}
+close(OLD);
+
+
+if($openvpn eq 1)
+{
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='$subnetopenvpn'><img src='../images/miniredopenvpn.gif' ></td><td title='$subnetopenvpn'><font onclick='aplicarvalor(\"$subnetopenvpn\")' size=1 style='cursor:pointer'>Red OpenVPN</font></td></tr>\n";
+
+
+open(OLD, "< $ipptxt")    or die "can't open $ipptxt: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+		if (/^.*$/)
+     	{
+				chomp;
+				$_ =~ /.*/;
+				$_ =~ s/\s+/ /g;
+				@data = split (/,/,$_);
+				
+				$certificado=$data[0];
+				
+				$ip=$data[1];
+				
+				if($ip ne "0.0.0.0")
+				{				
+				print "<tr><td height='4'></td></tr>";
+				print "<tr><td width='30' align='center' title='$certificado $ip'><img src='../images/miniredopenvpn.gif' ></td><td title='$certificado $ip'><font onclick='aplicarvalor(\"$ip\")' size=1 style='cursor:pointer'>$certificado</font></td></tr>\n";
+				}				
+				
+				$i=$i+1;
+			}
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $ipptxt: $!";
+
+}
+
+
+open(OLD, "< $fwipred")    or die "can't open $fwipred: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+
+		chomp;
+		$_ =~ /.*/;
+		@data = split (/\|/,$_);
+		
+		$nombre = $data[0];
+		$tipo = $data[1];
+		$ip = $data[2];
+		$comentario = $data[3];
+
+
+		if ($tipo eq "ESTACION")
+		{
+			$imagen="../images/pc.gif";
+		}
+		elsif ($tipo eq "SERVIDOR")
+		{
+			$imagen="../images/servimini.gif";
+		}
+		elsif ($tipo eq "ROUTER")
+		{
+			$imagen="../images/dispomini.gif";
+		}
+		elsif ($tipo eq "RED")
+		{
+			$imagen="../images/redmini.gif";
+		}
+		elsif ($tipo eq "INTERNET")
+		{
+			$imagen="../images/minimundo.gif";
+		}
+		
+		if($ip ne "0.0.0.0")
+		{
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$ip'><img src='$imagen'></td><td title='$ip'><font onclick='aplicarvalor(\"$ip\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+		}
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $fwipred: $!";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</td>
+<td width=3></td>
+<td valign=top>
+<b>Direcciones</b>
+
+
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="120">
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM managedhosts order by ip")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+$i=1;	
+
+while (@linea = $sth->fetchrow_array) {
+ 
+                
+        $netbiosnom=lc($linea[4]); 		  
+ 		  
+		  $options=$linea[9]; 	
+		  
+		  $ip=$linea[2];		  
+		  
+		  $nombre=$netbiosnom;
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td title='$valor'><font id='${i}a0' onclick='aplicarvalor(\"${ip}\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+
+$i++;		  
+		  
+}		  
+		  
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>		  
+		  		  
+
+</td>
+<td width=3></td>
+<td valign=top>
+<b>Grupos</b>
+
+
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="150">
+EOF
+
+		
+
+open(OLD, "< $fwgrupored")    or die "can't open $fwgrupored: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+
+		#profesores="192.168.5.90,85.85.233.118"
+
+		chomp;
+		$_ =~ /.*/;
+		#@data = split (/\|/,$_);
+		
+		if ($_ =~ /^\s*([a-z]+)=\"(.+)\"/)
+		{
+			$nombregrupo=$1;
+			$valor=$2;
+		}
+
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td title='$valor'><font id='${i}a0' onclick='aplicarvalor(\"\$${nombregrupo}\")' size=1 style='cursor:pointer'>$nombregrupo</font></td></tr>\n";
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $fwgrupored: $!";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+
+
+
+</td>
+</tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer2" class="divshow" style="visibility:hidden;">
+
+<!-- vvvvv flechitas vvvvv -->
+  <div id="divUpControl2" class="divUp2" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer2,+7)" onMouseOut="CeaseScroll(objContainer2)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown2'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer2,-7)" onMouseOut="CeaseScroll(objContainer2)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table border="0" bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="190" height="170" class="bordecuadrof">
+<tr>
+<td valign="top" width="150">
+
+<div width="190" align="left" id="divContainer2cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="190">
+EOF
+
+	#die "Uso: busca_en_dir_actual fichero\n" unless($ARGV[0]);  
+	opendir(DIRHANDLE,"$proveeconten")||die "ERROR: no se puede leer directorio actual\n";  
+	foreach (readdir(DIRHANDLE)){ 
+	chomp;
+	
+	if($_ !~ /lost\+found/ && $_ !~ /^\./ && $_ =~ /-imtpppoeprovider$/) 
+	{  
+		$nombre=$_;
+		 		
+		$acumulado=$acumulado.$nombre."|";
+	}
+				
+	$i=$i+1;
+	}  
+	closedir DIRHANDLE;
+
+
+	@lista = split(/\|/, $acumulado);
+	@lista = sort(@lista);
+
+
+	$i=1;
+
+	foreach $verprovee (@lista)
+	{
+	
+		$usuario=`/bin/cat $proveeconten/$verprovee | grep ^user | cut -d \\  -f 2`;
+		$usuario =~ s/\"//g;
+		
+		$password=`/bin/cat $proveeconten/$verprovee | grep ^password | cut -d \\  -f 2`;
+		$password =~ s/\"//g;
+		
+		$unit=`/bin/cat $proveeconten/$verprovee | grep ^unit | cut -d \\  -f 2`;
+		$unit =~ s/\"//g;
+		
+		$tipointerfaz=`/bin/cat $proveeconten/$verprovee | grep "^plugin rp-pppoe.so" | cut -d \\  -f 3`;
+		$tipointerfaz =~ s/\"//g;
+		$tipointerfaz =~ s/\s*//g;
+		
+		if($tipointerfaz eq "eth1")
+		{
+			$tipointerfazvalor="Red externa";
+		}
+		elsif($tipointerfaz eq "eth2")
+		{
+		   $tipointerfazvalor="Red 3";
+		}
+		elsif($tipointerfaz eq "eth3")
+		{
+		   $tipointerfazvalor="Red 4";		
+		}
+		elsif($tipointerfaz eq "eth4")
+		{
+			$tipointerfazvalor="Red 5";	
+		}
+		elsif($tipointerfaz eq "eth5")
+		{
+		   $tipointerfazvalor="Red 6";		
+		}	
+		
+		$verprovee =~ s/-imtpppoeprovider$//;
+		
+		$activado=0;
+				
+		open(OLD, "< $pppoepeers")    or die "can't open $pppoepeers: $!";
+      while (<OLD>)
+      {
+	      if (/^$verprovee$/)
+   	   {
+				$activado=1;
+      	}
+      }
+      close(OLD);
+	
+		if($activado eq 1)
+		{
+		print "<tr><td height=4></td>\n";
+	
+		print "<tr><td width='50' align='center' title='$verprovee'><b><font style='font-size:8px'>PPPoE</font></b></td><td title='$verprovee'><font onclick='aplicarvalor(\"PPPoE $verprovee\")' size=1 style='cursor:pointer'>$verprovee</font></td></tr>\n";		
+		}		
+																		
+	$i=$i+1;
+	
+	}
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red Externa'><img src='../images/redmini.gif'></td><td title='Red Externa'><font onclick='aplicarvalor(\"Red externa\")' size=1 style='cursor:pointer'>$virtualserver_externa</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red Interna'><img src='../images/redmini.gif'></td><td title='Red Interna'><font onclick='aplicarvalor(\"Red interna\")' size=1 style='cursor:pointer'>Red interna</font></td></tr>\n";
+
+if($numred eq "2") 
+{
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 3'><img src='../images/redmini.gif'></td><td title='Red 3'><font onclick='aplicarvalor(\"Red 3\")' size=1 style='cursor:pointer'>Red 3</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 4'><img src='../images/redmini.gif'></td><td title='Red 4'><font onclick='aplicarvalor(\"Red 4\")' size=1 style='cursor:pointer'>Red 4</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 5'><img src='../images/redmini.gif'></td><td title='Red 5'><font onclick='aplicarvalor(\"Red 5\")' size=1 style='cursor:pointer'>Red 5</font></td></tr>\n";
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='Red 6'><img src='../images/redmini.gif'></td><td title='Red 6'><font onclick='aplicarvalor(\"Red 6\")' size=1 style='cursor:pointer'>Red 6</font></td></tr>\n";
+
+}
+
+open(OLD, "< $lanaliasext")    or die "can't open $lanaliasext: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		unless (/^#/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+			@data = split (/\s/,$_);
+				
+			$nombre=$data[2];
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$nombre'><img src='../images/redmini.gif'></td><td title='$nombre'><font onclick='aplicarvalor(\"$nombre\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+			$i=$i+1;
+		}
+	}
+close(OLD) or die "can't close $lanaliasext: $!";
+
+if($numred eq "2") 
+{
+
+open(OLD, "< $redsegmentada")    or die "can't open $redsegmentada: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		if (/^red3ip=/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+			@data = split (/=/,$_);
+			$ip3=$data[1];
+		}
+		
+		if (/^red4ip=/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+			@data = split (/=/,$_);
+			$ip4=$data[1];
+		}
+	
+		if (/^red3tipo=2/)
+     	{				
+			$nombre=$ip3;
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$nombre'><img src='../images/redmini.gif'></td><td title='$nombre'><font onclick='aplicarvalor(\"$nombre\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+		}
+		
+		if (/^red4tipo=2/)
+     	{				
+			$nombre=$ip4;
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$nombre'><img src='../images/redmini.gif'></td><td title='$nombre'><font onclick='aplicarvalor(\"$nombre\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+		}
+	}
+close(OLD) or die "can't close $redsegmentada: $!";
+
+}
+
+open(OLD, "< $lanalias3")    or die "can't open $lanalias3: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		unless (/^#/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+			@data = split (/\s/,$_);
+				
+			$nombre=$data[2];
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$nombre'><img src='../images/redmini.gif'></td><td title='$nombre'><font onclick='aplicarvalor(\"$nombre\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+			$i=$i+1;
+		}
+	}
+close(OLD) or die "can't close $lanalias3: $!";
+
+
+open(OLD, "< $lanalias4")    or die "can't open $lanalias4: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		unless (/^#/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+			@data = split (/\s/,$_);
+				
+			$nombre=$data[2];
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$nombre'><img src='../images/redmini.gif'></td><td title='$nombre'><font onclick='aplicarvalor(\"$nombre\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+			$i=$i+1;
+		}
+	}
+close(OLD) or die "can't close $lanalias4: $!";
+
+
+open(OLD, "< $lanalias5")    or die "can't open $lanalias5: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		unless (/^#/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+			@data = split (/\s/,$_);
+				
+			$nombre=$data[2];
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$nombre'><img src='../images/redmini.gif'></td><td title='$nombre'><font onclick='aplicarvalor(\"$nombre\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+			$i=$i+1;
+		}
+	}
+close(OLD) or die "can't close $lanalias5: $!";
+
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+	
+		
+		<!--<input type="checkbox" name="blockAll" value="1"> Bloquear todo el trafico P2P
+		<br>-->
+		
+
+
+<div id="divtablavirtualserver" style="width:1000;z-index:-10;">
+
+<table id="tablavirtualserver" class="display compact" cellpadding="0" cellspacing="0" style="font-size:12px;white-space: nowrap;">
+
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th>Origen</th>
+<th></th>
+<th>$virtualserver_entrada</th>
+<th></th>
+<th></th>
+<th>$virtualserver_publico</th>
+<th>$virtualserver_privado</th>
+<th>$virtualserver_ipinterna</th>
+<th></th>
+<th>$virtualserver_comentario</th>
+<th></th>
+<th></th>
+<th>pkts</th>
+<th>bytes</th>
+</tr>
+</thead>
+
+<tbody>
+EOF
+
+
+
+	open(OLD, "< $virtualserver")    or die "can't open $virtualserver: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+			if (/^[\s#]*\$IPTABLES -t nat -A PREROUTING.*$/)
+     		{
+			
+			unless(/##TCPUDP2$/)
+			{
+			
+			
+				chomp;	
+				$_ =~ /.*/;
+				
+				
+				if ($_ =~ /^\s*#.*/)
+				{
+					$activado=0;
+				}
+				else
+				{
+					$activado=1;
+				}
+				
+				if(/##([0-9])$/)
+				{
+					$valorfw=$1;
+					
+					if ($valorfw eq 0)
+					{
+						$activado2=0;
+					}
+					elsif ($valorfw eq 1)
+					{
+						$activado2=1;
+					}
+					else
+					{
+						$activado2=0;
+					}
+				}
+				
+				if($_ =~ /\-\-comment\s\"([0-9]+)\"/)
+				{
+					$commentid=$1;
+				}
+				
+				$_ =~ s/-m\scomment\s--comment.*-j/-j/g;				
+				
+				unless(/-s/)
+				{
+					$_ =~ s/PREROUTING\s/PREROUTING -s 0.0.0.0\/0 /;
+				}				
+				
+				if(m/^.*\-m multiport.*$/)
+				{
+					@data = split (/\s/,$_);
+
+					$protocolo = $data[10];
+		 			$publico = $data[14];
+		 			$privado = "";
+				
+					$ip = $data[18];
+				}
+				elsif(m/^.*\--dport\s.*$/)
+				{
+				
+					@data = split (/\s/,$_);
+					@data1 = split (/:/,$_);
+					@data3 = split (/#{2}/,$data1[1]);
+
+					$protocolo = $data[10];
+		 			$publico = $data[12];
+		 			$privado = $data3[0];
+
+					@data2 = split (/\s/,$data1[0]);
+				
+					$ip = $data2[16];
+				}
+				else
+				{
+					@data = split (/\s/,$_);
+
+					$protocolo = "gre";
+		 			$publico = "";
+		 			$privado = "";
+				
+					$ip = $data[14];
+					
+				}
+
+
+		 		#warn $_."\n";
+		 		
+		 		if($lastline =~ /^#.*/)
+		 		{
+		 			$lastline=~s/^#//;
+		 			$comment=$lastline;# quitar  #
+		 			$lastline="";
+		 		}	
+		 		else
+		 		{
+		 			$comment="";	
+		 		}	
+
+				$protocolo0="";
+				$protocolo1="";
+				
+				#tipo de protocolo
+				#···············································································
+
+				if($protocolo eq "tcp") 
+				{
+					$protoval = "0";
+				}
+				elsif($protocolo eq "udp") 
+				{
+					$protoval = "1";
+				}
+				elsif($protocolo eq "gre") 
+				{
+					$protoval = "2";
+				}
+				
+				
+				@data5 = split (/#{2}/,$_);
+				$tipogrupo = $data5[1];
+				$tipogrupo =~ s/\s$//g;
+				
+				if($tipogrupo eq "TCPUDP1")
+				{
+					$protoval=3;
+				}
+			
+				$origen=$data[6];			
+			
+				if ($_ =~ /-i \$ethx/)
+				{
+					$entrada=$virtualserver_externa;
+				}
+				elsif ($_ =~ /-i eth0/)
+				{
+					$entrada="Red interna";
+				}
+				elsif ($_ =~ /-i eth\$i1/)
+				{
+					$entrada="Red 3";
+				}
+				elsif ($_ =~ /-i eth\$i2/)
+				{
+					$entrada="Red 4";
+				}
+				elsif ($_ =~ /-i eth\$i3/)
+				{
+					$entrada="Red 5";
+				}
+				elsif ($_ =~ /-i eth\$i4/)
+				{
+					$entrada="Red 6";
+				}
+				elsif($_ =~ /-i ppp([0-9]+)/)
+				{
+					$nombrepppoe=`grep -r "unit ${1}" /etc/ppp/peers/`;
+					if($nombrepppoe =~ /peers\/(.+)\-imtpppoeprovider/)					
+					{
+						$nombrepppoe=$1;
+					}
+					else
+					{
+						$nombrepppoe="";
+					}
+					$nombrepppoe =~ s/(\r?\n)//g;
+		   		$entrada="PPPoE $nombrepppoe";		
+				}		
+				else
+				{
+					$entrada=$data[8];
+				}
+				
+				if($origenip eq "")
+				{
+					$origenip="0.0.0.0/0";				
+				}
+				
+				if($destinoip eq "")
+				{
+					$destinoip="0.0.0.0/0";				
+				}
+				
+			
+				print "<tr>\n";
+				
+				print "<input type='hidden' id='${i}commentid' name='${i}commentid' value='$commentid'>\n";
+				
+				print "<td align='left' width='20'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Insertar&volver=$volver\"'><b>+</b></div>				
+				
+				</td>\n";
+				
+				print "<td align='left' width='20'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar&volver=$volver\"'><b>-</b></div>				
+				
+				</td>\n";
+					
+	
+				print "<td align='center' width='24'><input type='checkbox' name='${i}elimiregis' id='${i}elimiregis' value='1'></td>\n";
+				
+				print "<td width='102' align='left'><input id='${i}xo' name='${i}xo' type='text' value='$origen' class='campotxt' size=12></td>\n";
+				
+				print "<td align='center' width=19><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"${i}xo\",objContainer3,findPosX(this)+180,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+														
+				print "<td width='102' align='left'><input id='${i}xe' name='${i}xe' type='text' value='$entrada' class='campotxt' size=12></td>\n";
+
+				print "<td align='center' width=16><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"${i}xe\",objContainer2,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+				
+				
+								print <<EOF;
+				<td align='center' width=22>
+				<script language='javascript'>
+				
+				protoval = $protoval;
+				
+					switch(protoval)
+					{
+						case 0:
+							imagensrc = tcpimg.src;
+							imagenalt = "TCP";
+						break;
+						case 1:
+							imagensrc = udpimg.src;
+							imagenalt = "UDP";
+						break;
+						case 2:
+							imagensrc = greimg.src;
+							imagenalt = "GRE";
+						break;
+						case 3:
+							imagensrc = tcpudpimg.src;
+							imagenalt = "TCP y UDP";
+						break;
+					}
+				
+				
+				document.write('<img id=\"${i}xt2\"  alt=\"'+imagenalt+'\" src=\"'+imagensrc+'\" style=\"cursor:pointer\" onclick=\"toggleProtocol(${i})\" >');
+				
+				</script><input  type='hidden' id='${i}xpro' name='${i}xpro' value='$protoval'/></td>
+	
+			
+EOF
+				
+				print "<td width='60' align='left'><input id='${i}x1' name='${i}x1' type='text' value='$publico' class='campotxt' size=8 onchange='controlamulti(${i})'></td>\n";
+				
+				print "<td width='60'><input class='campotxt' type='text' id='${i}x2' name='${i}x2' size=8 value='$privado'/></td>\n";
+			
+				$estadotitulo="";
+				$estadoactivovalor="<font color=gray>·</font>";
+				$estadocolor1="gray";
+				$estadocolor2="gray";
+				
+				if($activado eq 1 && $privado ne "" && $privado ne "0.0.0.0")
+				{
+				
+				$estadoactivo=`echo "" | nc -v -z -w1 $ip $privado >/dev/null; echo \$\?`;
+				$estadoactivo =~ s/(\r?\n)//g;	
+				
+				if($estadoactivo eq 0)
+				{
+					$estadotitulo="Disponible IP $ip escuchando en puerto $privado";
+					$estadoactivovalor=">";
+					$estadocolor1="#3e73a8";
+					$estadocolor2="#3e73a8";
+				}else
+				{
+					$estadotitulo="No disponible IP $ip escuchando en puerto $privado";
+					$estadoactivovalor="X";
+					$estadocolor1="orange";
+					$estadocolor2="#e20010";
+				}	
+				
+				}		
+				
+				print "<td width='80'><input class='campotxt' type='text' id='${i}x3' name='${i}x3' size=12 value='$ip'/></td>\n";
+								
+				print "<td width='20' title='$estadotitulo'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, $estadocolor1, $estadocolor2);
+  background-image: -moz-linear-gradient(top, $estadocolor1, $estadocolor2);
+  background-image: -ms-linear-gradient(top, $estadocolor1, $estadocolor2);
+  background-image: -o-linear-gradient(top, $estadocolor1, $estadocolor2);
+  background-image: linear-gradient(top bottom, $estadocolor1, $estadocolor2);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;' align=center class='bordenegrosombra'><b>$estadoactivovalor</b></div>			
+								
+				
+				</td>\n";							
+				
+				print "<td width='125'><input  style='font-style:italic'  class='campotxt' type='text' id='${i}xc' name='${i}xc' size=15 value='$comment'/></td>\n";				
+				print "<td align='center' width='22'>\n";
+				print "<script language='javascript'>document.write('<img id=\"flechaf${i}\" src=\"'+($activado2 == 1?flechaact2.src:flechades2.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla2(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xact2' name='${i}xact2' value='$activado2'/>\n";				
+				print "<td align='center' width='20'>\n";
+				print "<script language='javascript'>document.write('<img id=\"flecha${i}\" src=\"'+($activado == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xact' name='${i}xact' value='$activado'/>\n";
+				print "<script language='javascript'>controlamulti(${i})</script>\n";
+				
+				$pkts = "-";
+            $bytes = "-";				
+				
+				$lineaiptables=`iptables -L -t nat -nv | grep $commentid`;
+	
+				$lineaiptables =~ s/^\s*//g;				
+				@data = split (/\s+/,$lineaiptables);
+            $pkts = $data[0];
+            $bytes = $data[1];
+				
+				#print "<td width=5><font color=black>$commentid</font></td>\n";
+				print "<td><font color=black>$pkts</font></td>\n";		
+				print "<td><font color=black>$bytes</font></td>\n";					
+				
+				print "</tr>\n";
+
+				$i=$i+1;
+		}
+		}
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+	}
+	close(OLD) or die "can't close $virtualserver: $!";	
+
+if ($i == 1) 
+{
+			print "<tr>\n";
+			print "<td>
+			<!--<img  onclick='window.location.href=\"?id=0&enviar=Insertar&volver=$volver\"' style='cursor:pointer' src='../images/mas.jpg' border='0' alt='insertar' >-->
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=0&enviar=Insertar&volver=$volver\"'><b>+</b></div>	
+			</td>\n";
+			print "<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>\n";
+			print "</tr>\n";
+}
+
+
+print <<EOF;
+</tbody>
+</table>
+
+</div>
+
+
+
+
+ <br>
+                   
+             <table border="0" align="center" cellpadding="0" cellspacing="0" width="620">
+             <tr><td height=10></td></tr>
+                <tr>
+				<td width="160"></td>
+                  <td align="center" valign="top"><!--<input type="$controlbuttonmod" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm(this.form)">
+					
+                  <input type="$controlbuttonmod" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()">-->
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:100" align=center onclick="validarForm(theform)" class="bordenegrosombra"><b><font>Modificar</font></b></div>
+                  
+                  
+                  </td>
+                <td align="right">
+<center>      
+<div id="botoneliminar" style="background: #e20010;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(to bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:150;visibility: visible;" align=center onclick="borrar(3)" class="bordenegrosombra"><b>Eliminar seleccionados</b></div>
+</center>                   
+                </td>
+				 
+				</tr>
+              </table>
+
+	      
+
+<br><br>
+</form>
+		</td>
+	</tr>
+	</table>
+	<!-- fin tabla central -->
+	</td>
+</tr>
+</table>
+<script language="javascript">InitialiseAreas(); </script>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+ </body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

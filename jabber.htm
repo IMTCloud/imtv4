@@ -1,0 +1,636 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_SERVIDOR_DE_MENSAJERIA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+$dbuser="ejabberd";
+$dbpass="ejabberd";
+
+
+    my $dbh = DBI->connect('DBI:mysql:database=ejabberd;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+               	  		 
+						 
+
+if($q->param('env') eq "insertar")
+{
+$realm=$q->param('realm');
+$nombre="user".int(rand(10000));
+$password=int(rand(10000));
+
+my $sth = $dbh->prepare("INSERT INTO users (username, password) VALUES ('$nombre','$password')")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+
+if($q->param('env') eq "borrar")
+{
+$nombre=$q->param('nombre');
+
+my $sth = $dbh->prepare("DELETE FROM users where username='$nombre'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+}
+
+
+
+
+if($q->param('env') eq "aplicar")
+{
+
+		$servidor=$q->param('servidor');
+		$passadmin=$q->param('passadmin');
+		$permitir=$q->param('permitir');
+		
+		
+		if($permitir eq "0")
+		{
+			$permitir="allow";
+		}
+		else
+		{
+			$permitir="deny";
+		}
+
+		open(OLD, "< $ejabberdcfg")    or die "cant open $ejabberdcfg: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+			
+		while (<OLD>) 
+		{
+			if(/^{access,\s*register,\s*\[{.+,\s*all}\]}\.$/)
+     		{				
+				s/^.*$/{access, register, \[{${permitir}, all}\]}\./;			
+			}
+				
+			print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $ejabberdcfg: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+		
+		system("/bin/cp $aux $ejabberdcfg 1>&2");
+		
+		
+		
+		open(OLD, "< $ejabberdcfg")    or die "cant open $ejabberdcfg: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+			
+		while (<OLD>) 
+		{
+			if(/^\s*<\id>.*<\/id>$/)
+     		{
+					s/^.*$/  <\id>$servidor<\/id>/;
+			}
+			
+			
+			if (/^\s*<\jid>admin\@.*<\/jid>$/)
+     		{
+				s/^.*$/      <\jid>admin\@$servidor<\/jid>/;
+			}
+			
+			
+			print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $ejabberdcfg: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+		
+		system("/bin/cp $aux $ejabberdcfg 1>&2");
+		
+
+
+my $sth = $dbh->prepare("UPDATE users set password='$passadmin' where username='admin'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+
+$totaljabber=$q->param('totaljabber');
+
+$i="1";
+
+while($i <= $totaljabber) {
+
+$user=$q->param("${i}x0");
+$password=$q->param("${i}x1");
+
+$userh=$q->param("${i}x0h");
+
+
+my $sth = $dbh->prepare("UPDATE users set username='$user',password='$password' where username='$userh'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+
+$i=$i+1;
+}
+
+
+
+system("$jabberd restart >/dev/null 2>&1");
+
+}
+
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$mensajeria=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*MENSAJERIA\s*=\s*.*$/)
+     		{
+				s/^.*$/MENSAJERIA\=$mensajeria/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	system("$jabberd restart >/dev/null 2>&1");
+	
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*MENSAJERIA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mensajeria = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($mensajeria eq "1") 
+{
+	$estadomensajeria = "activado.gif";
+	$pasarmensajeria = 0;
+}
+else
+{	
+	$estadomensajeria = "desactivado.gif";
+	$pasarmensajeria = 1;
+}
+
+
+#lectura inicial de backup
+#···············································································	
+
+	open(OLD, "< $ejabberdcfg")    or die "can't open $ejabberdcfg: $!";
+		
+	while (<OLD>) 
+	{
+			if(/^{hosts,\s*\[\".*\"\]}\.$/)
+   			{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_=~ /^\s*{hosts,\s*\[\"(.*)\"\]}\.$/m;
+			$servidor=$1;
+			}
+			
+			if (/^{access,\s*register,\s*\[{allow,\s*all}\]}\.$/)
+     		{
+				$permitirsi="checked";
+			}
+			
+			if (/^{access,\s*register,\s*\[{deny,\s*all}\]}\.$/)
+     		{
+				$permitirno="checked";
+			}
+			
+			
+	}
+
+	close(OLD)     or die "can't close $ejabberdcfg: $!";
+	
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print<<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+
+function enviar(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el servidor de mensajería?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function validarForm()
+{
+	oscuprocessform();
+
+	document.theform.action="jabber.htm";
+	document.theform.env.value="aplicar"
+	document.theform.submit();
+	
+}
+
+
+</script>
+   
+</head><body marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+
+
+
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="env" type="hidden"><input name="estado" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/jabber.gif' width="90%"></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$jabber_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br><br><br>
+
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM users where username='admin'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+	
+@linea = $sth->fetchrow_array;
+
+
+
+print <<EOF;
+
+
+<table border=0><tr>
+<td>
+
+<table><tr>
+<td><img src="../images/$estadomensajeria" onClick="enviar('$pasarmensajeria')" style="cursor:pointer"></td><td width="4"></td><td>$rat_activar</td><td width="40"></td>
+</tr></table>
+<br>
+<table  border="0" class="bordenegrosombra" width="280" cellpadding="0" cellspacing="0">
+<tr><td width="280" height="23" class="barratituloazul" align="center" colspan="2"><font color="white"><b>Configuración básica del servidor</b></font></td></tr>
+<tr><td height="5"></td></td>
+
+<tr><td width="5"></td><td bordercolor="white" align="left"> 
+
+<br>
+
+<table width="160"><tr>
+<td width='70' align='center'><b>$wakeonlan_nombre</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='servidor' name='servidor' size=14 value='$servidor'/></td><td><b>($portalcautivo_dominio)</b></td>
+</tr></table>
+
+
+</td>
+</tr>
+<tr><td width="5"></td><td height="10"></td></tr>
+<tr><td width="5"></td><td width="300" valign="top" bordercolor="white">
+
+$jabber_frase1
+<table>
+<tr><td><input value="0" name="permitir" type="radio" $permitirsi></td><td>$jabber_si</td><td width="20"></td>
+<td><input value="1" name="permitir" type="radio" $permitirno></td><td>$jabber_no</td></tr>
+</table>
+<br>
+<!--<table cellspacing="0" cellpadding="0" width=160 border="0">
+<tr><td width="80"></td><td  width="130" height="23" background="../images/barratitulo2.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>PASSWORD</b></font></td></tr>
+</table>-->
+
+<table width="160"><tr>
+<td width='70' align='center'><b>ADMIN</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='passadmin' name='passadmin' size=15 value='$linea[1]'/></td><td><b>(PASSWORD)</b></td>
+</tr></table>
+
+ <br>
+             
+
+</td></tr>
+</table>
+
+<br><br>
+ <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+
+
+
+
+
+
+</td><td width="30"></td><td valign="top">
+
+<center>
+
+<!--<table border="0"><tr><td valign="top">
+<center>		
+<b>$openvpnusername_registrados</b><br><br>
+<table cellspacing="0" cellpadding="0" width=300 border="1">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$vpnpptp_usuario
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PASSWORD</b></font></td></tr>
+
+</table>
+	-->
+		
+		
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="300">
+<tr><td width="300" height="23" class="barratituloazul" align="center">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$vpnpptp_usuario
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PASSWORD</b></font></td></tr>
+<tr><td height="5"></td></td>
+<tr><td align="center">
+
+
+<table cellspacing="3" cellpadding="0" width=300 class="linea"  border=0>
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM users order by username")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+	
+$i="1";
+
+ while (@linea = $sth->fetchrow_array) {
+ 
+ 				if ($linea[0] ne admin)
+				{
+			
+				print "<tr><td width=5></td>\n";
+				print "<td align='left' width='30'>
+				
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 8;
+  -moz-border-radius: 8;
+  border-radius: 8px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 1px 1px 1px 1px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?env=borrar&nombre=${linea[0]}\"'><b>-</b></div>				
+
+				</td>\n";
+	
+				print "<td width='120' align='left'><input type='text' id='${i}x0' name='${i}x0'  value='$linea[0]' class='campotxt' size=14><input type='hidden' id='${i}x0h' name='${i}x0h'  value='$linea[0]' class='campotxt' size=14></td>\n";
+				
+				print "<td align='center' width=5></td>\n";
+	
+				print "<td width='125'><input  type='password' id='${i}x1' name='${i}x1' value='$linea[2]' class='campotxt' size=15></td>\n";
+				print "</tr>\n";
+				
+				$i=$i+1;
+				}
+				
+				
+		}
+		$i=$i-1;
+
+			print "<tr><td width=5></td>\n";
+			print "<td align='left' width='30'>
+			
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 8;
+  -moz-border-radius: 8;
+  border-radius: 8px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 1px 1px 1px 1px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?env=insertar&realm=$servidor\"'><b>+</b></div>				
+										
+			
+			</td>\n";
+			print "<td align='left' width='99%' colspan='5'></td>\n";
+			print "</tr>\n";
+
+print <<EOF;
+<tr><td height="10"></td></tr>
+</table>
+            
+<input type="hidden" name="totaljabber" value="${i}">
+</td>
+
+
+</tr>
+</table>
+
+	</td></tr></table>
+	
+	</td></tr></table>
+
+
+</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+ </body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

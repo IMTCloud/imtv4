@@ -1,0 +1,647 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+	if($q->param('env') ne "")
+    {
+		$dnsips=$q->param('env');
+		$searchdomainvalor=$q->param('searchdomain');
+		
+		@data = split (/\s/,$dnsips);
+		$dns1 = $data[0];
+		$dns2 = $data[1];
+		$dns3 = $data[2];
+	
+		open(NEW, "> $dns")     or die "can't open $dns: $!";
+		
+		if($searchdomainvalor ne "")
+		{
+		print NEW "search $searchdomainvalor\n";
+		}
+		
+		print NEW "nameserver $dns1\n"; 
+		print NEW "nameserver $dns2\n";
+		
+		if($dns3 ne "")
+		{
+		print NEW "nameserver $dns3\n";
+		}
+		
+		close(NEW) or die "can't close $dns $!"; 
+		
+		
+	$valorpreferido=$q->param('valorpreferido');
+		
+	open(OLD, "< $dns")    or die "can't open $variables: $!";
+	
+	$i="0";
+		
+	while (<OLD>) 
+	{
+			if (/nameserver/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+				
+				if ($i eq $valorpreferido) {$ipdns = $data[1];}
+				
+				if($i eq 0){$ipdnstemp0 = $data[1];}
+				if($i eq 1){$ipdnstemp1 = $data[1];}
+				if($i eq 2){$ipdnstemp2 = $data[1];}
+				
+				$i=$i+1;				
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $dns: $!";
+	
+	
+	if($valorpreferido eq 0){$ipdns = $ipdns.",".$ipdnstemp1;}
+	if($valorpreferido eq 1){$ipdns = $ipdns.",".$ipdnstemp0;}
+	if($valorpreferido eq 2){$ipdns = $ipdns.",".$ipdnstemp0;}
+	
+	
+		
+		system("/bin/echo $valorpreferido > $numpreferdns");
+		
+    }
+
+
+#lectura de estado
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*SERVERDNS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$serverdns = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#lectura DNS
+#···············································································	
+
+	open(OLD, "< $dns")    or die "can't open $variables: $!";
+	
+	$i="0";
+		
+	while (<OLD>) 
+	{		
+			if (/^\s*search/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/search\s+/,$_);
+				
+				$searchdomain = $data[1];
+			}
+			
+			if (/^\s*nameserver/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+				
+				if ($i eq "0") {$ipdns1 = $data[1];}
+				if ($i eq "1") {$ipdns2 = $data[1];} 
+				if ($i eq "2") {$ipdns3 = $data[1];}
+				
+				$i=$i+1;
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $dns: $!";
+
+
+$preferido=`/bin/cat ${numpreferdns}`;
+$preferido =~ s/(\r?\n)//g;
+
+$dnspreferido0="estreamarilla.gif";
+$dnspreferido1="estreamarilla.gif";
+$dnspreferido2="estreamarilla.gif";
+
+$dnstitle = "Este DNS se utilizará para asignar a los clientes DHCP";
+
+if($preferido eq "0") {$dnspreferido0 = "estreverde.gif";$dnstitlefinal0 = $dnstitle}
+elsif($preferido eq "1") {$dnspreferido1 = "estreverde.gif";$dnstitlefinal1 = $dnstitle}
+elsif($preferido eq "2") {$dnspreferido2 = "estreverde.gif";$dnstitlefinal2 = $dnstitle}
+else{$dnspreferido0 = "estreverde.gif";$preferido = "0";$dnstitlefinal0 = $dnstitle}
+
+
+
+
+
+
+	$infotestdns1=`dig google.es \@$ipdns1 \+time=0`;
+	
+	if($infotestdns1 =~ /IN\s+A/) 
+	{	
+		$estadoactivovalor1=">";
+		$estadocolor1a="#3e73a8";
+		$estadocolor1b="#3e73a8";					
+	} 
+	else 
+	{ 
+		$estadoactivovalor1="X";
+		$estadocolor1a="orange";
+		$estadocolor1b="#e20010"; 
+		
+	}
+	
+	$infotestdns2=`dig google.es \@$ipdns2 \+time=0`;
+	
+	if($infotestdns2 =~ /IN\s+A/) 
+	{	
+		$estadoactivovalor2=">";
+		$estadocolor2a="#3e73a8";
+		$estadocolor2b="#3e73a8";
+	} 
+	else 
+	{ 
+		$estadoactivovalor2="X";
+		$estadocolor2a="orange";
+		$estadocolor2b="#e20010"; 
+	}
+
+	$infotestdns3=`dig google.es \@$ipdns3 \+time=0`;
+	
+	if($infotestdns3 =~ /IN\s+A/) 
+	{	
+		$estadoactivovalor3=">";
+		$estadocolor3a="#3e73a8";
+		$estadocolor3b="#3e73a8";
+	} 
+	else 
+	{ 
+		$estadoactivovalor3="X";
+		$estadocolor3a="orange";
+		$estadocolor3b="#e20010"; 
+	}
+
+
+if($ipdns1 eq "127.0.0.1")
+{
+	$checkeddnsinterno="checked";
+	$anadido="4";
+}
+
+if($serverdns eq 1)
+{
+	$estadodnsaviso="ACTIVADO";	
+}
+else
+{
+	$estadodnsaviso="DESACTIVADO";
+}
+
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<link href="/icheck/skins/flat/blue.css" rel="stylesheet">
+<script src="/icheck/icheck.js"></script>
+
+<script language="javascript">
+
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+} 
+
+
+
+function Validar()
+{
+	if (isValidIP(document.getElementById('dns1').value) == false)
+	{
+		alert('Se esperaba un Servidor DNS Preferido válido');
+		theform.reset()
+		return (false);
+	}
+	else
+	if (isValidIP(document.getElementById('dns2').value) == false)
+	{
+		alert('Se esperaba un Servidor DNS Secundario válido');
+		theform.reset()
+		return (false);
+	}
+	else
+	if (isValidIP(document.getElementById('dns3').value) == false && document.getElementById('dns3').value != "")
+	{
+		alert('Se esperaba un Servidor DNS Tercero válido');
+		theform.reset()
+		return (false);
+	}
+return(true)
+}
+
+
+
+function enviar()
+{
+
+if(!Validar())
+	return ;
+
+
+	if(!confirm('¿Desea aplicar los cambios?'))
+	return false;
+	
+oscuprocessform();	
+			
+theform.env.value = theform.dns1.value + ' ' +theform.dns2.value + ' ' +theform.dns3.value;
+document.theform.submit();
+
+
+}
+
+
+function selec(posicion)
+{
+var posicion
+document.theform.valorpreferido.value = posicion;
+
+imagenOn = new Image();
+
+for(i = 0; i < document.theform.dnspreferido.length;i++)
+	document.dnspreferido[i].src='../images/estreamarilla.gif';
+	
+for(i = 0; i < document.theform.dnspreferido.length;i++)
+	document.dnspreferido[i].title='';
+
+imagenOn.src='../images/estreverde.gif';
+document.dnspreferido[posicion].src = imagenOn.src; 
+document.dnspreferido[posicion].title='Este DNS se utilizará para asignar a los clientes DHCP'; 
+ 
+return false;
+}
+
+
+function comprodns()
+{
+
+
+if(document.getElementById('dnsinterno').checked == true)
+{
+document.theform.dns1.value='127.0.0.1';
+document.getElementById('dns1').className = 'campotxt4';
+document.theform.dns1.readOnly=true;
+}
+else
+{
+document.theform.dns1.value='8.8.8.8';
+document.getElementById('dns1').className = 'campotxt';
+document.theform.dns1.readOnly=false;
+}
+
+}
+
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+
+<script>
+
+\$(document).ready(function(){
+  \$('input').iCheck({
+    checkboxClass: 'icheckbox_flat-blue',
+    radioClass: 'iradio_flat-blue'
+  });
+
+  \$('input:checkbox[name="dnsinterno"]').on('ifChecked', function(event){
+         document.theform.dns1.value='127.0.0.1';
+			document.getElementById('dns1').className = 'campotxt4';
+			document.theform.dns1.readOnly=true;
+  });
+
+  \$('input:checkbox[name="dnsinterno"]').on('ifUnchecked', function(event){
+        document.theform.dns1.value='8.8.8.8';
+		  document.getElementById('dns1').className = 'campotxt';
+		  document.theform.dns1.readOnly=false;
+  });
+
+});
+
+</script>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden"><input name="valorpreferido" type="hidden" value="${preferido}">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/dns.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$dns_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<P>
+	<br><br>
+
+<P>
+
+<br>
+
+<table border="0" class="bordenegrosombra" width="320" height="130"><tr><td>
+
+<br>
+
+<TABLE>
+
+<TR><TD></TD><TD colspan="2"><B>$dns_autocompletado:</B></TD></TR>
+
+<TR>
+
+<TD></TD><TD>$dns_busqueda </TD>
+
+<TD>
+
+<input type="text" name="searchdomain"  id="searchdomain" size=25 value="$searchdomain" class="campotxt"> (Opcional)<br>
+
+</TD>
+
+</TR>
+
+<tr><td></td><td></td><td colspan="1">$dns_frase2</td></tr>
+
+</TABLE>
+
+<br>
+
+<table><tr><td><input type="checkbox" value='1' name="dnsinterno" id="dnsinterno" $checkeddnsinterno></td><td>$dns_dnsinterno ($dns_estado: ${estadodnsaviso})</td></tr></table>
+
+<br>
+
+<TABLE width="340">
+
+<TR><TD></TD><TD><B>$dns_configusuario:</B></TD></TR>
+
+<TR>
+
+<TD></TD><TD>$dns_preferido</TD>
+
+<TD>
+
+<INPUT TYPE="text" NAME="dns1" SIZE=15 value="$ipdns1" class="campotxt${anadido}" id="dns1">
+
+</TD>
+
+<td><!--<img src="/images/${conecdns1}">-->
+<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, $estadocolor1a, $estadocolor1b);
+  background-image: -moz-linear-gradient(top, $estadocolor1a, $estadocolor1b);
+  background-image: -ms-linear-gradient(top, $estadocolor1a, $estadocolor1b);
+  background-image: -o-linear-gradient(top, $estadocolor1a, $estadocolor1b);
+  background-image: linear-gradient(top bottom, $estadocolor1a, $estadocolor1b);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  height:20;
+  text-decoration: none;' align=center class='bordenegrosombra'><b>$estadoactivovalor1</b></div>
+</td>
+
+</TR>
+
+<TR>
+
+<TD></TD><TD>$dns_secundario</TD>
+
+<TD>
+
+<INPUT TYPE="text" NAME="dns2" SIZE=15 value="$ipdns2" class="campotxt" id="dns2">
+
+</TD>
+
+<td><!--<img src="/images/${conecdns2}">-->
+<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, $estadocolor2a, $estadocolor2b);
+  background-image: -moz-linear-gradient(top, $estadocolor2a, $estadocolor2b);
+  background-image: -ms-linear-gradient(top, $estadocolor2a, $estadocolor2b);
+  background-image: -o-linear-gradient(top, $estadocolor2a, $estadocolor2b);
+  background-image: linear-gradient(top bottom, $estadocolor2a, $estadocolor2b);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  height:20;
+  text-decoration: none;' align=center class='bordenegrosombra'><b>$estadoactivovalor2</b></div>	
+</td>
+
+</TR>
+
+<TR>
+
+<TD></TD><TD>$dns_tercero</TD>
+
+<TD>
+
+<INPUT TYPE="text" NAME="dns3" SIZE=15 value="$ipdns3" class="campotxt" id="dns3">
+
+</TD>
+
+<td><!--<img src="/images/${conecdns3}">-->
+<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, $estadocolor3a, $estadocolor3b);
+  background-image: -moz-linear-gradient(top, $estadocolor3a, $estadocolor3b);
+  background-image: -ms-linear-gradient(top, $estadocolor3a, $estadocolor3b);
+  background-image: -o-linear-gradient(top, $estadocolor3a, $estadocolor3b);
+  background-image: linear-gradient(top bottom, $estadocolor3a, $estadocolor3b);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  height:20;
+  text-decoration: none;' align=center class='bordenegrosombra'><b>$estadoactivovalor3</b></div>	
+</td>
+
+</TR>
+
+</TABLE>
+
+<P>
+<center>
+<!--<input type="$controlbuttonbase" src="../images/submit_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onClick="enviar()">
+
+<input type="$controlbuttonbase" src="../images/reset_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()">
+-->
+
+<div class="buttongreen" style="cursor:pointer;width:100" align=center onClick="enviar()" class="bordenegrosombra"><b><font>Modificar</font></b></div>
+
+
+</center>
+<br>
+</td></tr></table>
+
+<P><br>
+		
+
+</CENTER>
+
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+
+
+

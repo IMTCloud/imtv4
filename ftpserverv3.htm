@@ -1,0 +1,1889 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/java/jre1.5.0_14/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_SERVIDOR_FTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+$dirvalor=$q->param('dir');
+
+if($dirvalor ne "")
+{
+system("/bin/echo '$dirvalor' > /tmp/controlrutagestor");
+
+print qq~Location: gestordiscoweb.htm\n\n~;
+
+exit;
+}
+
+
+
+$dbuser="vsftpd";
+$dbpass="vsftpd";
+
+
+    my $dbh = DBI->connect('DBI:mysql:database=vsftpd;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+
+
+$linkftp=`/bin/ls -L ${vsftpdhome}`;
+
+
+if($q->param('env') eq "envcontroldisco")
+{
+	$xact2=$q->param('xact2');
+	$xact2h=$q->param('xact2h');
+	$numcelda=$q->param('numcelda');
+
+$salida="PRUEBA";
+		system("$vsftpdserver stop >/dev/null 2>&1");
+		system("/bin/mkdir -p /local/datos/vsftpd");
+		system("/bin/chown -R vsftpd:nogroup /local/datos/vsftpd");
+		system("/bin/mkdir -p /local/datos/ftp");	
+		system("/bin/chown -R root:nogroup /local/datos/ftp");
+		system("/bin/rm $vsftpdhome");	
+		system("/bin/rm $ftphome");			
+		system("/bin/ln -s /local/datos/vsftpd $vsftpdhome");
+		system("/bin/ln -s /local/datos/ftp $ftphome");			
+		system("$vsftpdserver start >/dev/null 2>&1");		
+
+if($xact2 eq 0 && $xact2h eq 1)
+{
+	system("$vsftpdserver stop >/dev/null 2>&1");
+	system("/bin/rm $vsftpdhome");	
+	system("/bin/rm $ftphome");	
+	system("touch $vsftpdhome");
+	system("touch $ftphome");
+	system("$vsftpdserver start >/dev/null 2>&1");
+}
+
+
+}
+
+
+
+if($q->param('enviar') eq "Insertar")
+{
+$user=$q->param('user');
+$pass=$q->param('password');
+
+my $sth = $dbh->prepare("INSERT INTO usuarios (nombre, contrasena) VALUES ('$user','$pass')")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+system("/bin/mkdir -p ${vsftpdhome}/$user 2>&1");
+system("/bin/chown -R vsftpd:nogroup ${vsftpdhome}/$user 2>&1");
+
+}
+
+
+if($q->param('enviar') eq "Borrar")
+{
+$user=$q->param('user');
+
+my $sth = $dbh->prepare("DELETE FROM usuarios where nombre='$user'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+system("/bin/rm -rf ${vsftpdhome}/$user 2>&1");
+
+}
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$ftp=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*FTP\s*=\s*.*$/)
+     		{
+				s/^.*$/FTP\=$ftp/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	system("$vsftpdserver restart >/dev/null 2>&1 &");
+	
+	system("$cleanall >/dev/null 2>&1");
+	system("$firewall >/dev/null 2>&1");
+	system("$prerouting >/dev/null 2>&1");
+	
+}
+
+
+
+if($q->param('enviar') eq "aplicar")
+{
+	
+		$acccesoanoni=$q->param('acccesoanoni');
+		$uploadanoni=$q->param('uploadanoni');
+		$creadireanoni=$q->param('creadireanoni');
+		$accesousers=$q->param('accesousers');
+		$writeusers=$q->param('writeusers');
+		$ftpd_banner=$q->param('ftpd_banner');
+		$activo=$q->param('activo');
+		$pasivo=$q->param('pasivo');
+		$pasv_min_port=$q->param('pasv_min_port');
+		$pasv_max_port=$q->param('pasv_max_port');
+		$checkcmds_allowed=$q->param('checkcmds_allowed');
+		$cmds_allowed=uc($q->param('cmds_allowed'));
+		
+		$permitidas=$q->param('permitidas');
+		
+		
+		open(NEW, "> $fwserverftp")     or die "can't open $fwserverftp: $!";
+		
+		$i=0;
+		@data = split (/\s+/,$permitidas);
+		
+		while( 1 ) 
+		{
+			$permi = $data[$i];
+		
+			if( $permi eq undef )
+			{
+				last;
+			}
+		
+			print NEW "\$IPTABLES -A INPUT -s $permi -p tcp --dport 21 -j ACCEPT&\n\n" or die "can't write $fwserverftp: $!";
+		
+			$i=$i+1;
+		}
+		close(NEW) or die "can't close $fwserverftp: $!";
+		
+								
+		if ($acccesoanoni eq 1) { $acccesoanoni="YES"; } else {	$acccesoanoni="NO"; }		
+		if ($uploadanoni eq 1) { $uploadanoni="YES"; } else { $uploadanoni="NO"; }
+		if ($writeusers eq 1) { $writeusers="YES"; } else { $writeusers="NO"; }
+		if ($accesousers eq 1) { $accesousers="YES"; } else { $accesousers="NO"; }
+		if ($creadireanoni eq 1) { $creadireanoni="YES"; } else { $creadireanoni="NO"; }
+		if ($activo eq 1) { $activo="YES"; } else { $activo="NO"; }
+		if ($pasivo eq 1) { $pasivo="YES"; } else { $pasivo="NO"; }
+		
+		unless ($checkcmds_allowed eq 1)
+		{
+			$checkcmds_allowed="#";
+		}
+		else
+		{
+			$checkcmds_allowed="";
+		}
+		
+		open(OLD, "< $vsftpdconf")    or die "can't open $vsftpdconf: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			
+			if (/^\s*anonymous_enable=.*$/)
+     		{
+				s/^.*$/anonymous_enable=$acccesoanoni/;
+			}
+			
+			if (/^\s*anon_upload_enable=.*$/)
+     		{
+				s/^.*$/anon_upload_enable=$uploadanoni/;
+			}
+			
+			if (/^\s*write_enable=.*$/)
+     		{
+				s/^.*$/write_enable=$writeusers/;
+			}
+			
+			if (/^\s*local_enable=.*$/)
+     		{
+				s/^.*$/local_enable=$accesousers/;
+			}
+			
+			if (/^\s*anon_mkdir_write_enable=.*$/)
+     		{
+				s/^.*$/anon_mkdir_write_enable=$creadireanoni/;
+			}
+			
+			if (/^\s*ftpd_banner=.*$/)
+     		{
+				s/^.*$/ftpd_banner=$ftpd_banner/;
+			}
+			
+			if (/^\s*port_enable=.*$/)
+     		{
+				s/^.*$/port_enable=$activo/;
+			}
+			
+			if (/^\s*pasv_enable=.*$/)
+     		{
+				s/^.*$/pasv_enable=$pasivo/;
+			}
+			
+			if (/^\s*pasv_min_port=.*$/)
+     		{
+				s/^.*$/pasv_min_port=$pasv_min_port/;
+			}
+			
+			if (/^\s*pasv_max_port=.*$/)
+     		{
+				s/^.*$/pasv_max_port=$pasv_max_port/;
+			}
+
+			if (/^[\s#]*cmds_allowed.*$/)
+     		{
+				s/^.*$/${checkcmds_allowed}cmds_allowed=$cmds_allowed/;
+				
+			}
+					
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $chilliconf: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+		
+		system("/bin/cp $aux $vsftpdconf 1>&2");
+		
+		system("$vsftpdserver restart >/dev/null 2>&1 &");
+		
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");
+			
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*FTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ftpestado = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($ftpestado eq "1") 
+{
+	$estadoftp = "activado.gif";
+	$pasarftp = 0;
+}
+else
+{	
+	$estadoftp = "desactivado.gif";
+	$pasarftp = 1;
+}
+
+
+
+
+
+$i=1;
+open(OLD, "< $fwserverftp")    or die "can't open $fwserverftp: $!";
+		
+	while (<OLD>) 
+	{
+		if (/\$IPTABLES/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$sumoip = $data[4];
+			
+			$ipsumar=$ipsumar." ".$sumoip;
+			
+		}
+
+	}
+close(OLD);
+
+
+
+
+	open(OLD, "< $vsftpdconf")    or die "can't open $vsftpdconf: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*anonymous_enable=YES.*$/)
+     		{
+				$checkaccesoanoni="checked";
+			}
+			
+			if (/^\s*local_enable=YES.*$/)
+     		{
+				$checkaccesousers="checked";
+			}
+			
+			if (/^\s*write_enable=YES.*$/)
+     		{
+				$checkwriteusers="checked";
+			}
+			
+			if (/^\s*anon_upload_enable=YES.*$/)
+     		{
+				$checkuploadanoni="checked";
+			}
+			
+			if (/^\s*anon_mkdir_write_enable=YES.*$/)
+     		{
+				$checkcreadireanoni="checked";
+			}
+			
+			if (/^\s*ftpd_banner=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ftpd_banner = $data[1];
+			}
+			
+			if (/^\s*port_enable=YES.*$/)
+     		{
+				$checkactivo="checked";
+			}
+			
+			if (/^\s*pasv_enable=YES.*$/)
+     		{
+				$checkpasivo="checked";
+			}
+			
+			if (/^\s*pasv_min_port=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$pasv_min_port = $data[1];
+			}
+			
+			if (/^\s*pasv_max_port=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$pasv_max_port = $data[1];
+			}
+			
+			if (/^[\s#]*cmds_allowed=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$cmds_allowed = $data[1];
+				
+				unless(/^\s*#/)
+				{
+					$checkcmdsallowed="checked";
+				}
+			}
+																							
+	}
+
+	close(OLD)     or die "can't close $vsftpdconf: $!";
+
+
+
+
+$activado2 = "0";
+
+$rutadiscoftp=`ls -la ${vsftpdhome} | /bin/sed -e 's/.*-> //'`;
+
+if ($rutadiscoftp =~ /raizmontado\/celda(.*)\/vsftpd$/m)
+{
+	$numcelda=$1;
+	$activado2 = "1";
+}	
+
+open(OLD3, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		
+					while (<OLD3>) 
+					{
+						chomp;
+						$_ =~ /.*/;
+						$_ =~ s/\s+/ /g;
+						
+						if ($_ =~ /^.*raizmontado\/celda(.*)\s\>.*$/m)
+     					{
+							$valoretiqueta=$1;
+						}
+						
+						if ($valoretiqueta eq $numcelda)
+						{
+
+							@data = split (/ /,$_);
+							$monta = $data[2];	
+							@data = split (/#{2}/,$_);
+							
+							$dispo = $data[4];
+							$disco = $data[5];
+
+						}
+					
+					}
+
+		close(OLD3)     or die "can't close $montadodisco: $!";
+
+		
+		if($numcelda eq "")
+		{
+			$disco="";
+		}
+
+
+$bombiroja=0;
+
+if ($activado2 eq 1)
+{
+
+$bombiroja=1;
+
+$estadocelda=`/bin/cat $montadodisco | grep celda${numcelda}`;
+
+@data = split (/\s+/,$estadocelda);
+$uuidvalor = $data[2];
+
+@data = split (/#{2}/,$estadocelda);			
+$dispo = $data[4];
+$dispo =~ s/\s+//g;
+						
+$finddispo=`/sbin/findfs UUID=$uuidvalor`;
+$finddispo =~ s/\/dev\///;
+$finddispo =~ s/(\r?\n)//g;
+
+if($dispo ne $finddispo)
+{
+		open(OLD, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$n=1;
+	
+		while (<OLD>) 
+		{
+				chomp;
+				$_ =~ /.*/;
+			
+		 		if($_ =~ /celda${numcelda}/)
+		 		{
+					$_ =~ s/$dispo/$finddispo/;
+				}
+		 		
+				print NEW $_."\n";
+					
+				$i=$i+1;
+
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $montadodisco 1>&2");
+		
+		$dispo=$finddispo;
+		
+}
+
+$montainfo=`/bin/mount | grep $dispo | grep celda${numcelda}`;
+$montainfo =~ s/(\r?\n)//g;
+
+if ($montainfo ne "")
+{
+	$bombiroja=0;
+}
+
+}
+
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print<<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+/**
+ * function isValidNetIp()
+ */
+function isValidNetIP(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('/');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,2}\$/)==-1)
+		return false;
+	
+	
+    var lmask = parseInt(tempIP[1],10);
+
+	
+	if (lmask<0 || lmask > 32 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+function enviarestado(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el Servidor FTP?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+
+function validarForm()
+{
+
+var lista=document.getElementById('lista').options;
+	document.theform.permitidas.value='';
+	for(i=0;i < lista.length;i++)
+	{	
+		document.theform.permitidas.value+=lista[i].value+' ';
+	}
+
+
+	
+   oscuprocessform();	
+	
+	document.theform.action="ftpserverv3.htm";
+	document.theform.enviar.value="aplicar";
+	document.theform.submit();
+	
+}
+
+
+function pagivaliapli()
+{
+	oscuprocessform();
+	
+	document.theform2.action="portalcautivo.htm";
+	document.theform2.enviar.value="aplicarpagivali";
+	document.theform2.submit();
+	
+}
+
+
+function upload()
+{
+oscuprocessform();
+
+document.theform2.enviar.value="Upload";
+document.theform2.action='portalcautivo.htm';
+document.theform2.submit();
+}
+
+</script>
+
+
+
+
+<script>
+
+
+
+function toggle(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+			
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;		
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		//var id = curListener.split('x')[0];
+	    var tiempo="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.tiempo.elements.length;i++)
+		{
+			if(document.tiempo.elements[i].checked==true)
+			{
+				if (tiempo!="") tiempo += ",";
+				tiempo+=document.tiempo.elements[i].name;
+			}
+		}
+		
+		var control=document.getElementById('control').value;
+		
+ 		document.getElementById(control+'dias').value=tiempo;
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+function ConstructObject1(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:170;height:"+this.cnt.offsetHeight+"; overflow:hidden; top:0; left:0; clip:rect(0,170,"+this.cnt.offsetHeight+",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+function InitialiseScrollableArea1(name,data)
+{ 
+    var obj=new ConstructObject1(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function aplicarvalor2(infodisk,etiqueta,numero)
+{
+asignar=document.getElementById('control').value;
+
+document.getElementById(asignar).value=etiqueta;
+document.getElementById('numcelda').value=numero;
+	
+	clearLista();
+}
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	objContainer1=InitialiseScrollableArea1('divContainer1',null);
+	//initRules();
+} 
+
+
+
+
+function load(theForm,lista,nombre)
+{
+	var lista=document.getElementById(lista);
+	if(lista.selectedIndex==-1)
+		return;
+
+	nombre.value=lista.options[lista.selectedIndex].value;
+
+	lista.options[lista.selectedIndex]=null;	
+}
+
+function anadir(theForm)
+{
+	var lista=document.getElementById('lista');
+
+	//if(theForm.nombre.value==null || theForm.nombre.value.search(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))\$/)!=0)
+	//{
+	//	alert('Se esperaba una dirección de correo válida');	
+	//	return false;
+	//}
+	
+	if(isValidIP(theForm.nombre.value)==false && isValidNetIP(theForm.nombre.value)==false)
+	{
+		alert('Se esperaba una IP o Red válida');	
+		return false;
+	}
+
+
+	lista.options[lista.options.length]=new Option(theForm.nombre.value,theForm.nombre.value);
+	theForm.nombre.value='';
+	return true;
+	
+}
+
+function del()
+{
+	var lista=document.getElementById('lista');
+	if(lista.selectedIndex==-1)
+		return;
+	nombre=lista.options[lista.selectedIndex].value.split('::')[0];
+	
+	selind = lista.selectedIndex;
+	lista.options[lista.selectedIndex]=null;	
+	lista.selectedIndex = selind;
+}
+
+
+
+function rangocompre(valor)
+{
+var valor
+document.theform.compresionvalor.value = valor;
+
+imagenOn = new Image();
+
+for(i = 1; i < document.theform.compresion.length;i++)
+{
+	if(i < valor)
+	{
+		document.compresion[i].src='../images/minibar.gif';
+	}
+	else
+	{
+		document.compresion[i].src='../images/minibargris.gif';
+	}
+}
+
+ 
+return false;
+}
+
+
+function rangocalijpg(valor)
+{
+var valor
+document.theform.calidadjpgvalor.value = valor;
+
+imagenOn = new Image();
+
+for(i = 1; i < document.theform.calidadjpg.length;i++)
+{
+	if(i < valor)
+	{
+		document.calidadjpg[i].src='../images/minibar.gif';
+	}
+	else
+	{
+		document.calidadjpg[i].src='../images/minibargris.gif';
+	}
+}
+ 
+return false;
+}
+
+
+
+function sendform(paso,tipo,download)
+{	
+ 		//debugger;
+ 		if( download==false  && document.getElementById("file"+paso).value=='')
+     	{
+     		alert("Primero debe seleccionar un archivo");
+     		return;
+     	}
+	
+		document.theform.paso.value = paso;
+ 
+		oscuprocessform(); 
+     	
+     	document.theform.submit();
+}
+
+
+minibarg =  new Image(18,19);
+minibarg.src = "../images/minibarg.gif"
+
+minibargrisg =  new Image(23,19);
+minibargrisg.src = "../images/minibargrisg.gif"
+
+
+function posicion(tipo)
+{
+	
+	if(tipo != undefined)
+	{
+		if (document.getElementById("mosaico").checked==false)
+		{
+			var imagen = document.getElementById("posi"+tipo);
+			
+			document.getElementById("positopleft").src='../images/minibargrisg.gif';
+			document.getElementById("positopcenter").src='../images/minibargrisg.gif';
+			document.getElementById("positopright").src='../images/minibargrisg.gif';
+			document.getElementById("posicenterleft").src='../images/minibargrisg.gif';
+			document.getElementById("posicenter").src='../images/minibargrisg.gif';
+			document.getElementById("posicenterright").src='../images/minibargrisg.gif';
+			document.getElementById("posibottomleft").src='../images/minibargrisg.gif';
+			document.getElementById("posibottomcenter").src='../images/minibargrisg.gif';
+			document.getElementById("posibottomright").src='../images/minibargrisg.gif';
+			
+			imagen.src='../images/minibarg.gif';
+			
+			document.theform2.posicionimagen.value=tipo;
+		}
+	}
+	
+	//clearLista();
+}
+
+
+function checkmosaico()
+{
+
+if (document.getElementById("mosaico").checked==true)
+{
+	document.getElementById("positopleft").src='../images/minibarg.gif';
+	document.getElementById("positopcenter").src='../images/minibarg.gif';
+	document.getElementById("positopright").src='../images/minibarg.gif';
+	document.getElementById("posicenterleft").src='../images/minibarg.gif';
+	document.getElementById("posicenter").src='../images/minibarg.gif';
+	document.getElementById("posicenterright").src='../images/minibarg.gif';
+	document.getElementById("posibottomleft").src='../images/minibarg.gif';
+	document.getElementById("posibottomcenter").src='../images/minibarg.gif';
+	document.getElementById("posibottomright").src='../images/minibarg.gif';
+	document.theform2.posicionimagen.value="center";
+}
+else
+{
+	document.getElementById("positopleft").src='../images/minibargrisg.gif';
+	document.getElementById("positopcenter").src='../images/minibargrisg.gif';
+	document.getElementById("positopright").src='../images/minibarg.gif';
+	document.getElementById("posicenterleft").src='../images/minibargrisg.gif';
+	document.getElementById("posicenter").src='../images/minibargrisg.gif';
+	document.getElementById("posicenterright").src='../images/minibargrisg.gif';
+	document.getElementById("posibottomleft").src='../images/minibargrisg.gif';
+	document.getElementById("posibottomcenter").src='../images/minibargrisg.gif';
+	document.getElementById("posibottomright").src='../images/minibargrisg.gif';
+	
+	document.theform2.posicionimagen.value="topright";
+}
+
+}
+
+
+
+function verpassw(valor)
+{
+
+thisInput = document.getElementById(valor+'x1');
+valordefecto = document.getElementById(valor+'x1').value;
+
+changeInputType(thisInput,'text',valordefecto,false,true);
+
+}
+
+
+function changeInputType(
+  oldElm, // a reference to the input element
+  iType, // value of the type property: 'text' or 'password'
+  iValue, // the default value, set to 'password' in the demo
+  blankValue, // true if the value should be empty, false otherwise
+  noFocus) {  // set to true if the element should not be given focus
+ 
+  if(!oldElm || !oldElm.parentNode || (iType.length<4) || 
+    !document.getElementById || !document.createElement) return;
+  var newElm = document.createElement('input');
+  newElm.type = iType;
+  if(oldElm.name) newElm.name = oldElm.name;
+  if(oldElm.id) newElm.id = oldElm.id;
+  if(oldElm.className) newElm.className = oldElm.className;
+  if(oldElm.size) newElm.size = oldElm.size;
+  if(oldElm.tabIndex) newElm.tabIndex = oldElm.tabIndex;
+  if(oldElm.accessKey) newElm.accessKey = oldElm.accessKey;
+  newElm.onfocus = function(){return function(){
+    if(this.hasFocus) return;
+    var newElm = changeInputType(this,'password',iValue,
+      (this.value.toLowerCase()==iValue.toLowerCase())?true:false);
+    if(newElm) newElm.hasFocus=true;
+  }}();
+  newElm.onblur = function(){return function(){
+    if(this.hasFocus)
+    if(this.value=='' || (this.value.toLowerCase()==iValue.toLowerCase())) {
+      changeInputType(this,'text',iValue,false,true);
+    }
+  }}();
+ // hasFocus is to prevent a loop where onfocus is triggered over and over again
+  newElm.hasFocus=false;
+  oldElm.parentNode.replaceChild(newElm,oldElm);
+  if(!blankValue) newElm.value = iValue;
+  if(!noFocus || typeof(noFocus)=='undefined') {
+    window.tempElm = newElm;
+    setTimeout("tempElm.hasFocus=true;tempElm.focus();",1);
+  }
+  return newElm;
+}
+
+
+
+
+flechaact3 =  new Image(27,25);
+flechaact3.src = "../images/bombillaactivado.gif"
+flechades3 =  new Image(27,25);
+flechades3.src = "../images/bombilladesactivado.gif"
+
+flechaactR =  new Image(27,25);
+flechaactR.src = "../images/bombillaactivadoroja.gif"
+
+function toggleRegla3()
+{
+
+	var flecha3 = document.getElementById('flechadisco');
+	
+	if(flecha3.src == flechaact3.src)
+	{
+		flecha3.src = flechades3.src;
+		document.getElementById('xact2').value=0;
+	}
+	else
+	{
+		flecha3.src = flechaact3.src;	
+		document.getElementById('xact2').value=1;
+	}
+
+}
+
+
+
+function insertar()
+{
+//oscuprocessform();
+
+document.theform.enviar.value="Insertar"
+document.theform.action='ftpserverv3.htm';
+document.theform.submit();
+}
+
+
+function validarkey(e)
+{			
+ 	tecla = (document.all) ? e.keyCode : e.which; // 2
+    if (tecla!=13) return true; // 3
+    patron =/[.+]/; // 4
+    te = String.fromCharCode(tecla); // 5
+    return patron.test(te); // 6
+}
+
+function validarkeymin(e)
+{			
+ 	tecla = (document.all) ? e.keyCode : e.which; // 2
+    if (tecla==8) return true; // 3
+    patron =/[A-Za-z,]/; // 4
+    te = String.fromCharCode(tecla); // 5
+    return patron.test(te); // 6
+}
+
+function envcontroldisco()
+{
+
+if (document.getElementById('xact2').value ==1 && document.getElementById('disco').value=='')
+{
+	alert('Seleccione una unidad de datos al activar');	
+	return false;
+}
+
+if (document.getElementById('xact2').value == 0)
+{
+	document.getElementById('disco').value=='';
+}
+
+oscuprocessform();
+
+document.theform.env.value="envcontroldisco";
+document.theform.action='ftpserverv3.htm';
+document.theform.submit();
+}
+
+</script>
+
+
+<style>
+<!--
+
+/* Context menu Script- © Dynamic Drive (www.dynamicdrive.com) Last updated: 01/08/22
+For full source code and Terms Of Use, visit http://www.dynamicdrive.com */
+
+.skin0{
+position:absolute;
+width:165px;
+border:2px solid orange;
+background-color:menu;
+font-family:Verdana;
+line-height:20px;
+cursor:default;
+font-size:10px;
+z-index:100;
+visibility:hidden;
+filter:alpha(opacity=85);-moz-opacity:.85;opacity:.85;
+}
+
+.menuitems{
+padding-left:10px;
+padding-right:10px;
+}
+-->
+</style>
+
+   
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+<br>
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer1" class="opaco1" style="visibility:hidden;">
+
+<!-- vvvvv flechitas vvvvv -->
+<!--
+  <div id="divUpControl2" class="divUp" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer1,+7)" onMouseOut="CeaseScroll(objContainer1)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer1,-7)" onMouseOut="CeaseScroll(objContainer1)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+-->
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="100%" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+
+<div width="100%" align="left" id="divContainer1cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="160">
+EOF
+		
+print "<tr><td height='4'></td></tr>";
+
+
+
+open(OLD, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+				
+			@data = split (/ /,$_);
+			
+				
+			$monta = $data[2];
+			
+			@data = split (/#{2}/,$_);
+			
+			
+			$etiqueta = $data[5];
+			
+			
+			print "<tr><td height='10' colspan='10'></td></tr>\n";
+			print "<tr><td align='right'><img src='../images/discomini.gif'>&nbsp;</td><td><font onclick='aplicarvalor2(\"$infodisk\",\"$etiqueta\",\"$i\")' size=1 style='cursor:pointer'>$etiqueta</font></td></tr>\n";
+			
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $montadodisco: $!";
+
+print "<tr><td height='10' colspan='10'></td></tr>\n";
+print "<tr><td width=5></td><td colspan='10'>Disponible DATOS (LVM)</td></tr>";
+print "<tr><td height='10'></td></tr>";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="enviar" type="hidden"><input name="env" type="hidden"><input name="estado" type="hidden">
+<input name="permitidas" type="hidden"><input type="hidden" name="control" id='control'>
+
+
+
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 class="subtitulo"><B>Servidor FTP</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<br><br><br>
+
+<table border=0><tr>
+<td valign="top" align="center">
+
+
+<table><tr>
+<td><img src="../images/$estadoftp" onClick="enviarestado('$pasarftp')" style="cursor:pointer"></td><td width="4"></td><td>$rat_activar</td><td width="40"></td>
+</tr></table>
+<br><br>
+<table class="bordenegrosombra2" border="0">
+
+<tr><td height="5"></td></tr>
+<tr><td width="340" valign="top">
+
+
+<table cellspacing="0" cellpadding="0" border="0">
+<tr><td  width="380" height="23" class="barratituloazulsinredon" align="center"><font color="white"><b>$ftpserver_acceso</b></font></td></tr>
+</table><br>
+
+<table width="310" align="center" border="0">
+<tr><td width="5"><input type="checkbox" name="acccesoanoni" id="acccesoanoni" value="1" $checkaccesoanoni></td><td align='left' colspan="2"><b>$ftpserver_pacceso</b></td></tr>
+<tr><td width="5"><input type="checkbox" name="uploadanoni" id="uploadanoni" value="1" $checkuploadanoni></td><td align='left' colspan="2"><b>$ftpserver_psubida</b></td></tr>
+<tr><td width="5"><input type="checkbox" name="creadireanoni" id="creadireanoni" value="1" $checkcreadireanoni></td><td align='left' colspan="2"><b>$ftpserver_pcreacion</b></td></tr>
+</table>
+
+
+<br>
+
+<table cellspacing="0" cellpadding="0" border="0">
+<tr><td  width="380" height="23" class="barratituloazulsinredon" align="center"><font color="white"><b>$ftpserver_privado</b></font></td></tr>
+</table><br>
+
+<table width="310" align="center" border="0">
+<tr><td width="5"><input type="checkbox" name="accesousers" id="accesousers" value="1" $checkaccesousers></td><td align='left' colspan="2"><b>$ftpserver_pprivado</b></td></tr>
+<tr><td width="5"><input type="checkbox" name="writeusers" id="writeusers" value="1" $checkwriteusers></td><td align='left' colspan="2"><b>$ftpserver_pescrivir</b></td></tr>
+</table>
+
+
+<br>
+
+<table cellspacing="0" cellpadding="0" border="0">
+<tr><td  width="380" height="23" class="barratituloazulsinredon" align="center"><font color="white"><b>$ftpserver_configuracion</b></font></td></tr>
+</table><br>
+
+<table border="0">
+<tr><td></td><td></td><td>$ftpserver_mostrara</td></tr>
+
+<tr>
+<td align='right'><b>$ftpserver_mensaje</b></td>
+<td align='center' width=1></td>
+<td width='104'><input class='campotxt' type='text' id='ftpd_banner' name='ftpd_banner' size=35 value='${ftpd_banner}'></td>
+</tr>
+
+</table>
+
+<br>
+<table border="0"><tr><td width="12"></td><td>
+<table border="0">
+<tr><td colspan="5">$ftpserver_modos</td></tr>
+<tr><td width="5"><input type="checkbox" name="activo" value="1" ${checkactivo}></td><td colspan="3"><b>$ftpserver_activo</b></td></tr>
+<tr><td width="5"><input type="checkbox" name="pasivo" value="1" ${checkpasivo}></td><td><b>$ftpserver_pasivo</b></td>
+<td>
+
+<table border="0">
+<tr>
+<td align='right'>$ftpserver_pminimo</td>
+<td><input class='campotxt' type='text' id='pasv_min_port' name='pasv_min_port' size=5 value='${pasv_min_port}'/></td>
+</tr>
+<tr>
+<td align='right'>$ftpserver_pmaximo</td>
+<td><input class='campotxt' type='text' id='pasv_max_port' name='pasv_max_port' size=5 value='${pasv_max_port}'/></td>
+</tr>
+</table>
+
+</td>
+</tr>
+</table>
+
+<br>
+
+<table>
+<tr><td><input type="checkbox" name="checkcmds_allowed" id="checkcmds_allowed" value="1" ${checkcmdsallowed}></td><td>$ftpserver_permitir</td></tr>
+<tr>
+<td align='right'></td>
+<td width='104'><textarea cols=42 rows=2 class='campotxt' id='cmds_allowed' name='cmds_allowed' onkeypress='return validarkeymin(event)' style='background:url();scrollbar-face-color: #ffffff; scrollbar-highlight-color: #ffffff; scrollbar-3dlight-color: #ffffff; scrollbar-darkshadow-color: #ffffff; scrollbar-shadow-color: #ffffff; scrollbar-arrow-color: #ffffff; scrollbar-track-color: #ffffff'>$cmds_allowed</textarea></td>
+</tr>
+</table>
+</td></tr></table>
+
+
+<br>
+
+<table border="0">
+<table>
+<tr><td>
+</td></tr>
+</table>
+
+
+             
+
+</td></tr>
+</table>
+
+<br><br>
+ <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+
+
+
+
+
+
+</td><td width="30"></td><td valign="top">
+
+<center>
+EOF
+$disco="IMTDATOS";
+print <<EOF;
+<table width="210" border="0">
+<tr>
+<!--<td width='50' align='center'><img src='../images/discoide.gif'></td>-->
+<td align='center' width=5></td>
+<td width='150'><b>$netbiosconfig_unidad:</b><br><input class='campotxt4' type='text' id='disco' name='disco' size=18 value='$disco' readonly><input class='campotxt4' type='hidden' id='numcelda' name='numcelda' value='$numcelda'></td>
+<!--<td valign="center" align="left"><font color="white">0</font><br><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"disco\",objContainer1,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>-->
+<td>
+<script language='javascript'>/*document.write('<img id=\"flechadisco\" src=\"'+($activado2 == 1?flechaact3.src:flechades3.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla3()\" >');*/</script>
+<input  type='hidden' id='xact2' name='xact2' value='$activado2'/><input  type='hidden' id='xact2h' name='xact2h' value='$activado2'/>
+</td>
+<!--<td><img src='../images/ok.gif' style="cursor:pointer" onClick="envcontroldisco()"></td>-->
+</tr>
+<tr>
+<!--<td><img src="../images/lupavisudisco.gif"></td>-->
+<td></td><td colspan="2">
+$ftpserver_gestor<br>
+<div style="cursor:pointer" onClick="myRef = window.open('/imt/ftpserverv3.htm?dir=/home/ftp/','mywin','left=330,top=150,width=900,height=600,toolbar=1,resizable=1,status=0,menubar=1,scrollbars=yes');myRef.focus()">
+<table><tr><td><img src="../images/miniverdeflecha.gif"></td><td><b>$ftpserver_ftppublico</b></td></tr></table>
+</div>
+<div style="cursor:pointer" onClick="myRef = window.open('/imt/ftpserverv3.htm?dir=/home/vsftpd/','mywin','left=330,top=150,width=900,height=600,toolbar=1,resizable=1,status=0,menubar=1,scrollbars=yes');myRef.focus()">
+<table><tr><td><img src="../images/miniverdeflecha.gif"></td><td><b>$ftpserver_ftpprivado</b></td></tr></table>
+</div>
+</td>
+</tr>
+</table>
+</center>
+
+<br><br>
+
+<center>
+
+<!--<table cellpadding="2" cellspacing="0" border="0" width="250" class="bordecuadrof">
+        <tr> 
+          <td class="bordecuadrof"> <table cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr> 
+                <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$ftpserver_control</b></td>
+              </tr>
+            </table></td>
+        </tr>
+        <tr>
+          <td class="bordecuadrof"> -->
+          
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="290" height="150">
+		<tr><td width="290" height="23" class="barratituloazul" colspan="2">&nbsp;&nbsp;&nbsp;<b><font color=white>$ftpserver_control</b></font></td></tr>
+		<tr><td height="5"></td></tr>
+		<tr><td width="10"></td><td>            
+          
+          <table>
+          <tr> 
+            <td>          
+          <div align="center"> 
+
+<table cellspacing="3" cellpadding="3" align="center" border="0">
+                <tr> 
+                  <td width="60"> <table cellpadding="0" cellspacing="0" border="0">
+                      <tr> 
+                        <td><b>$ftpserver_permitidas</b></td>
+                      </tr>
+                      <tr> 
+                        <td><input id="nombre" size="25" class="campotxt" type="text" name="nombre"></td>
+                      </tr>
+                    </table></td>
+                  <td valign="bottom"><img alt="editar" onClick="load(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flecharriba.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="a&ntilde;adir" onClick="anadir(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flechabajo.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="borrar" onClick="del('lista')" height="17" width="16" src="../images/flechax.gif" style="cursor:pointer"></td>
+                </tr>
+                <tr> 
+                  <td align="left" colspan="4"> <div align="left"> 
+                      <table cellpadding="0" cellspacing="0" border="0" width="260">
+                        <tr> 
+                          <td rowspan="6" width="87%"><select id="lista"  class="campotxt" size="5" name="lista" style="width:100%">
+                              </select></td>
+                        </tr>
+                      </table>
+
+				 </div></td>
+               </tr>
+              </table>
+				</td>
+                </tr>
+              </table>
+              
+              </td>
+                </tr>
+                <tr><td height="5"></td></tr>
+              </table>
+
+<br>  
+<br>
+
+<table border="0"><tr><td valign="top">
+<center>
+<table cellspacing="0" cellpadding="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="340">
+<tr><td  height="23"  width="100%" class="barratituloazul">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$vpnpptp_usuario
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PASSWORD</b></font></td></tr>
+<tr><td height="5"></td></td>
+<tr><td align="left">
+	
+		
+<table cellspacing='3' cellpadding='0' width=280 border=0>
+<tr><td width="20"></td>
+<td align='center' width='30'>
+<!--<img  onClick='insertar()' style='cursor:pointer' src='../images/mas.jpg' border='0' alt='insertar' >-->
+
+<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onClick='insertar()'><b>+</b></div>				
+				
+
+</td>
+<td width='100' align='left'><input id='user' name='user' type='text' value='' class='campotxt' size=14></td>
+				
+<td align='center' width=5></td>
+	
+<td width='110'><input class='campotxt' type='password' id='password' name='password' size=15 value=''/></td>
+</tr>
+<tr><td></td>
+<td></td><td width='110' colspan='4'><font color='black'>$openvpnusername_insert</font></td>
+</tr>
+</table>
+
+<div id='scroll' style='height: 237px; overflow: auto;float:center;	width:340px;'>
+
+<table cellspacing="2" cellpadding="0" width=320 class="linea"  border=0>
+EOF
+
+my $sth = $dbh->prepare("SELECT * FROM usuarios order by nombre")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+	
+$i="1";
+
+ while (@linea = $sth->fetchrow_array) {
+ 
+ 				if ($linea[0] ne admin)
+				{
+			
+				print "<tr><td width=5></td>\n";
+				print "<td align='left' width='30'>
+				
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?enviar=Borrar&user=${linea[1]}\"'><b>-</b></div>				
+								
+				
+				</td>\n";
+	
+				print "<td width='120' align='left'><input type='text' id='${i}x0' name='${i}x0'  value='$linea[1]' class='campotxt4' size=14 readonly><input type='hidden' id='${i}x0h' name='${i}x0h'  value='$linea[1]' class='campotxt' size=14></td>\n";
+				
+				print "<td align='center' width=5></td>\n";
+	
+				print "<td width='120'><input  type='password' id='${i}x1' name='${i}x1' value='$linea[2]' class='campotxt' size=15></td>\n";
+				
+				print "<td width=5></td><td align='left' width=25><img src='/images/lupaminiver' style='cursor:pointer' onClick='verpassw(${i})'></td><td width='3'></td>\n";
+				
+				print "</tr>\n";
+				
+				$i=$i+1;
+				}
+				
+				
+		}
+		$i=$i-1;
+
+print <<EOF;
+</table>
+            
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+</table>
+</div>
+
+			  
+			  <br>			  
+			
+
+</center>
+
+
+
+<script type="text/javascript" language="javascript1.2">
+//cargar lista blanca
+lblanca = '$ipsumar';
+
+lblanca = lblanca.split(" ");
+lblanca = lblanca.sort();
+
+var lista=document.getElementById('lista');	
+
+
+for(i = 0; i < lblanca.length;i++)
+{	
+	if (lblanca[i]=="") continue;
+	nombre=lblanca[i];
+	lista.options[lista.options.length]=new Option(nombre,nombre);
+}
+
+
+</script>
+
+<script language="javascript">InitialiseAreas(); </script>
+EOF
+require "$imtlayers";
+print <<EOF;
+</form>
+ </body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

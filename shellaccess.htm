@@ -1,0 +1,672 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+
+$dbuser="root";
+$dbpass="";
+
+
+    my $dbh = DBI->connect('DBI:mysql:database=controlweb;host=localhost;port=3306',$dbuser,$dbpass)
+               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+
+
+	if($q->param('env') eq "1")
+    {
+		$passwdroot=$q->param('passwdroot');
+		$puertossh=$q->param('puertossh');
+		$puertosshocul=$q->param('puertosshocul');
+		$userantesroot=$q->param('userantesroot');
+		$userantesrootocul=$q->param('userantesrootocul');
+		
+		
+		if($userantesroot eq 1)
+		{
+			$userantesroot="no";
+			#system("/usr/sbin/usermod -L imt332");
+		}
+		else
+		{
+			$userantesroot="yes";
+			#system("/usr/sbin/usermod -U imt332");
+		}
+		
+		
+		
+		$passwdimt=$q->param('passwdimt');
+		
+		if($passwdimt ne "")
+		{
+		
+		if($versionimt =~ /imt3/)
+		{
+			$versiuserimt="332";
+		}
+		else
+		{
+			$versiuserimt="";
+		}
+		
+		system("/bin/echo 'imt${versiuserimt}:${passwdimt}' | /usr/sbin/chpasswd");
+		}
+		
+		
+		$mismopasswdweb=$q->param('mismopasswdweb');
+		
+		
+		if($mismopasswdweb eq 1)
+		{
+		
+
+		my $sth = $dbh->prepare("SELECT password from authreg where username='imtadmin'")
+                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+		$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;
+
+		@linea = $sth->fetchrow_array;
+		
+		system("/bin/echo 'root:${linea[0]}' | /usr/sbin/chpasswd");
+
+		}
+		else
+		{
+		
+		if($passwdroot ne "")
+		{
+		system("/bin/echo 'root:${passwdroot}' | /usr/sbin/chpasswd");
+		}
+		}
+		
+		system("/bin/echo $mismopasswdweb > $mismopassweb");	
+
+		
+		
+		if(($puertossh ne $puertosshocul) || ($userantesroot ne $userantesrootocul))
+		{
+		
+		open(OLD, "< $sshconfig")    or die "can't open $sshconfig: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			
+			if($puertossh ne $puertosshocul)
+			{
+				if(/^Port/)
+     			{
+					if($puertossh ne $puertosshocul)
+					{
+						s/^.*$/Port $puertossh/;
+					}
+				}
+			}
+			
+			
+			if($userantesroot ne $userantesrootocul)
+			{
+				if (/^PermitRootLogin/)
+     			{
+					s/^.*$/PermitRootLogin $userantesroot/;
+				}
+			}
+  		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $sshconfig: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+
+		if(($puertossh ne $puertosshocul) || ($userantesroot ne $userantesrootocul))
+		{
+		system("/bin/cp $aux $sshconfig 1>&2");
+		
+		system("$sshdemonio restart  >/dev/null 2>&1");
+		}
+		
+		
+		
+		# Modifición variables
+		open(OLD, "< $variables")    or die "can't open $variables: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		if($puertossh ne $puertosshocul)
+		{
+			if (/SHELLPORT=/)    
+     		{
+
+					s/^.*$/SHELLPORT=$puertossh/;				
+			}
+		}
+		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $variables: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+	
+		system("/bin/cp $aux $variables  >/dev/null 2>&1");
+		
+		
+		
+		# Modifición variables
+		open(OLD, "< $sshdmonit")    or die "can't open $sshdmonit: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		if($puertossh ne $puertosshocul)
+		{
+			if (/protocol\sssh/)    
+     		{
+
+					s/[0-9]+\sprotocol\sssh/$puertossh protocol ssh/;				
+			}
+		}
+		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $sshdmonit: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+	
+		system("/bin/cp $aux $sshdmonit  >/dev/null 2>&1");
+		
+		
+	   	system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");
+		
+										
+		}
+		
+		
+		$emailaccesossh=$q->param('email');
+		
+		open(OLD, "< $notificarvar")    or die "cant open $notificarvar: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+			
+		while (<OLD>) 
+		{
+			if(/^\s*emailaccesossh\s*=\s*.*$/)
+     		{
+				s/^.*$/emailaccesossh\=$emailaccesossh/;
+			}
+						
+			print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $notificarvar: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+		
+		system("/bin/cp $aux $notificarvar 1>&2");
+		
+		
+		
+    }
+
+
+
+
+#lectura DNS
+#···············································································	
+
+	open(OLD, "< $sshconfig")    or die "can't open $sshconfig: $!";
+	
+	while (<OLD>) 
+	{
+			if (/^Port/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+				
+				$puertossh = $data[1];
+
+			}
+			
+			if (/^PermitRootLogin/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+				
+				$permitiroot = $data[1];
+
+			}
+			
+			
+	}
+
+	close(OLD)     or die "can't close $sshconfig: $!";
+
+if($permitiroot eq "no")
+{
+	$activadoroot="no";
+	$actipassroot="checked";
+}
+else
+{
+	$activadoroot="yes";
+	$actipassroot="";
+}
+
+
+
+$activadomismo=`/bin/cat $mismopassweb`;
+$activadomismo =~ s/(\r?\n)//g;
+
+$actipass="checked";
+
+if($activadomismo ne "1")
+{
+	$activadomismo=0;
+	$actipass="";
+}
+
+
+$ssh = "1";
+#señal de estado de cada servicio
+#···············································································
+if($ssh eq "1") 
+{
+	$estadossh = "activado.gif";
+	$pasarssh = 0;
+}
+else
+{	
+	$estadossh = "desactivado.gif";
+	$pasarssh = 1;
+}
+
+
+
+
+
+#lectura de notificarvar - email
+#···············································································	
+
+	open(OLD, "< $notificarvar")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+
+			if (/^\s*emailaccesossh\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$emailaccesossh = $data[1];
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $variables: $!";
+
+
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+
+
+function isValidIP(tempIP){
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+} 
+
+
+function isStringsEqual(s1,s2){
+
+	if (s1.length != s2.length)
+
+		return false;
+
+	for(i=0;i<s1.length;i++) {
+
+		if (s1.charAt(i) != s2.charAt(i))
+
+			return false;
+
+	}
+
+	return true;
+
+}
+
+
+
+function enviar()
+{
+
+	if(!confirm('¿Desea aplicar los cambios?'))
+	return false;
+	
+	if (!isStringsEqual(document.theform.passwdroot.value,document.theform.passwdrootrepit.value)) {
+			alert('$pwdadmin_alert3');
+			return;
+	}
+	
+	if (!isStringsEqual(document.theform.passwdimt.value,document.theform.passwdimtrepit.value)) {
+			alert('$pwdadmin_alert3');
+			return;
+	}
+	
+oscuprocessform();
+						
+theform.env.value = 1;
+document.theform.submit();
+
+
+}
+
+
+function desacti()
+{
+
+if (document.getElementById('mismopasswdweb').checked == true)
+{
+	document.theform.passwdroot.style.background = '#3e73a8';
+	document.theform.passwdroot.style.color = 'white';
+	document.theform.mismopasswdweb.value = 1;
+}
+else
+{
+	document.theform.passwdroot.style.background = 'white';
+	document.theform.passwdroot.style.color = 'black';
+	document.theform.mismopasswdweb.value = 0;
+}
+
+}
+
+
+/*function desactiroot()
+{
+
+if (document.getElementById('userantesroot').checked == true)
+{
+	document.theform.userantesroot.value = 'no';
+}
+else
+{
+	document.theform.userantesroot.value = 'yes';
+}
+
+}*/
+
+function enviarestado()
+{
+}
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden"><input name="valorpreferido" type="hidden" value="${preferido}">
+<input name="volver" type="hidden" value="$volver">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/consolaminilinux.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$shellaccess_titulo1</B></FONT></td></tr></table><br>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P><br><br>
+
+	<table width="650" border="0"><tr><td align="left">
+	
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>	
+	
+<!--<A HREF=poliacceso.htm target=main><img src="../images/volver.gif" border="0"><br>$fw_volver</a>--> 
+</td>
+</tr></table>
+<br>
+
+<P>
+
+<table border="0" class="bordenegrosombra" width="380" height="130"><tr><td>
+
+<TABLE border="0">
+
+<TR><TD height="8"></TD></TR>
+
+<TR>
+
+<TD></TD><TD><font color="#669900"><b>$inicio_escucha ssh:</b></font></TD>
+
+<TD>
+
+&nbsp;<INPUT TYPE="text" NAME="puertossh" SIZE=5 value="$puertossh" class="campotxt" id="puertossh">
+<INPUT TYPE="hidden" NAME="puertosshocul" SIZE=5 value="$puertossh" class="campotxt" id="puertosshocul">
+</TD>
+
+</TR>
+
+<TR><TD height="8"></TD></TR>
+
+<tr><td colspan="10">
+
+<table><tr>
+<td width="30"></td><td><img src="../images/cartaverde.gif" border=0></td><td><table border="0"><tr><td>$shellaccess_avisoemail</td></tr><tr><td><input type="text" name="email" value="$emailaccesossh" class="campotxt" size="28"></td></tr></table></td>
+</tr></table>
+		
+</td></tr>
+
+<TR><TD height="8"></TD></TR>
+
+<TR>
+
+<TD><input type="checkbox" name="mismopasswdweb" id="mismopasswdweb" onClick="desacti()" value="$activadomismo" ${actipass}></TD><TD colspan="3"><b>$shellaccess_frase1</b> </TD>
+
+<TD>
+
+</TR>
+
+
+<TR><td></td>
+<TD colspan="2">
+<table cellpadding="0" width="230">
+
+<TR>
+
+<TD></TD><TD>$usuario  </TD>
+
+<TD>
+
+&nbsp;<b>root</b>
+
+</TD>
+
+</TR>
+
+<TR>
+
+<TD></TD><TD align="right">$pwdadmin_passwd&nbsp;</TD>
+
+<TD>
+
+&nbsp;<INPUT TYPE="password" NAME="passwdroot" SIZE=15 value="" class="campotxt" id="passwdroot">
+
+</TD>
+
+</TR>
+
+<TR><TD></TD><TD align="right">$pwdadmin_reescribir&nbsp;</TD>
+
+<TD>&nbsp;<INPUT TYPE="password" id="passwdrootrepit" NAME="passwdrootrepit" SIZE=15 class="campotxt">
+
+</TD></TR>
+
+
+
+</table>
+</TD>
+<td>
+<img src="../images/llaves.gif">
+</td>
+</TR>
+
+<TR><TD height="8"></TD></TR>
+
+<TR><TD colspan="5" align="center"><img src="../images/lineacorta.gif"></TD></TR>
+
+<TR>
+
+<TR><TD height="8"></TD></TR>
+
+<TD><input type="checkbox" name="userantesroot" id="userantesroot" value="1" ${actipassroot}></TD><TD colspan="3"><b>$shellaccess_frase2</b></TD>
+<input type="hidden" name="userantesrootocul" id="userantesrootocul" value="$activadoroot">
+<TD>
+
+</TR>
+
+
+<TR><TD height="8"></TD></TR>
+
+<TR>
+<td></td>
+<TD  colspan="3">
+<table cellpadding="0" width="230">
+
+<TR>
+
+<TD>$usuario  </TD>
+
+<TD>
+
+&nbsp;<b>imt332</b>
+
+</TD>
+
+</TR>
+
+<TR>
+
+<TD align="right">$pwdadmin_passwd&nbsp;</TD>
+
+<TD>
+
+&nbsp;<INPUT TYPE="password" NAME="passwdimt" id="passwdimt" SIZE=15 value="$passwdimt" class="campotxt">
+
+</TD>
+
+</TR>
+
+<TR><TD align="right">$pwdadmin_reescribir&nbsp;</TD>
+
+<TD>&nbsp;<INPUT TYPE="password" id="passwdimtrepit" NAME="passwdimtrepit" SIZE=15 class="campotxt">
+
+</TD></TR>
+
+</table>
+
+</TD>
+</TR>
+</TABLE>
+
+<br>
+</td></tr></table>
+
+<P>
+<center>
+<input type="image" src="../images/submit_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onClick="enviar()">
+
+<input type="image" src="../images/reset_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()">
+</center>
+
+<P><br>
+
+</CENTER>
+
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+</body>
+</html>
+EOF
+
+
+
+

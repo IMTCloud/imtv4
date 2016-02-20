@@ -1,0 +1,265 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+use CGI::Session;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+$cookie = $q->cookie(-name => "controlimt");
+if ($cookie) {
+  CGI::Session->name($cookie);
+}
+
+  $session = new CGI::Session("driver:File",$cookie,{'Directory'=>"/tmp"}) or die "$!";
+  $sesiperfil = $session->param('sesiperfil');
+  $sesiuser = $session->param('sesiuser');
+  
+if ($sesiperfil eq "" || $sesiuser eq "")
+{
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html\r\n\r\n";
+}
+print <<EOF;
+<html>
+<font color="black" face="Verdana, Arial, Helvetica, sans-serif" style="FONT-SIZE: 8pt"><b>
+<br>Sessión caducada.<br>
+Cierre la ventana.</b></font>
+</html>
+EOF
+exit;
+}
+
+$mod=$q->param('mod');
+
+
+open(OLD, "< ${controlimtclouddir}/controlimt-${mod}")    or die "can't open ${controlimtclouddir}/controlimt-${mod}: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^\s*URL\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$URL = $data[1];
+		}
+		
+		if(/^\s*FILE\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$FILE = $data[1];
+		}
+		
+		if(/^\s*MD5SUM\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$MD5SUM = $data[1];
+		}
+		
+		if(/^\s*TOTALTAMANO\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$TOTALTAMANO = $data[1];
+		}
+		
+		if(/^\s*TIMESOLICI\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$TIMESOLICI = $data[1];
+		}
+		
+		if(/^\s*DSTLVM\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$DSTLVM = $data[1];
+		}
+	}
+
+close(OLD)     or die "can't close ${controlimtclouddir}/controlimt-${mod}: $!";
+			
+
+$TAMANOTOTAL="$TOTALTAMANO";
+
+$CONTROLTAMANO=`du -s ${DSTLVM}/${FILE} | awk '{print $1}'`;
+
+$PORCENPROGRESS=int($CONTROLTAMANO*100 / $TAMANOTOTAL);
+
+if($PORCENPROGRESS < 99)
+{
+$reloadpage="onload='javascript:setTimeout(tryreload,10000)'";
+}
+
+#print "Content-type: text/html\r\n\r\n";
+print <<EOF;
+
+<html>
+<head>
+<script language="javascript">
+
+        function tryreload()
+        {
+                location.href="controldownload.htm?mod=${mod}";
+                //setTimeout(tryreload,2000);
+        }
+
+</script>
+</head>
+<body $reloadpage>
+	
+EOF
+if($PORCENPROGRESS < 99)
+{
+print <<EOF;
+
+	<link rel="stylesheet" href="/images/normalize.css">
+        <link rel="stylesheet" href="/images/style.css">
+        <script src="/images/jquery.js" type="text/javascript"></script>
+        <script src="/images/modernizr.js" type="text/javascript"></script>
+        <script>
+                \$(document).ready(function() {
+                        if(!Modernizr.meter){
+                                alert('Sorry your brower does not support HTML5 progress bar');
+                        } else {
+                                var progressbar = \$('#progressbar'),
+                                        max = progressbar.attr('max'),
+                                        time = (10000/max)*5,
+                                value = progressbar.val();
+
+                            var loading = function() {
+                                //alert('pidiendo');
+                                //value += 1;
+                                value = '$PORCENPROGRESS';
+                                addValue = progressbar.val(value);
+
+                                \$('.progress-value').html(value + '%');
+
+                                if (value == max) {
+                                    clearInterval(animate);
+                                }
+                            };
+
+                            var animate = setInterval(function() {
+                                loading();
+                            }, time);
+                        };
+                });
+        </script>
+
+
+        <div class="demo-wrapper html5-progress-bar">
+                <div class="progress-bar-wrapper">
+                        <progress id="progressbar" value="0" max="100"></progress>
+                        <span class="progress-value" style="font-size:13px"></span>
+                </div>
+        </div>
+EOF
+}
+else
+{
+print "<br><br><center><table><tr><td><font size=3 face=arial><b>Descarga completada</b></font></td></tr></table></center>";
+}
+print <<EOF;	
+
+</body>
+</html>
+EOF

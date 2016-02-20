@@ -1,0 +1,2764 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+use Geo::IP;
+use POSIX qw(strftime);
+my $gi = Geo::IP->new(GEOIP_STANDARD);
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+#require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+
+if($q->param('env') eq "222")
+{
+	system("/sbin/reboot 1>&2");
+	print "Location: parareini.htm\r\n\r\n";
+	exit;
+}
+
+
+	open(OLD, "< $variables")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^\s*GATEWAY\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s*=\s*/,$_);
+		 	$gateway = $data[1];
+		}
+	}
+
+	close(OLD)     or die "can't close $variables: $!";	
+	
+
+
+
+@data = split (/\//,$0);
+$fullscreendire=$data[5];
+
+$cajaver=$q->param('caja');
+
+
+if($q->param('genvolumen') eq "1")
+{
+	#system("/sbin/vgcreate imtdatos /dev/sda5");
+	
+	system("/sbin/partprobe >/dev/null 2>&1");
+	
+	$controlgrupologico=`/sbin/fdisk -l 2>&1 | grep sda | grep Linux\$`;
+	$controlgrupologico =~ s/(\r?\n)//g;
+	
+	if($controlgrupologico =~ /sda5/)
+	{
+		$dispocrear="/dev/sda5";
+	}
+	
+	if($controlgrupologico =~ /sda2/)
+	{
+		$dispocrear="/dev/sda2";
+	}
+	
+	if($dispocrear eq "")
+	{
+	
+	$controlgrupologico=`/sbin/fdisk -l 2>&1 | grep sdb | grep Linux\$`;
+	$controlgrupologico =~ s/(\r?\n)//g;
+	
+	if($controlgrupologico =~ /sdb5/)
+	{
+		$dispocrear="/dev/sdb5";
+	}
+	
+	if($controlgrupologico =~ /sdb2/)
+	{
+		$dispocrear="/dev/sdb2";
+	}	
+	
+	}
+	
+	$mensajevolumencrear=`/sbin/vgcreate imtdatos $dispocrear`;
+	
+	$avisovolumencrear=1;
+	
+	system("$autolvmcreate >/dev/null 2>&1");	
+	
+}
+
+
+if($q->param('genlvm') eq "1")
+{
+	$nombrelvm=$q->param('nombrelvm');
+	$tamanolvm=$q->param('tamanolvm');
+	
+	$nombrelvm2=$q->param('nombrelvm2');
+	$tamanolvm2=$q->param('tamanolvm2');
+	
+	$nombrelvm3=$q->param('nombrelvm3');
+	$tamanolvm3=$q->param('tamanolvm3');
+	
+	$nombrelvm4=$q->param('nombrelvm4');
+	$tamanolvm4=$q->param('tamanolvm4');
+
+	$mensajevolumencrear=`/sbin/lvcreate -L $tamanolvm -n $nombrelvm imtdatos`;
+	$mensajevolumencrear2=`/sbin/mkfs.ext4 /dev/imtdatos/$nombrelvm`;	
+	
+	if($nombrelvm2 ne "")
+	{
+	$mensajevolumencrear3=`/sbin/lvcreate -L $tamanolvm2 -n $nombrelvm2 imtdatos`;	
+	$mensajevolumencrear4=`/sbin/mkfs.ext4 /dev/imtdatos/$nombrelvm2`;	
+	}
+	
+	if($nombrelvm3 ne "")
+	{
+	$mensajevolumencrear5=`/sbin/lvcreate -L $tamanolvm3 -n $nombrelvm3 imtdatos`;	
+	$mensajevolumencrear6=`/sbin/mkfs.ext4 /dev/imtdatos/$nombrelvm3`;	
+	}
+	
+	if($nombrelvm4 ne "")
+	{
+	$mensajevolumencrear7=`/sbin/lvcreate -L $tamanolvm4 -n $nombrelvm4 imtdatos`;	
+	$mensajevolumencrear8=`/sbin/mkfs.ext4 /dev/imtdatos/$nombrelvm4`;	
+	}
+	
+	if($nombrelvm eq "logs" && $mensajevolumencrear =~ /created/)
+	{
+	
+	open(OLD, "< $etcfstab")    or die "can't open $etcfstab: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*tmpfs\s+\/var\/log\s+tmpfs/)
+     		{
+				s/^#*/#/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $etcfstab: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $etcfstab 1>&2");	
+	
+	$mensajevolumencrear=$mensajevolumencrear."<br><br>Para que la información en los logs sea permanente recuerda reiniciar el sistema.";
+	
+	}	
+	
+	system("$accionimtcontrollvm $nombrelvm $nombrelvm2 $nombrelvm3 $nombrelvm4 >/dev/null 2>&1");	
+	
+	$avisovolumencrear=1;
+}
+
+
+if($q->param('regisactivimt') eq "1")
+{
+	$activnumcliente=$q->param('activnumcliente');
+	$activnumlicencia=$q->param('activnumlicencia');
+	$activcodactivacion=$q->param('activcodactivacion');
+	
+	$version=`/bin/cat $modulos | grep VRS`;
+	$version =~ s/(\r?\n)//g;
+	
+	system("sed -i 's/CODDISTRI=.*/CODDISTRI=$activnumcliente/' /opt/imt/gestor/modulos");
+	system("sed -i 's/NUM_SERIE=.*/NUM_SERIE=$activnumlicencia/' /opt/imt/gestor/modulos");
+	system("echo \"$activcodactivacion\" > $imtcodigoactivacion");
+
+	$numserie=`/bin/cat $modulos | grep NUM_SERIE | sed 's/NUM_SERIE=//'`;
+	$numserie =~ s/(\r?\n)//g;
+	
+	$numseriemd5sum=`/bin/echo -n \"$numserie\" | /usr/bin/md5sum`;
+	$numseriemd5sum =~ s/(\r?\n)//g;
+	
+	$codcliente=`/bin/cat $modulos | grep CODDISTRI | sed 's/CODDISTRI=//'`;
+	$codcliente =~ s/(\r?\n)//g;
+	
+	$codactivacion=`/bin/cat $imtcodigoactivacion | head -n 1`;
+	$codactivacion =~ s/(\r?\n)//g;
+	
+	$versi=`/bin/cat $modulos | grep VRS | sed 's/VRS=//'`;
+	$versi =~ s/(\r?\n)//g;
+
+	$mensajeregisactivimt=`/usr/bin/curl --connect-timeout 6 \"http://mirror1.infodesain.com/checker/checker_imt3_register.php?num_serie=${numserie}&cod_cliente=${codcliente}&cod_validacion=${codactivacion}&version=${versi}\"`;
+	$avisoregisactivimt=1;
+	
+	if($mensajeregisactivimt =~ /<control>([a-z0-9]+)<\/control>/)
+	{
+		$controlresultnumseriemd5sum=$1;
+	}	
+	
+	if($numseriemd5sum =~ /^([a-z0-9]+)/)
+	{
+		$numseriemd5sum=$1;
+	}
+	
+	if($mensajeregisactivimt =~ /<hash>([a-z0-9]+)<\/hash>/)
+	{
+		$controlhash=$1;
+	}	
+	
+	if($controlresultnumseriemd5sum ne $numseriemd5sum)
+	{
+		system("echo \"\" > $imtcodigoactivacion");
+		$mensajeregisactivimt="Ha habido un problema en el registro.<br><br>Compruebe que los datos sean correctos y la licencia no esté en uso.";
+	}
+	else
+	{
+
+		system("echo \"$controlhash\" > $imtcontrolhash");
+
+		$controlhashresult=`/bin/cat "$imtcontrolhash" | head -n 1`;
+		system("echo \"$controlhashresult\" >> /tmp/salida");
+        	$controlhashresult =~ s/(\r?\n)//g;
+	
+	$mensajeregisactivimt2=`/usr/bin/curl --connect-timeout 6 \"http://mirror1.infodesain.com/checker/checker_imt3_register2.php?num_serie=${numserie}&cod_cliente=${codcliente}&cod_validacion=${codactivacion}&version=${versi}&hash=$controlhashresult"`;
+	system("echo \"/usr/bin/curl --connect-timeout 6 http://mirror1.infodesain.com/checker/checker_imt3_register2.php?num_serie=${numserie}&cod_cliente=${codcliente}&cod_validacion=${codactivacion}&version=${versi}&hash=$controlhashresult\" >> /tmp/salida");
+
+		if($mensajeregisactivimt2 =~ /<control>([a-z0-9]+)<\/control>/)
+        	{
+                	$controlresultnumseriemd5sum2=$1;
+        	}
+
+        	if($mensajeregisactivimt2 =~ /<hash>([a-z0-9]+)<\/hash>/)
+        	{
+                	$controlhash2=$1;
+        	}
+
+		if($controlresultnumseriemd5sum2 ne $numseriemd5sum || $controlhash2 ne $controlhashresult)
+      {
+                	system("echo \"\" > $imtcodigoactivacion");
+      }
+      else
+      {
+						$mensajeregisactivimt="Registro realizado con éxito.";
+      }
+
+	}
+
+	
+}
+
+if($q->param('env') eq "downloadimtcloud")
+{
+$mod=$q->param('mod');
+
+system("${controlimtclouddir}/accioncontrolimt $mod");
+}
+
+if($q->param('env') eq "installimtcloud")
+{
+$mod=$q->param('mod');
+
+system("cd ${controlimtclouddir}  && /usr/bin/screen -A -m -d -S installimtcloud-${mod} ./installimtcloud-$mod");
+}
+
+
+if($q->param('enviar') eq "oculver")
+{
+	$vercajavalor=`/bin/cat $vertools`;
+	$vercajavalor =~ s/(\r?\n)//g;
+	
+	if($vercajavalor eq 1)
+	{
+		$vercajavalor=0;
+	}
+	else
+	{
+		$vercajavalor=1;
+	}
+	
+	system("/bin/echo $vercajavalor > $vertools");
+}
+
+$vercajavalor=`/bin/cat $vertools`;
+$vercajavalor =~ s/(\r?\n)//g;
+
+
+if($fullscreendire =~ /ntop.htm|zabbix.htm|ocs.htm|cacti.htm|monit.htm|xblue.htm/)
+{
+$oculmodul=1;
+}
+
+
+$controlswapactiva=`/usr/bin/free | grep Swap`;
+
+if($controlswapactiva =~ /Swap:\s+0\s+0\s+0/)
+{
+   $controlswapactiva=0;
+}
+else
+{
+   $controlswapactiva=1;
+}
+
+
+
+#$memoria=`/usr/bin/free -m | grep Mem`;
+#$memoria =~ s/(\r?\n)//g;
+#@data = split (/\s+/,$memoria);
+
+#$totalmemoria=$data[8];
+#$usadamemoria=$data[16];
+#$librememoria=$data[17];
+
+#$totalmemoria=$data[1];
+#$usadamemoria1=$data[2];
+#$librememoria1=$data[3];
+
+#$memoria=`/usr/bin/free -m | grep buffers/cache`;
+#$memoria =~ s/(\r?\n)//g;
+#@data = split (/\s+/,$memoria);
+
+#$usadamemoria2=$data[2];
+#$librememoria2=$data[3];
+
+#$usadamemoria=$usadamemoria1;
+#$librememoria=$librememoria1;
+
+$memoria=`/usr/bin/free -m`;
+@data = split (/\s+/,$memoria);
+
+$totalmemoria=$data[8];
+$usadamemoria=$data[16];
+$librememoria=$data[17];
+
+$cpuinfo=`/bin/cat /proc/cpuinfo`;
+@data = split (/:\s*/,$cpuinfo);
+
+@data2 = split (/\n/,$data[5]);
+$modeloplaca=$data2[0];
+
+@data2 = split (/\n/,$data[7]);
+$cpumhz="cpu MHz ".$data2[0];
+
+
+$porcenmemorialibre=int(($librememoria*100) / $totalmemoria);
+
+$controlcodigoactivacion=`/bin/cat /opt/imt/gestor/codigoactivacion`;
+
+
+#Comienzo HTML
+
+#print "Content-type: text/html; charset=$idicharset\r\n\r\n";
+#print "Content-Language: $idicorto\r\n\r\n";
+print <<EOF;
+<center>
+EOF
+
+if($fullscreendire !~ /idsmenuv3.htm|ntopv3.htm|cachedinamicov3.htm|opennopv3.htm|dhcpserver.htm|balanceo.htm|dns.htm|virtualserver.htm|inicio.htm|modulosv3.htm|listadomodulos.htm|regiscontrolcapa7.htm|netstatnat.htm|monit.htm|histomodulos.htm/)
+{
+print <<EOF;
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<style type="text/css">
+
+.scrollup{
+    width:80px;
+    height:80px;
+    opacity:10.3;
+    position:fixed;
+    bottom:50px;
+    right:5px;
+    display:none;
+    text-indent:-9999px;
+    background: url('/images/up.png') no-repeat;
+}
+
+</style>
+
+<script type="text/javascript">
+    \$(document).ready(function(){
+  
+        \$(window).scroll(function(){
+            if (\$(this).scrollTop() > 80) {
+                \$('.scrollup').fadeIn();
+            } else {
+                \$('.scrollup').fadeOut();
+            }
+        });
+  
+        \$('.scrollup').click(function(){
+            \$("html, body").animate({ scrollTop: 0 }, 600);
+            return false;
+        });
+  
+    });
+</script>
+
+<a href="#" class="scrollup"></a>
+EOF
+}
+print <<EOF;
+
+<style>
+
+/* Context menu Script- © Dynamic Drive (www.dynamicdrive.com) Last updated: 01/08/22
+For full source code and Terms Of Use, visit http://www.dynamicdrive.com */
+
+.skin0{
+position:absolute;
+width:165px;
+border:2px solid #3e73a8;
+background-color:menu;
+font-family:Verdana;
+line-height:20px;
+cursor:default;
+font-size:10px;
+z-index:100;
+visibility:hidden;
+filter:alpha(opacity=85);-moz-opacity:.85;opacity:.85;
+}
+
+.menuitems{
+padding-left:10px;
+padding-right:10px;
+}
+
+</style>
+
+	<div id="ie5menu" class="skin0" onMouseover="highlightie5(event)" onMouseout="lowlightie5(event)" onClick="jumptoie5(event)" display:none style="position:absolute; left:300; top:150; visibility:hidden">
+
+<div class="menuitems" target="new" url="https://www.imtcloud.com">www.imtcloud.com</div>
+<div class="menuitems" target="new" url="https://www.imtcloud.com/manager">Cloud Manager</div>
+<div class="menuitems" target="new" url="/imt/webshell.htm">Web Shell</div>
+<div class="menuitems" target="new" url="/imt/update.htm">Update Services</div>
+<div class="menuitems" target="new" url="/imt/backupimt.htm">Backup IMT</div>
+</div>
+
+<script language="JavaScript1.2">
+
+//set this variable to 1 if you wish the URLs of the highlighted menu to be displayed in the status bar
+var display_url=0
+
+var ie5=document.all&&document.getElementById
+var ns6=document.getElementById&&!document.all
+if (ie5||ns6)
+var menuobj=document.getElementById("ie5menu")
+
+function showmenuie5(e){
+//Find out how close the mouse is to the corner of the window
+var rightedge=ie5? document.body.clientWidth-event.clientX : window.innerWidth-e.clientX
+var bottomedge=ie5? document.body.clientHeight-event.clientY : window.innerHeight-e.clientY
+
+//if the horizontal distance isn't enough to accomodate the width of the context menu
+if (rightedge<menuobj.offsetWidth)
+//move the horizontal position of the menu to the left by it's width
+menuobj.style.left=ie5? document.body.scrollLeft+event.clientX-menuobj.offsetWidth : window.pageXOffset+e.clientX-menuobj.offsetWidth
+else
+//position the horizontal position of the menu where the mouse was clicked
+menuobj.style.left=ie5? document.body.scrollLeft+event.clientX : window.pageXOffset+e.clientX
+
+//same concept with the vertical position
+if (bottomedge<menuobj.offsetHeight)
+menuobj.style.top=ie5? document.body.scrollTop+event.clientY-menuobj.offsetHeight : window.pageYOffset+e.clientY-menuobj.offsetHeight
+else
+menuobj.style.top=ie5? document.body.scrollTop+event.clientY : window.pageYOffset+e.clientY
+
+menuobj.style.visibility="visible"
+return false
+}
+
+function hidemenuie5(e){
+menuobj.style.visibility="hidden"
+}
+
+function highlightie5(e){
+var firingobj=ie5? event.srcElement : e.target
+if (firingobj.className=="menuitems"||ns6&&firingobj.parentNode.className=="menuitems"){
+if (ns6&&firingobj.parentNode.className=="menuitems") firingobj=firingobj.parentNode //up one node
+firingobj.style.backgroundColor="#3e73a8"
+firingobj.style.color="white"
+if (display_url==1)
+window.status=event.srcElement.url
+}
+}
+
+function lowlightie5(e){
+var firingobj=ie5? event.srcElement : e.target
+if (firingobj.className=="menuitems"||ns6&&firingobj.parentNode.className=="menuitems"){
+if (ns6&&firingobj.parentNode.className=="menuitems") firingobj=firingobj.parentNode //up one node
+firingobj.style.backgroundColor=""
+firingobj.style.color="black"
+window.status=''
+}
+}
+
+function jumptoie5(e){
+var firingobj=ie5? event.srcElement : e.target
+if (firingobj.className=="menuitems"||ns6&&firingobj.parentNode.className=="menuitems"){
+if (ns6&&firingobj.parentNode.className=="menuitems") firingobj=firingobj.parentNode
+if (firingobj.getAttribute("target"))
+window.open(firingobj.getAttribute("url"),firingobj.getAttribute("target"))
+else
+window.location=firingobj.getAttribute("url")
+}
+}
+
+if (ie5||ns6){
+menuobj.style.display=''
+document.oncontextmenu=showmenuie5
+document.onclick=hidemenuie5
+}
+
+</script>
+
+<script language="JavaScript1.2">
+
+function tryreload()
+{
+document.getElementById('oscuprocess').style.visibility='hidden';
+document.getElementById('oscuprocess2').style.visibility='hidden';          
+}
+
+setTimeout(tryreload,1000);
+
+
+//alert('ancho:'+ancho+'- alto:'+alto);
+
+function togglelayer(container)
+{
+var objContainer = eval(container); 
+		objContainer.style.visibility='visible'; 	
+}
+
+
+function togglelayerclear(container)
+{
+var objContainer = eval(container); 
+		objContainer.style.visibility='hidden'; 	
+}
+
+function togglelayertools(container)
+{
+var objContainer = eval(container); 
+		if (objContainer.style.visibility == 'visible')
+		{
+			objContainer.style.visibility='hidden';			
+		}
+		else
+		{
+			objContainer.style.visibility='visible';
+		}								
+}
+
+function servidisplo()
+{
+	alert('Servicio disponible y activo en próxima versión');
+}
+
+function cerrarsesion()
+{
+	if(!confirm('¿Deseas cerrar la sesión con IMT?')){
+		return;
+	}
+	
+	//<a href="/imt/login.htm?logout=1" target="_top">
+	//alert('cerrando!!!');
+
+	top.location.href='login.htm?logout=1';	
+	
+}
+
+function verwebshell(nombre)
+{
+      document.theform.target='webshell';
+      //alert("/webshell/"+nombre+"view/");
+      document.theform.method="get";
+      document.theform.action="/webshell/"+nombre+"view/";
+      document.theform.submit();
+
+}
+
+
+function crearvolumen(nombre)
+{
+
+		if(!confirm('¿Desea continuar y generar el grupo de volumen?\\nUna vez aceptado desaparecerá el panel informativo.'))
+		return false;
+
+      /*document.theform.target='webshell';
+      document.theform.method="get";*/
+      document.theform.genvolumen.value = "1";
+      document.theform.action="inicio.htm";
+      document.theform.submit();
+
+}
+
+
+function crearlvm(nombrelvm,tamano,nombrelvm2,tamano2,nombrelvm3,tamano3,nombrelvm4,tamano4)
+{
+
+		if(!confirm('¿Desea continuar y generar el volumen lógico: '+nombrelvm+'?\\nUna vez aceptado desaparecerá el panel informativo.'))
+		return false;
+
+      /*document.theform.target='webshell';
+      document.theform.method="get";*/
+
+      document.theform.nombrelvm.value = nombrelvm;
+      document.theform.tamanolvm.value = document.theform.lvmcontroltamano.value;
+
+		document.theform.nombrelvm2.value = nombrelvm2;
+      document.theform.tamanolvm2.value = document.theform.lvmcontroltamano2.value;
+      
+      document.theform.nombrelvm3.value = nombrelvm3;
+      document.theform.tamanolvm3.value = document.theform.lvmcontroltamano3.value;
+      
+      document.theform.nombrelvm4.value = nombrelvm4;
+      document.theform.tamanolvm4.value = document.theform.lvmcontroltamano4.value;         
+
+      document.theform.genlvm.value = "1";
+     
+      //document.theform.tamanolvm.value = tamano;      
+      //document.theform.action="$fullscreendire";
+      document.theform.submit();
+
+}
+
+
+function regisimt()
+{
+		
+		if(!confirm('¿Desea proceder a la activación del IMT?'))
+		return false;
+
+      /*document.theform.target='webshell';
+      document.theform.method="get";*/
+      document.theform.regisactivimt.value = "1";
+      document.theform.action="inicio.htm";
+      document.theform.submit();
+
+}
+
+function validarkey(e)
+{			
+ 	tecla = (document.all) ? e.keyCode : e.which; // 2
+    if (tecla==8) return true; // 3
+    patron =/[A-Za-z0-9-]/; // 4
+    te = String.fromCharCode(tecla); // 5
+    return patron.test(te); // 6
+
+}
+
+</script>
+
+EOF
+
+$obtener=0;
+
+open(OLD, "< $verrecomen")    or die "can't open: $!";			
+while (<OLD>) 
+{	
+	
+	if(/^###/ && $obtener eq 1)
+	{
+		$obtener=0;
+		last;
+	}
+		
+	if(/$fullscreendire/ && $obtener eq 0)
+	{
+		$obtener=1;
+	}
+		
+	if($obtener eq 1 && $_ !~ /^#/ && $_ =~ /.+/)
+	{
+		push(@recomen, "$_");
+	}
+		
+}
+close(OLD) or die "can't close: $!";
+
+my $length = $#recomen + 1;
+$length = rand($length);
+$length = int $length; 
+$mostrarecomen = $recomen[$length]; 
+
+
+
+if($conecdnsestado =~ /connection\stimed\sout/ && $fullscreendire !~ /inicio.htm/)
+{
+print <<EOF;
+<div style="position:absolute; right:18; top:15" id="divContaineraviso">
+<table><tr><td>
+
+<table width="207" height="60" cellpadding="2" cellspacing="0" border=0 background="/images/panelaviso.gif" bgcolor="#FFFFFF">
+<tr><td width="3"></td><td align="left">
+
+<table><tr>
+<td><img src="../images/avisocartel.gif"></td>
+<td><b><font color="#CC3300">Error de conexión<br>
+resolución DNS</font><br>
+<font size=2>¡Comprobar DNS!</font></b>
+</td>
+</tr></table>
+
+</td><td width="3"></td></tr>
+</table>
+
+</td>
+</tr>
+</table>
+
+</div>
+EOF
+$saltarpanel=1;
+}
+
+
+if($controlswapactiva eq 0 && $porcenmemorialibre < 25 && $saltarpanel ne 1)
+{
+print <<EOF;
+<div style="position:absolute; right:18; top:15" id="divContaineraviso">
+<table><tr><td>
+
+<table width="207" height="60" cellpadding="2" cellspacing="0" border=0 background="/images/panelaviso.gif" bgcolor="#FFFFFF">
+<tr><td width="3"></td><td align="left">
+
+<table><tr>
+<td><img src="../images/avisocartel.gif"></td>
+<td><b><font color="#CC3300">Memoria al límite<br>
+< 15% restante</font><br>
+<font size=2>¡no swap activa!</font></b>
+</td>
+</tr></table>
+
+</td><td width="3"></td></tr>
+</table>
+
+</td>
+</tr>
+</table>
+
+</div>
+EOF
+$saltarpanel=1;
+}
+
+
+if($fullscreendire0000 =~ /cachedinamico.htm/)
+{
+print <<EOF;
+<div style="position:absolute; right:18; top:15" id="divContaineraviso">
+<table><tr><td>
+
+<table width="207" height="60" cellpadding="2" cellspacing="0" border=0 class="bordenegrosombra2" bgcolor="#FFFFFF">
+<tr><td width="3"></td><td align="left">
+
+<table><tr>
+<td>&nbsp;<img src="../images/admiverde.gif">&nbsp;&nbsp;</td>
+<td>Requiere <font color="black"><b>2 gigas de memoria RAM</b></font><br>instalada en el sistema
+</td>
+</tr></table>
+
+</td><td width="3"></td></tr>
+</table>
+
+</td>
+</tr>
+</table>
+
+</div>
+EOF
+$saltarpanel=1;
+}
+
+
+if($mostrarecomen ne "" && $fullscreendire !~ /register.htm|inicio.htm/ && $saltarpanel ne 1)
+{
+$controlenproceso=`/bin/cat $enproceso`;
+$controlenproceso =~ s/(\r?\n)//g;
+
+$controlduplicacontrolred=`$duplicacontrolred`;
+$controlduplicacontrolred =~ s/(\r?\n)/ /g;
+
+if($controlenproceso eq 3)
+{
+	$mostrarecomen="SE REQUIERE REINICIO DEL SISTEMA CUANDO LE SEA POSIBLE";
+	$fontcolor="white";
+	$backgroundcolor="#ed9922";
+}
+elsif($controlduplicacontrolred ne "" && $fullscreendire =~ /lanservices.htm/)
+{
+	$mostrarecomen="Atención posibles redes duplicadas: $controlduplicacontrolred<br>Chequea vlans, alias, servicios VPN.";
+	$fontcolor="white";
+	$backgroundcolor="#ed9922";
+}
+else
+{
+	$fontcolor="white";
+	$backgroundcolor="#3e73a8";
+}
+
+
+
+
+
+#ifconfig | grep "inet addr" | /usr/bin/awk '{print $2}' | sed -e 's/addr://g' | sed -e 's/\.[0-9]*$//g' | sort | uniq -d | sed -e 's/$/.[X]/g'
+
+print <<EOF;
+<div style="position:absolute; right:18; top:15" id="divContainerecomen">
+<table class="bordenegrosombra2" style="BACKGROUND-COLOR: $backgroundcolor"><tr><td width="3"></td><td>
+
+<table width="207" height="60" cellpadding="2" cellspacing="0" border=0>
+<tr><td align="left">
+<font color="$fontcolor"><b>$mostrarecomen</b></font>
+EOF
+if($controlenproceso eq 3)
+{
+
+$uptime=`/usr/bin/uptime`;
+$uptime =~ s/(\r?\n)/\<br\>/g;
+
+@data = split (/\s*,\s*/,$uptime);
+
+if($data[1]=~/user/)
+{
+$k=0;
+}
+else
+{
+$k=1;
+}
+
+$user = $data[1+$k];
+
+print <<EOF;
+<br>
+
+<script type="text/javascript">
+
+function enviarreini(opc)
+{
+
+var opcion = opc
+
+if(opcion==222)
+  {
+	if(!confirm('Información:\\n$user conectado por SSH\\n\\n¿Desea REINICIAR el dispositivo?'))
+	return false;
+  }
+  
+  //oscuprocessform();
+		    
+theform.env.value = opcion;
+document.theform.submit();
+
+
+}
+
+
+</script>
+
+<br>
+
+<center>
+<table border=0 width=70 style="background-color:white" class="bordenegrosombra2" cellpadding=1 cellspacing=1><tr><td align=center valign=center>
+<font color=black onClick="enviarreini(222)" style="cursor:pointer">reiniciar</font>
+</td></tr></table>
+</center>
+EOF
+}
+print <<EOF;
+</td></tr>
+</table>
+
+</td><td width="3"></td>
+</tr>
+</table>
+
+</div>
+EOF
+}
+
+if($fullscreendire =~ /inicio123v3.htm|register123.htm/  && $saltarpanel ne 1  && $saltarpanel ne 1)
+{
+print <<EOF;
+<div style="position:absolute; right:12; top:10" id="divContainercontrol">
+
+<table width="100" height="58" cellpadding="2" cellspacing="0" border=0 style="background:white;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 15;
+  -moz-border-radius: 15;
+  border-radius: 15px;">
+<tr><td align=center>
+<font color="black" size="3"  style="cursor:pointer;text-shadow: 1px 1px 1px gray;font-weight: bold;" onClick="myRef = window.open('wizard.htm','mywin','left=330,top=150,width=560,height=430,toolbar=0,resizable=0,status=0,menubar=0,scrollbars=no');myRef.focus()"><b>Wizard!</b></font>
+</td></tr>
+</table>
+
+</div>
+
+EOF
+if($fullscreendire =~ /inicioXXXX.htm/)
+{
+print <<EOF;
+<div style="position:absolute; right:8; bottom:0" id="divContainercontrol" class="opaco1">
+<table><tr>
+<td valign="top">
+<img src="/images/logoimt2.gif" border="0"  style="cursor:pointer"  onClick="togglelayer('divContainercomparte')">
+</td>
+<td valign="center">
+</td>
+</tr></table>
+</div>
+
+<div style="position:absolute; left:300; top:150; visibility:hidden" onclick="void(0);event.cancelBubble=true;" id="divContainercomparte">
+<table cellpadding="0" cellspacing="0"><tr><td>
+<table width="450" cellspacing="0" height="20" align="left"><tr><td background="../images/barratitulo3.gif" align="center">
+<font color="white"><b>· Comentanos tu idea y participa en I.M.T. ·</b></font>
+</td>
+<td align="center">
+<img src="/images/close.png" border="0" style="cursor:pointer" onClick="togglelayerclear('divContainercomparte')">
+</td>
+</tr></table>
+</td></tr><tr><td>
+<div id="scroll" style="height: 285; overflow: auto;float:center;width:467; border-color:#000000; border-width: 2px;">
+<table bgcolor="#FFFFFF" width="450" height="285" class="opaco1">
+<tr><td height="5"></td></tr>
+<tr><td style="border-color:#FFFFFF; border-width: 4px;" valign="top">
+
+<table border="0"><tr><td valign="top">
+<b>Propuesta:</b>
+<input id='${i}xnombreh' name='${i}xnombreh' type='text' value='$nombrevalor' class='campotxt' size=35>
+<br><br>
+<b>Descripción:</b>
+<textarea cols=50 rows=8 class='campotxt' id='${i}x4' name='${i}x4' style='background:url();scrollbar-face-color: #ffffff; scrollbar-highlight-color: #ffffff; scrollbar-3dlight-color: #ffffff; scrollbar-darkshadow-color: #ffffff; scrollbar-shadow-color: #ffffff; scrollbar-arrow-color: #ffffff; scrollbar-track-color: #ffffff'>$carpetas</textarea>
+<br>
+<br>
+<center><img src="/images/abc.gif" style="cursor:pointer" onClick="servidisplo()"></center>
+</td><td valign="top" align="right">
+<img src="/images/idea.gif" border="0">
+</td></tr></table>
+
+</td></tr></table>
+</div>
+</td></tr></table>
+
+</div>
+
+EOF
+}
+}
+
+
+if($fullscreendire =~ /inicioXXXX.htm/)
+{
+$carga =~ s/load\saverage/$imtlayers_cargasistema/;
+print <<EOF;
+<div style="position:absolute; right:22; top:150" id="divContainerveloci">
+<table><tr>
+<td valign="top" align="right">
+<img src="/images/velocimemory.gif" border="0">
+</td>
+</tr>
+<tr><td>
+Memory used:<br>$usadamemoria MB/$totalmemoria MB<br>
+</td></tr>
+</table>
+<br>
+<table><tr>
+<td valign="top" align="right">
+<img src="/images/velociproceso.gif" border="0">
+</td>
+</tr>
+<tr><td>$carga</td></tr>
+</table>
+</div>
+EOF
+}
+
+
+if($cajaver ne 0 && $fullscreendire !~ /register.htm/)
+{
+print <<EOF;
+<div style="position:absolute; left:5; top:10" id="divContainercontrol">
+<table><tr><td>
+<table width="168" height="58" cellpadding="2" cellspacing="0" border=0 bgcolor="#FFFFFF" style="background:white;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 15;
+  -moz-border-radius: 15;
+  border-radius: 15px;">
+<tr><td align="right"><b>${toc_usuario}:</b></td><td align="left">${sesiuser}</td></tr>
+<tr><td align="right"><b>${toc_perfil}:</b></td><td align="left">${sesiperfil}</td></tr>
+<tr><td align="right"><b>${toc_suip}:</b></td><td align="left">${sesiip}</td></tr>
+
+<tr><td  height="19" title='$datospppresulteth1' class="barratitulorojosinredontop" colspan=2 align=center><b><font color=white onclick="cerrarsesion()" style="cursor:pointer">Logout</b></font></td></tr>
+
+</table>
+</td>
+</tr>
+</table>
+
+</div>
+EOF
+if($vercajavalor eq 1)
+{
+if($fullscreendire =~ /iniciov3XX.htm/)
+{
+print <<EOF;
+
+<div id="divStayTopRight2" style="position:absolute"> 
+<table style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0" width="150">
+  	  <tr><td colspan="2">&nbsp;Consideraciones sistema</td></tr>
+  	  <tr><td></td><td height="5"></td></tr>
+     <tr><td width="30" align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Control red(icinga)</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Upgrade sistema</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Uso VLANs</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">No NAT router</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Uso DHCP</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Protección externa</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Passwords</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Uso Servidor DNS</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Filtro firewall</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Control QoS</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Backup de linea</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Cacheador tráfico</td></tr><tr><td height="3"></td></tr>  
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Exceso nat</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Reinicio constante</td></tr><tr><td height="3"></td></tr>  
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Email configurar</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">RAM superior 1GB</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Udate services</td></tr><tr><td height="3"></td></tr>
+     <tr><td align="center"><img src="/images/admiraazulmini.gif"></td><td align="left">Backup IMT Online</td></tr>
+     <tr><td></td><td height="10"></td></tr>           
+</table>
+</div> 
+<script type="text/javascript"> 
+function JSFX_FloatTopRight2()
+{
+	var startX = 10, startY = 100;
+	var ns = (navigator.appName.indexOf("Netscape") != -1);
+	var d = document;
+	var px = document.layers ? "" : "px";
+	function ml(id)
+	{
+		var el=d.getElementById?d.getElementById(id):d.all?d.all[id]:d.layers[id];
+		if(d.layers)el.style=el;
+		el.sP=function(x,y){this.style.right=x+px;this.style.top=y+px;};
+		el.x = startX; el.y = startY;
+		return el;
+	}
+	window.stayTopRight2=function()
+	{
+		var pY = ns ? pageYOffset : document.documentElement && document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop;
+		ftlObj2.y += (pY + startY - ftlObj2.y)/8;
+		ftlObj2.sP(ftlObj2.x, ftlObj2.y);
+		setTimeout("stayTopRight2()", 40);
+	}
+	ftlObj2 = ml("divStayTopRight2");
+	stayTopRight2();
+}
+JSFX_FloatTopRight2();
+</script>
+
+EOF
+}
+print <<EOF;
+
+
+<script>
+if (!document.layers)
+document.write('<div id="divStayTopLeft" style="position:absolute">')
+</script>
+
+
+<layer id="divStayTopLeft">
+
+<table border="0">
+<!--<tr><td align="center">&nbsp;<img src="/images/vermini2.gif" style="cursor:pointer" onClick="togglelayertools('divContainertools')"></td><td width="3"></td><td><img src="/images/lupaminiver.gif"  style="cursor:pointer" onclick='window.location.href=\"?enviar=oculver&volver=$volver\"'></td></tr>-->
+<!--<tr><td>
+
+<table width="142" cellpadding="2" cellspacing="1" border=0 background="/images/paneluser.gif" bgcolor="#FFFFFF">
+<tr><td height="25"></td></tr>
+<tr><td align="right"><b>${toc_usuario}:</b></td><td align="left">${sesiuser}</td></tr>
+<tr><td align="right"><b>${toc_perfil}:</b></td><td align="left">${sesiperfil}</td></tr>
+<tr><td align="right"><b>${toc_suip}:</b></td><td align="left">${sesiip}</td></tr>
+<tr><td height="4"></td></tr>
+</table>
+<table>
+<tr><td width="45"></td><td align="right" colspan="2"><a href="/imt/login.htm?logout=1" target="_top"><img src="../images/logout_out.gif" onmousemove="status='Enviar'" onmousedown="this.src='../images/logout_in.gif';"  onmouseover="this.src='../images/logout_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/logout_out.gif';" border="0"></a></td></tr>
+</table>
+
+</td></tr>-->
+
+<tr><td align="left">
+
+<div style="visibility:hidden; position:absolute" id="divContainertools">
+<table style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;width: 120" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>
+  
+<table>
+
+<tr><td align="left"><div style="cursor:pointer" onClick="togglelayer('divContainercode')">Ficheros internos</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer" onClick="myRef = window.open('${fullscreendire}?caja=0','mywin','left=330,top=150,width=850,height=600,toolbar=0,resizable=1,status=0,menubar=0,scrollbars=yes');myRef.focus()">Full Screen</div></td></tr>
+<!--<td align="center"><img src="/images/layershell.gif" style="cursor:pointer" onClick="myRef = window.open('consola.htm','mywin','left=330,top=150,width=550,height=400,toolbar=0,resizable=0,status=0,menubar=0');myRef.focus()"></td>-->
+<tr><td align="left"><a href="webshellv3.htm"><div style="cursor:pointer"><font color=black>Web shell</font></div></a></td></tr>
+<tr><td align="left"><a href="autoregishostsv3.htm"><div style="cursor:pointer"><font color=black>Gestor de objetos</font></div></a></td></tr>
+</tr>
+EOF
+if($fullscreendire =~ /backuppc.htm/){
+print <<EOF;
+<tr><td align="center"><img src="/images/layerrastreo.gif" style="cursor:pointer" onClick="myRef = window.open('rastreo.htm?image=$fullscreendire','mywin','left=330,top=150,width=700,height=500,toolbar=0,resizable=0,status=0,menubar=0,scrollbars=yes');myRef.focus()"></td></tr>
+EOF
+}
+print <<EOF;
+
+EOF
+if($fullscreendire =~ /filtroweb.htm|filtrowebexcep.htm|filtrowebtemas.htm|filtrowebtemas.htm|filtrowebdescargas.htm|filtrowebuser.htm/){
+print <<EOF;
+<tr><td align="center"><img src="/images/layermano.gif" style="cursor:pointer" onClick="togglelayer('divContainerwebdenied')"></td><td align="center"></td></tr>
+EOF
+}
+print <<EOF;
+</table>
+</td></tr></table>
+EOF
+if($fullscreendire =~ /webshellv3.htm/){
+print <<EOF;
+<br><br>
+<table style="-webkit-box-shadow: 0px 1px 3px black;-moz-box-shadow: 0px 1px 3px black;box-shadow: 0px 1px 3px black;" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>  
+<table>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('login')>LOGIN shell</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('mytop')>mytop</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('htop')>htop</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('top')>top</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('dnstop')>dnstop</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('nast')>nast</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('netdiscover')>netdiscover</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('nload')>nload</div></td></tr>
+<!--<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('iptraf')>iptraf</div></td></tr>-->
+</table>
+</td></tr></table>
+EOF
+}
+if($fullscreendire =~ /inicio.htm/){
+
+$ultiaccesomodulos=`tac /write/historialmoduregis | /usr/bin/awk '{print \$3}' | uniq | head -n 8`;
+@ultiaccesomodulosvalor=split('\n',$ultiaccesomodulos);
+
+print <<EOF;
+<br><br>
+<table style="-webkit-box-shadow: 0px 1px 3px black;-moz-box-shadow: 0px 1px 3px black;box-shadow: 0px 1px 3px black;" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>  
+<table>
+<tr><td height="3"></td></tr>
+<tr><td width="3"></td><td><b>Últimos accesos:</b></td></tr>
+EOF
+foreach(@ultiaccesomodulosvalor) {
+print <<EOF;
+<tr><td width="3"></td><td align="left"><a href="/imt/$_"><font color=black>$_</font></a></td><td width="3"></td></tr>
+EOF
+}
+print <<EOF;
+<tr><td height="3"></td></tr>
+</table>
+</td></tr></table>
+EOF
+}
+print <<EOF;
+</div>
+
+
+<div style="visibility:hidden; position:absolute" id="divContainertools">
+<table style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;width: 120" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>
+  
+<table>
+
+<tr><td align="left"><div style="cursor:pointer" onClick="togglelayer('divContainercode')">Ficheros internos</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer" onClick="myRef = window.open('${fullscreendire}?caja=0','mywin','left=330,top=150,width=850,height=600,toolbar=0,resizable=1,status=0,menubar=0,scrollbars=yes');myRef.focus()">Full Screen</div></td></tr>
+<!--<td align="center"><img src="/images/layershell.gif" style="cursor:pointer" onClick="myRef = window.open('consola.htm','mywin','left=330,top=150,width=550,height=400,toolbar=0,resizable=0,status=0,menubar=0');myRef.focus()"></td>-->
+<tr><td align="left"><a href="webshellv3.htm"><div style="cursor:pointer"><font color=black>Web shell</font></div></a></td></tr>
+<tr><td align="left"><a href="autoregishostsv3.htm"><div style="cursor:pointer"><font color=black>Gestor de objetos</font></div></a></td></tr>
+</tr>
+EOF
+if($fullscreendire =~ /backuppc.htm/){
+print <<EOF;
+<tr><td align="center"><img src="/images/layerrastreo.gif" style="cursor:pointer" onClick="myRef = window.open('rastreo.htm?image=$fullscreendire','mywin','left=330,top=150,width=700,height=500,toolbar=0,resizable=0,status=0,menubar=0,scrollbars=yes');myRef.focus()"></td></tr>
+EOF
+}
+print <<EOF;
+
+EOF
+if($fullscreendire =~ /filtroweb.htm|filtrowebexcep.htm|filtrowebtemas.htm|filtrowebtemas.htm|filtrowebdescargas.htm|filtrowebuser.htm/){
+print <<EOF;
+<tr><td align="center"><img src="/images/layermano.gif" style="cursor:pointer" onClick="togglelayer('divContainerwebdenied')"></td><td align="center"></td></tr>
+EOF
+}
+print <<EOF;
+</table>
+</td></tr></table>
+EOF
+if($fullscreendire =~ /webshellv3.htm/){
+print <<EOF;
+<br><br>
+<table style="-webkit-box-shadow: 0px 1px 3px black;-moz-box-shadow: 0px 1px 3px black;box-shadow: 0px 1px 3px black;" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>  
+<table>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('login')>LOGIN shell</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('mytop')>mytop</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('htop')>htop</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('top')>top</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('dnstop')>dnstop</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('nast')>nast</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('netdiscover')>netdiscover</div></td></tr>
+<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('nload')>nload</div></td></tr>
+<!--<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('iptraf')>iptraf</div></td></tr>-->
+</table>
+</td></tr></table>
+EOF
+}
+if($fullscreendire =~ /inicio.htm/){
+
+$ultiaccesomodulos=`tac /write/historialmoduregis | /usr/bin/awk '{print \$3}' | uniq | head -n 8`;
+@ultiaccesomodulosvalor=split('\n',$ultiaccesomodulos);
+
+print <<EOF;
+<br><br>
+<table style="-webkit-box-shadow: 0px 1px 3px black;-moz-box-shadow: 0px 1px 3px black;box-shadow: 0px 1px 3px black;" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>  
+<table>
+<tr><td height="3"></td></tr>
+<tr><td width="3"></td><td><b>Últimos accesos:</b></td></tr>
+EOF
+foreach(@ultiaccesomodulosvalor) {
+print <<EOF;
+<tr><td width="3"></td><td align="left"><a href="/imt/$_"><font color=black>$_</font></a></td><td width="3"></td></tr>
+EOF
+}
+print <<EOF;
+<tr><td height="3"></td></tr>
+</table>
+</td></tr></table>
+EOF
+}
+print <<EOF;
+</div>
+
+</td></tr>
+</table>
+
+
+<div style="visibility:visible; position:absolute" id="divContainertools">
+<table style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;width: 120" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>
+  
+EOF
+if($fullscreendire =~ /webshellv3.htm/){
+print <<EOF;
+<!--<br><br>-->
+<!--<table style="-webkit-box-shadow: 0px 1px 3px black;-moz-box-shadow: 0px 1px 3px black;box-shadow: 0px 1px 3px black;" bgcolor="#FFFFFF" cellpadding="0" cellspacing="0"><tr><td>-->  
+<table>
+<tr><td width=2></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('login')>LOGIN shell</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('mytop')>mytop</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('htop')>htop</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('top')>top</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('dnstop')>dnstop</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('nast')>nast</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('netdiscover')>netdiscover</div></td></tr>
+<tr><td></td><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('nload')>nload</div></td></tr>
+<!--<tr><td align="left"><div style="cursor:pointer;color:#3e73a8;font-weight:bold" onclick=verwebshell('iptraf')>iptraf</div></td></tr>-->
+</table>
+<!--</td></tr></table>-->
+EOF
+}
+print <<EOF;
+</td></tr></table>
+</div>
+
+
+</layer>
+
+
+<script type="text/javascript">
+
+/*
+Floating Menu script-  Roy Whittle (http://www.javascript-fx.com/)
+Script featured on/available at http://www.dynamicdrive.com/
+This notice must stay intact for use
+*/
+
+//Enter "frombottom" or "fromtop"
+var verticalpos="fromtop"
+
+if (!document.layers)
+document.write('</div>')
+
+function JSFX_FloatTopDiv()
+{
+	var startX = 5,
+	startY = 110;
+	var ns = (navigator.appName.indexOf("Netscape") != -1);
+	var d = document;
+	function ml(id)
+	{
+		var el=d.getElementById?d.getElementById(id):d.all?d.all[id]:d.layers[id];
+		if(d.layers)el.style=el;
+		el.sP=function(x,y){this.style.left=x;this.style.top=y;};
+		el.x = startX;
+		if (verticalpos=="fromtop")
+		el.y = startY;
+		else{
+		el.y = ns ? pageYOffset + innerHeight : document.body.scrollTop + document.body.clientHeight;
+		el.y -= startY;
+		}
+		return el;
+	}
+	window.stayTopLeft=function()
+	{
+		if (verticalpos=="fromtop"){
+		var pY = ns ? pageYOffset : document.body.scrollTop;
+		ftlObj.y += (pY + startY - ftlObj.y)/8;
+		}
+		else{
+		var pY = ns ? pageYOffset + innerHeight : document.body.scrollTop + document.body.clientHeight;
+		ftlObj.y += (pY - startY - ftlObj.y)/8;
+		}
+		ftlObj.sP(ftlObj.x, ftlObj.y);
+		setTimeout("stayTopLeft()", 10);
+	}
+	ftlObj = ml("divStayTopLeft");
+	stayTopLeft();
+}
+JSFX_FloatTopDiv();
+</script>
+
+<script language="javascript">
+ancho=screen.width;
+alto=screen.height;
+
+if(ancho < 1280)
+{
+//alert('hola '+ancho);
+divContainertools.style.visibility='hidden';
+
+EOF
+if($fullscreendire =~ /inicio.htm|register.htm/)
+{
+print <<EOF;
+divContainerveloci.style.visibility='hidden';
+EOF
+}
+print <<EOF;
+	
+}
+
+if('1' == '$oculmodul')
+{
+//alert('hola '+ancho);
+divContainertools.style.visibility='hidden';	
+}
+</script>
+
+EOF
+}
+print <<EOF;
+
+<script type="text/javascript">
+
+function closecapa10(container)
+{
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+}
+
+function verficherocapa10(container,nombre)
+{
+document.getElementById('titulocerti').value=nombre;
+//document.getElementById('contenidover').value=document.getElementById(valor+'xocul').value;
+var objContainer = eval(container);
+objContainer.style.visibility='visible';
+
+      document.theform.target='mostrarficherocodigoprocesoiframe';
+      document.theform.ficherocodigoforzado.value=nombre;
+      document.theform.action="verficherocodigo.htm";
+      document.theform.submit();
+
+}
+
+</script>
+
+<input name="ficherocodigoforzado" type="hidden">
+
+<div style="position:absolute; left:250; top:50; visibility:hidden;z-index:2" onclick="void(0);event.cancelBubble=true;" id="mostrarficherocodigoproceso">
+<br>
+<table width="500" cellspacing="0" height="15"><tr><td background="../images/barratitulo5.gif" align="center">
+&nbsp;&nbsp;&nbsp;&nbsp;<font color=white><b>Fichero:</b></font> <input type='text' class='campotxt' id='titulocerti' value='' size=30 readonly><b></font>
+</td>
+<td align="center" width=30>
+
+<img src="../images/close.png" border="0" style="cursor:pointer" onClick="closecapa10('mostrarficherocodigoproceso')">
+</td>
+</tr></table>
+
+<TABLE CELLPADDING=0 border="0" width=500 style="background-image:url(../images/naran2sombramini.gif); background-repeat:repeat-x;">
+<tr><td height="5"></td></tr>
+</table>
+
+<table bgcolor="white" width="500" height="450" cellpaddin=0 cellspacing=0 style="border-left-color:#3e73a8;border-right-color:#3e73a8;border-top-color:white;border-bottom-color:#3e73a8; border-width: 1px;" border=1>
+<tr><td width="4"></td><td valign="top" style="border-color:white; border-width: 0px;">
+
+<br>
+
+&nbsp;&nbsp;<b>Contenido del fichero:</b>
+
+<iframe name="mostrarficherocodigoprocesoiframe" frameborder="no" scrolling="no" width=480 height=500></iframe>
+
+</td></tr></table>
+
+</div>
+
+<div style="position:absolute; left:300; top:150; visibility:hidden;z-index:1" onclick="void(0);event.cancelBubble=true;" id="divContainercode">
+
+<!--<table width="400" cellspacing="0" height="20"><tr><td background="../images/barratitulo3.gif" align="center">
+<font color="white"><b>· Ficheros controlados por el módulo: $fullscreendire ·</b></font>
+</td>
+<td align="center">
+<img src="/images/close.png" border="0" style="cursor:pointer" onClick="togglelayertools('divContainercode')">
+</td>
+</tr></table>-->
+
+<!--<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="400">
+<tr><td width="400" height="23" class="barratituloazul2" align="center"><font color="white"><b>Ficheros controlados por el módulo: $fullscreendire</b></font></td>
+<td align="center">
+<img src="/images/close.png" border="0" style="cursor:pointer" onClick="togglelayertools('divContainercode')">
+</td>
+</tr>
+
+<tr><td align="center">-->
+
+
+<table width="417" cellspacing="0" height="15"><tr><td class="barratituloazul2" align="center">
+<font color="white"><b>Ficheros controlados por el módulo: $fullscreendire</b></font></td>
+<td align="center" width=30>
+
+<img src="/images/close.png" border="0" style="cursor:pointer" onClick="togglelayertools('divContainercode')">
+</td>
+</tr></table>
+
+<table class="bordenegrosombrasinredontop" bgcolor="black" width="417" height="100%" cellpadding=0 cellspacing=0 style="border-left-color:#3e73a8;border-right-color:#3e73a8;border-top-color:white;border-bottom-color:#3e73a8; border-width: 1px;background-color:black" border=0>
+<tr><td width="4"></td><td valign="top" style="border-color:white; border-width: 0px;background-color:black">
+
+<div id="scroll" style="height: 285; overflow: auto;float:center;width:417; border-color:#000000; border-width: 2px;background-color:black">
+<table bgcolor="black" width="400" height="285" class="opaco1">
+<tr><td height="5"></td></tr>
+<tr><td width="4"></td><td style="border-color:#FFFFFF; border-width: 4px;" valign="top">
+<font color="#FFFFFF" style="font-family:Lucida Console,Arial;	font-size:10px;">
+EOF
+open(OLD, "< /opt/imt/web/modulos/rutaficheros")    or die "can't open: $!";
+		
+	$i=1;
+	$inicio="0";
+	
+	while (<OLD>) 
+	{
+			chomp;
+			$_ =~ /.*/;
+			
+			
+			if($inicio eq 1)
+			{
+				if (/^\s*$/)
+     			{
+					last;	
+				}
+				
+					if($_ =~ /^\#\s*\$/m)
+					{
+						
+						@data = split (/\s*\$\s*/,$_);
+												
+						for($k=1; $k<=$#data; $k++)
+						{
+							#print "$i $dhcpconf<br><br>";
+							$buscavari=$data[$k];
+							open(OLD5, "< /opt/imt/web/modulos/rutaficheros")    or die "can't open: $!";			
+							while (<OLD5>) 
+							{
+								if(/^\$${buscavari}\s*=/)
+								{
+									$_ =~ /\"(.+)\"/m;
+									$cambi=$1;
+									$cambi =~ s/\$SYSTEM/$SYSTEM/;
+									
+									$tipofile=`ls -d -F $cambi`;
+									$tipofile =~ s/(\r?\n)//g;
+									
+									if($tipofile =~ /\/$/)
+									{
+										$tipofile="D";
+										$tipocolor="blue";
+									}
+									elsif($tipofile =~ /\*$/)
+									{
+										$tipofile="E";	
+										$tipocolor="green";
+									}
+									elsif($tipofile =~ /\@$/)
+									{
+										$tipofile="S";
+										$tipocolor="cyan";	
+									}
+									else
+									{
+										$tipofile="F";
+										$tipocolor="white";	
+									}	
+									
+									$onclick="onclick=verficherocapa10('mostrarficherocodigoproceso','${cambi}') style='cursor:pointer'";		
+								
+									print "<div $onclick><font color=$tipocolor><b>[$tipofile]</b></font> $i $cambi</div><br>";
+									$i=$i+1;
+								}
+							}
+							close(OLD5) or die "can't close: $!";	
+							
+						}
+						
+						
+					}
+				
+				    if($_ =~ /\$\w+\s*=\s*/m)
+    				{
+						$_ =~ /\"(.+)\"/m;
+						$cambi=$1;
+						$cambi =~ s/\$SYSTEM/$SYSTEM/;
+						
+						$tipofile=`ls -d -F $cambi`;
+						$tipofile =~ s/(\r?\n)//g;
+									
+						if($tipofile =~ /\/$/)
+						{
+							$tipofile="D";
+							$tipocolor="blue";
+						}
+						elsif($tipofile =~ /\*$/)
+						{
+							$tipofile="E";	
+							$tipocolor="green";
+						}
+						elsif($tipofile =~ /\@$/)
+						{
+							$tipofile="S";
+							$tipocolor="cyan";	
+						}
+						else
+						{
+							$tipofile="F";
+							$tipocolor="white";	
+						}						
+						
+						$onclick="onclick=verficherocapa10('mostrarficherocodigoproceso','${cambi}') style='cursor:pointer'";						
+						
+						print "<div $onclick><font color=$tipocolor><b>[$tipofile]</b></font> $i $cambi</div><br>";					
+						$i=$i+1;	
+					}			
+			}
+			
+			
+			if (/$fullscreendire/)
+     		{
+				$inicio=1;
+			}
+						
+		
+}
+close(OLD) or die "can't close: $!";	
+
+print <<EOF;
+</font><br>
+</td></tr></table>
+
+</div>
+
+</td></tr>
+<tr><td height="10"></td></tr>
+</table>
+
+</div>
+
+
+EOF
+if($fullscreendire =~ /filtroweb.htm|filtrowebexcep.htm|filtrowebtemas.htm|filtrowebtemas.htm|filtrowebdescargas.htm|filtrowebuser.htm/){
+print <<EOF;
+
+<div style="position:absolute; left:300; top:150; visibility:hidden" onclick="void(0);event.cancelBubble=true;" id="divContainerwebdenied">
+<table cellpadding="0" cellspacing="0"><tr><td>
+<table width="450" cellspacing="0" height="20" align="left"><tr><td background="../images/barratitulo3.gif" align="center">
+<font color="white"><b>· Intentos de acceso a urls bloqueadas: $fullscreendire ·</b></font>
+</td>
+<td align="center">
+<img src="/images/close.png" border="0" style="cursor:pointer" onClick="togglelayerclear('divContainerwebdenied')">
+</td>
+</tr></table>
+</td></tr><tr><td>
+<div id="scroll" style="height: 285; overflow: auto;float:center;width:467; border-color:#000000; border-width: 2px;">
+<table bgcolor="#FFFFFF" width="450" height="285" class="opaco1">
+<tr><td height="5"></td></tr>
+<tr><td style="border-color:#FFFFFF; border-width: 4px;" valign="top">
+<a href="/tmp/accesswebdenied.txt"><img src="/images/descargando.gif" align="right" style="cursor:pointer" border="0"></a>
+
+<font color="#000000" style="font-size:7pt;">
+EOF
+open(OLD, "< $accesslog")    or die "can't open: $accesslog!";
+open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+			chomp;
+			$_ =~ /.*/;
+			
+			if(/TCP_DENIED/)
+			{
+			
+				if($_ =~ /^(.+)\s+[0-9]+\s+(([0-9]+\.){3}[0-9]+)\s+TCP_.+GET\s+(.+)\s+\-\s+DEFAULT_PARENT/m)
+    	     	{
+					 $fechahora= $1;
+        	         $ip = $2;
+					 $url = $4 ;					 
+         		}
+			
+				#Convertir timestamp a fecha de mysql
+			    ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime($fechahora);
+			        
+				#dando formato a las partes
+			    $anyo=sprintf("%02d",$year+1900);
+			    $mes=sprintf("%02d",$mon+1);
+			    $dia=sprintf("%02d",$mday);
+					       
+			    $hora=sprintf("%02d",$hour);
+			    $minuto=sprintf("%02d",$min);
+			    $segundo=sprintf("%02d",$sec);
+							      						         
+				#concatenando la fecha
+			    $fecha= $anyo."-".$mes."-".$dia;
+			    #concatenado la hora
+			    $tiempo=$hora.":".$minuto.":".$segundo;
+			
+				print "<b>$ip</b>&nbsp;&nbsp;&nbsp;$fecha|$tiempo&nbsp;&nbsp;&nbsp;<font color='#3e73a8'><b>$url</b></font><br><br>";
+				print NEW "$ip  $fecha|$tiempo  $url\n";				
+			
+			}
+		
+}
+close(OLD) or die "can't close: $accesslog!";	
+close(NEW);
+
+system("/bin/cp $aux /var/tmp/accesswebdenied.txt 1>&2");
+
+
+print <<EOF;
+
+</font><br>
+</td></tr></table>
+</div>
+</td></tr></table>
+
+
+</div>
+
+
+EOF
+}
+}
+
+
+if($avisovolumencrear eq "1")
+{
+print <<EOF;
+
+<script type="text/javascript">
+
+function closecapa2(container)
+{
+		/*document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();*/
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+}
+
+</script>
+
+<div style="position:absolute; top:230; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 380px; height: 200px; left: 32%" name=infopanel id=infopanel>
+<!--<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%"><tr><td align=center>-->
+
+<div style="background:#99cc33; width:380; height:235;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<table><tr><td height="6"></td></table>
+<div style="background:white; width:360; height:215;-webkit-box-shadow: 0px 1px 5px black;
+  -moz-box-shadow: 0px 1px 5px black;
+  box-shadow: 0px 1px 5px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<br>
+<div class="bordenegrosombra2" style="cursor:pointer;width:80px" onClick="closecapa2('infopanel')"><font size=2>Cerrar</font></div><br>
+
+<br>
+
+<table width="340">
+<tr><td><font size=3><b>Detalles:</b></font></td></tr>
+<tr><td>
+<font size=2>$mensajevolumencrear</font>
+<br><br>
+<font size=2>$mensajevolumencrear3</font>
+<br><br>
+<font size=2>$mensajevolumencrear5</font>
+<br><br>
+<font size=2>$mensajevolumencrear7</font>
+</td></tr></table>
+
+</div></div>
+
+<!--</td></tr>
+</table>-->
+</div>
+EOF
+}
+
+$controlimt3datos=`/sbin/pvdisplay | grep imtdatos`;
+
+#if($fullscreendire =~ /inicio.htm|icingamenuv3.htm/ && $controlimt3datos !~ /imtdatos/ ){
+if($fullscreendire =~ /mfcserver.htm|nxfilter.htm|viewpower.htm|inicio.htm|proxysv3.htm|graficosmenuv3.htm|controllogs.htm|idsmenuv3.htm|auditorv3.htm|cacti.htm|ntopv3.htm|zabbix.htm|ocs.htm|icingamenuv3.htm|pandorafmsv3.htm|chivatomenuv3.htm|netbiospanel.htm|portalimagenv3.htm|ftpserverv3.htm|backuppc.htm|elkarbackupv3.htm|owncloudv3.htm|glusterfs.htm|papercut.htm|vtiger.htm|dolibarr.htm|openerpv3.htm|otrsv3.htm|mantisv3.htm|itopv3.htm|cachedinamicov3.htm|hilomusical.htm|unifi.htm|regiscontrolcapa7.htm/ && $controlimt3datos !~ /imtdatos/ && $controlcodigoactivacion =~ /[a-zA-Z0-9]/){
+
+print <<EOF;
+
+
+<script type="text/javascript">
+
+function closecapa(container,container2)
+{
+		/*document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();*/
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+var objContainer2 = eval(container2);
+objContainer2.style.visibility='hidden';
+
+}
+
+</script>
+
+<div style="position:absolute; left:0; top:0; visibility:visible; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 10000; width:100%;" name=cfdiskcapa id=cfdiskcapa>
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%" style="
+  -webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="background: white; position:absolute; top:150; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 550px; height: 440px; left: 25%;
+-webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;" name=cfdiskcapa2 id=cfdiskcapa2>
+<table cellpadding="0" cellspacing="0" width="100%" height="100%"><tr><td align=center>
+
+EOF
+if($fullscreendire =~ /inicio.htm/ ){
+print <<EOF;
+<div class="bordenegrosombra2" style="cursor:pointer;width:80px" onClick="closecapa('cfdiskcapa','cfdiskcapa2')"><font size=2>Cerrar</font></div><br>
+EOF
+}
+print <<EOF;
+
+
+<table width="480" style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 15;
+  -moz-border-radius: 15;
+  border-radius: 15px;"><tr><td width=5></td><td>
+<font size=2>IMT v3 precisa crear inicialmente el grupo de volumen <b>imtdatos</b> para el uso de las aplicaciones internas.</font><br><br>
+<font size=2>Al instalar el software en el disco se recomienda crear una partición de al menos 30 GB como base para este grupo de volumenes.</font>
+</td><td width=5></td></tr></table>
+
+
+<br>
+
+<table border="0"><tr>
+<td align="center" width="180"><!--<img src="../images/quesoparti.png" border="0"></a>-->
+<iframe src="piechartmini.htm" name="piechartmini" frameborder="no" scrolling="no" width=150 height=140></iframe><br><br>
+<table cellpadding="0" cellspacing="0"><tr><td valign="top"><font size=2>1º</font></td><td width="8"></td><td><a href="cfdiskcapa.htm" target="new"><font size=2><b>Crear partición en espacio libre.</b></font></a></td></tr></table>
+</td>
+<td width="90" valign="center" align="center"><img srsc="/images/flechanarandere.gif"><br><br><br></td>
+<td align="center" width="150"><!--<img src="../images/lvmrepren.png" style="cursor:pointer" onclick="crearvolumen()">-->
+<iframe src="piechartminivol.htm" name="piechartminivol" frameborder="no" scrolling="no" width=150 height=140></iframe>
+<br><br>
+<table cellpadding="0" cellspacing="0"><tr><td valign="top"><font size=2>2º</font></td><td width="8"></td><td><font size=2 style="cursor:pointer" onclick="crearvolumen()"><font color="#3e73a8"><b>Crear volumen lógico</b></font> <b>imtdatos</b>.</font></td></tr></table>
+</tr></table>
+
+<br>
+<table width="480"><tr><td>
+<font size=2>-Se requerirá validación en el acceso a la shell interna.</font>
+</td></tr></table>
+<br>
+<input name="genvolumen" type="hidden" value="">
+</table>
+</div>
+EOF
+}
+
+
+
+
+
+$controllvscanlogs=`/sbin/lvscan | grep logs`;
+$controlmountlogs=`/bin/mount | grep 'imtdatos-logs'`;
+
+if($fullscreendire =~ /controllogs.htm/ && $controllvscanlogs =~ /logs/ && $controllvscanlogs eq ""){
+
+print <<EOF;
+
+
+<script type="text/javascript">
+
+function closecapa(container,container2)
+{
+		/*document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();*/
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+var objContainer2 = eval(container2);
+objContainer2.style.visibility='hidden';
+
+}
+
+</script>
+
+<div style="position:absolute; left:0; top:0; visibility:visible; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 10000; width:100%;" name=cfdiskcapa id=cfdiskcapa>
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%" style="
+  -webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="position:absolute; top:150; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 510px; height: 180px; left: 25%;
+-webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;" name=cfdiskcapa2 id=cfdiskcapa2>
+<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%"><tr><td align=center>
+
+
+<table width="440" style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 15;
+  -moz-border-radius: 15;
+  border-radius: 15px;"><tr><td>
+<br><font size=2>Se ha creado el volumen de datos logs.<br><br>
+Será necesario que reinicie su sistema para hacer uso del volumen.</font><br><br>
+</td></tr></table>
+
+</div>
+EOF
+}
+
+
+
+
+
+
+
+if($fullscreendire =~ /mfcserver.htm|chivatowebv3.htm|nxfilter.htm|viewpower.htm|proxysv3.htm|graficosmenuv3.htm|controllogs.htm|idsmenuv3.htm|auditorv3.htm|cacti.htm|ntopv3.htm|zabbix.htm|ocs.htm|icingamenuv3.htm|pandorafmsv3.htm|chivatomenuv3.htm|netbiospanel.htm|portalimagenv3.htm|ftpserverv3.htm|backuppc.htm|elkarbackupv3.htm|owncloudv3.htm|glusterfs.htm|papercut.htm|vtiger.htm|dolibarr.htm|openerpv3.htm|otrsv3.htm|mantisv3.htm|itopv3.htm|cachedinamicov3.htm|hilomusical.htm|unifi.htm|regiscontrolcapa7.htm/ && $controlimt3datos =~ /imtdatos/ && $controlcodigoactivacion =~ /[a-zA-Z0-9]/){
+
+	#$salida1=`/sbin/lvcreate -l 20 -n squidcache imtdatos`;
+	#$salida2=`/sbin/lvcreate -l 20 -n munin imtdatos`;
+	#$salida2=`/sbin/lvcreate -l 20 -n log imtdatos`;
+	#$salida2=`/sbin/lvcreate -l 20 -n haarpcache imtdatos`;
+	#$salida3=`/sbin/lvcreate -l 20 -n omd imtdatos`;
+	#$salida4=`/sbin/lvcreate -l 20 -n logs imtdatos`;	
+	#$salida5=`/sbin/lvcreate -l 20 -n openvas-plugins imtdatos`;
+	#$salida6=`/sbin/lvcreate -l 20 -n openvas-scap-data imtdatos`;
+	#$salida7=`/sbin/lvcreate -l 20 -n munin-localdomain imtdatos`;
+	#$salida8=`/sbin/lvcreate -l 20 -n ntopng imtdatos`;
+	#$salida9=`/sbin/lvcreate -l 20 -n chivatoweb imtdatos`;
+	#$salida10=`/sbin/lvcreate -l 20 -n vsftp-vsftpd imtdatos`;
+	#$salida11=`/sbin/lvcreate -l 20 -n vsftp-ftp imtdatos`;
+
+$lvmcontrolid="";
+
+if($fullscreendire =~ /proxysv3.htm/) { $lvmcontrolid="squidcache"; $lvmcontrolid2="squid_log"; $lvmcontroltamano="4000"; $lvmcontroltamano2="500"; }
+if($fullscreendire =~ /graficosmenuv3.htm/) { $lvmcontrolid="munin_localdomain"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /controllogs.htm/) { $lvmcontrolid="logs"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /idsmenuv3.htm/) { $lvmcontrolid="suricata_log"; $lvmcontroltamano="500"; }
+if($fullscreendire =~ /elasticsearch.htm/) { $lvmcontrolid="elasticsearch"; $lvmcontroltamano="10000"; }
+if($fullscreendire =~ /auditorv3.htm/) { $lvmcontrolid="openvas_plugins"; $lvmcontrolid2="openvas_scap_data"; $lvmcontrolid3="openvas_cert_data"; $lvmcontrolid4="openvas_cache"; $lvmcontroltamano="500"; $lvmcontroltamano2="1500"; $lvmcontroltamano3="500"; $lvmcontroltamano4="1500"; }
+if($fullscreendire =~ /cacti.htm/) { $lvmcontrolid="cacti_rra"; $lvmcontroltamano="500"; $lvmcontrolid2="cacti_bbdd"; $lvmcontroltamano2="200"; }
+if($fullscreendire =~ /ntopv3.htm/) { $lvmcontrolid="ntopng"; $lvmcontroltamano="4000"; $lvmcontrolid2="redis"; $lvmcontroltamano2="1000"; }
+if($fullscreendire =~ /zabbix.htm/) { $lvmcontrolid="zabbix_bbdd"; $lvmcontroltamano="500"; }
+if($fullscreendire =~ /ocs.htm/) { $lvmcontrolid="ocsweb_bbdd"; $lvmcontroltamano="500"; }
+if($fullscreendire =~ /icingamenuv3.htm/) { $lvmcontrolid="omd"; $lvmcontroltamano="4000"; }
+if($fullscreendire =~ /pandorafmsv3.htm/) { $lvmcontrolid="pandora_bbdd"; $lvmcontroltamano="2000"; }
+if($fullscreendire =~ /chivatowebv3.htm/) { $lvmcontrolid="chivatoweb"; $lvmcontroltamano="5000"; }
+if($fullscreendire =~ /netbiospanel.htm/) { $lvmcontrolid="netbios"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /portalimagenv3.htm/) { $lvmcontrolid="gallery3_bbdd"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /ftpserverv3.htm/) { $lvmcontrolid="vsftp_vsftpd"; $lvmcontrolid2="vsftp_ftp"; $lvmcontroltamano="500"; $lvmcontroltamano2="500"; }
+if($fullscreendire =~ /backuppc.htm/) { $lvmcontrolid="backuppc"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /elkarbackupv3.htm/) { $lvmcontrolid="elkarbackup_bbdd"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /owncloudv3.htm/) { $lvmcontrolid="owncloudwww"; $lvmcontroltamano="3000"; }
+if($fullscreendire =~ /glusterfs.htm/) { $lvmcontrolid="glusterfs"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /papercut.htm/) { $lvmcontrolid="papercut"; $lvmcontroltamano="1500"; }
+if($fullscreendire =~ /vtiger.htm/) { $lvmcontrolid="vtigercrm_bbdd"; $lvmcontroltamano="200"; }
+if($fullscreendire =~ /dolibarr.htm/) { $lvmcontrolid="dolibarrdebian_bbdd"; $lvmcontroltamano="200"; }
+if($fullscreendire =~ /openerpv3.htm/) { $lvmcontrolid="openerp"; $lvmcontroltamano="500"; }
+if($fullscreendire =~ /otrsv3.htm/) { $lvmcontrolid="otrs2_bbdd"; $lvmcontroltamano="200"; }
+if($fullscreendire =~ /mantisv3.htm/) { $lvmcontrolid="mantis_bbdd"; $lvmcontroltamano="200"; }
+if($fullscreendire =~ /itopv3.htm/) { $lvmcontrolid="itop_bbdd"; $lvmcontroltamano="200"; }
+if($fullscreendire =~ /cachedinamicov3.htm/) { $lvmcontrolid="haarpcache"; $lvmcontroltamano="5000"; }
+if($fullscreendire =~ /hilomusical.htm/) { $lvmcontrolid="moc"; $lvmcontroltamano="1000"; }
+if($fullscreendire =~ /unifi.htm/) { $lvmcontrolid="mongodbjournal"; $lvmcontrolid2="unifidblib"; $lvmcontroltamano="2000"; $lvmcontroltamano2="2000"; }
+if($fullscreendire =~ /regiscontrolcapa7.htm/) { $lvmcontrolid="ulogd_bbdd"; $lvmcontroltamano="2000"; }
+if($fullscreendire =~ /viewpower.htm/) { $lvmcontrolid="viewpower"; $lvmcontroltamano="800"; }
+if($fullscreendire =~ /nxfilter.htm/) { $lvmcontrolid="nxfilter"; $lvmcontroltamano="800"; }
+if($fullscreendire =~ /mfcserver.htm/) { $lvmcontrolid="mfcserver"; $lvmcontrolid2="mfcserver_bbdd"; $lvmcontroltamano="2000"; $lvmcontroltamano2="2000"; }
+
+$ESTADOUNIFI=`cat /opt/imt/gestor/estado | grep UNIFI=1`;
+
+if($ESTADOUNIFI ne "" && fullscreendire =~ /unifi.htm/)
+{
+$lvmcontrolid="";
+$lvmcontroltamano="";
+$lvmcontrolid2="";
+$lvmcontroltamano2="";
+}
+
+$ESTADOOWNCLOUD=`cat /opt/imt/gestor/estado | grep OWNCLOUD=1`;
+
+if($ESTADOOWNCLOUD ne "" && fullscreendire =~ /owncloudv3.htm/)
+{
+$lvmcontrolid="";
+$lvmcontroltamano="";
+$lvmcontrolid2="";
+$lvmcontroltamano2="";
+}
+
+if(lvmcontrolid ne "")
+{
+$controlimtlvm=`/sbin/lvscan | grep "imtdatos/$lvmcontrolid"`;
+}
+
+if(lvmcontrolid2 ne "")
+{
+$controlimtlvm2=`/sbin/lvscan | grep "imtdatos/$lvmcontrolid2"`;
+}
+
+if(lvmcontrolid3 ne "")
+{
+$controlimtlvm3=`/sbin/lvscan | grep "imtdatos/$lvmcontrolid3"`;
+}
+
+if(lvmcontrolid4 ne "")
+{
+$controlimtlvm4=`/sbin/lvscan | grep "imtdatos/$lvmcontrolid4"`;
+}
+
+if(($controlimtlvm eq "" && $lvmcontrolid ne "") || ($controlimtlvm2 eq "" && $lvmcontrolid2 ne "") || ($controlimtlvm3 eq "" && $lvmcontrolid3 ne "") || ($controlimtlvm4 eq "" && $lvmcontrolid4 ne ""))
+{
+
+$controlimtvglibre=`/sbin/vgdisplay imtdatos | grep "Free" | sed 's/.\*\\///'`;
+
+
+
+$lvmcontrolmensaje="$lvmcontrolid";
+
+if($lvmcontrolid2 ne "")
+{
+	$lvmcontrolmensaje.=" y $lvmcontrolid2";
+}
+
+if($lvmcontrolid3 ne "")
+{
+	$lvmcontrolmensaje.=" y $lvmcontrolid3";
+}
+
+if($lvmcontrolid4 ne "")
+{
+	$lvmcontrolmensaje.=" y $lvmcontrolid4";
+}
+
+print <<EOF;
+
+<script type="text/javascript">
+
+function closecapa(container,container2)
+{
+		/*document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();*/
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+var objContainer2 = eval(container2);
+objContainer2.style.visibility='hidden';
+
+}
+
+</script>
+
+<div style="position:absolute; left:0; top:0; visibility:visible; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 10000; width:100%;" name=cfdiskcapa id=cfdiskcapa>
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="position:absolute; top:150; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 650px; height: 290px; left: 20%;
+  -webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;" name=cfdiskcapa2 id=cfdiskcapa2>
+<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%" style="
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;"><tr><td align=center>
+
+
+<br>
+
+<table border="0"><tr>
+<td align="center" width="120"><!--<img src="../images/quesoparti.png" border="0" style="cursor:pointer" onClick="myRef = window.open('cfdiskcapa.htm','mywin','left=330,top=150,width=750,height=500,toolbar=1,resizable=1,status=0,menubar=0,scrollbars=yes');myRef.focus()">-->
+<iframe src="piechartminivollvm.htm" name="piechartminivol" frameborder="no" scrolling="no" width=150 height=140></iframe></td>
+<td width="10" valign="center" align="left"></td>
+<td align="left" width="340"><font size=2>El presente servicio requiere crear el volumen lógico LVM <b>($lvmcontrolmensaje)</b> para la disposición de sus datos y la consiguiente inicialización del servicio.</font>
+</tr></table>
+
+<br>
+<table width="600"><tr><td>
+<font size=2>-El tamaño asignado para este vólumen lógico es: <b><input type="text" value="$lvmcontroltamano" name="lvmcontroltamano" size="3" class="campotxt"> MB ($lvmcontrolid)</b>.</font>
+
+<br><br>
+EOF
+if($controlimtlvm2 eq "" && $lvmcontrolid2 ne "")
+{
+print <<EOF;
+<font size=2>-El tamaño asignado para este vólumen lógico es: <b><input type="text" value="$lvmcontroltamano2" name="lvmcontroltamano2" size="3" class="campotxt"> MB ($lvmcontrolid2)</b>.</font>
+<br><br>
+EOF
+}
+else
+{
+print <<EOF;
+<input type="hidden" value="$lvmcontroltamano2" name="lvmcontroltamano2">
+EOF
+}
+
+if($controlimtlvm3 eq "" && $lvmcontrolid3 ne "")
+{
+print <<EOF;
+<font size=2>-El tamaño asignado para este vólumen lógico es: <b><input type="text" value="$lvmcontroltamano3" name="lvmcontroltamano3" size="3" class="campotxt"> MB ($lvmcontrolid3)</b>.</font>
+<br><br>
+EOF
+}
+else
+{
+print <<EOF;
+<input type="hidden" value="$lvmcontroltamano3" name="lvmcontroltamano3">
+EOF
+}
+
+if($controlimtlvm4 eq "" && $lvmcontrolid4 ne "")
+{
+print <<EOF;
+<font size=2>-El tamaño asignado para este vólumen lógico es: <b><input type="text" value="$lvmcontroltamano4" name="lvmcontroltamano4" size="3" class="campotxt"> MB ($lvmcontrolid4)</b>.</font>
+<br><br>
+EOF
+}
+else
+{
+print <<EOF;
+<input type="hidden" value="$lvmcontroltamano4" name="lvmcontroltamano4">
+EOF
+}
+
+print <<EOF;
+<font size=2>-El espacio restante disponible es <b>$controlimtvglibre</b>.</font>
+</td></tr></table>
+<br><br>
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 28;
+  -moz-border-radius: 20;
+  border-radius: 20px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:80" align=center onclick="crearlvm('$lvmcontrolid','$lvmcontroltamano','$lvmcontrolid2','$lvmcontroltamano2','$lvmcontrolid3','$lvmcontroltamano3','$lvmcontrolid4','$lvmcontroltamano4')" class="bordenegrosombra">Crear</div>
+
+<input name="genlvm" type="hidden" value="">
+<input name="nombrelvm" type="hidden" value="">
+<input name="tamanolvm" type="hidden" value="">
+<input name="nombrelvm2" type="hidden" value="">
+<input name="tamanolvm2" type="hidden" value="">
+<input name="nombrelvm3" type="hidden" value="">
+<input name="tamanolvm3" type="hidden" value="">
+<input name="nombrelvm4" type="hidden" value="">
+<input name="tamanolvm4" type="hidden" value="">
+<br>
+</table>
+</div>
+EOF
+}
+
+}
+
+
+
+if($fullscreendire =~ /viewpower.htm|papercut.htm|icingamenuv3.htm/ && $controlimtlvm ne "" && $controlimt3datos =~ /imtdatos/ && $controlcodigoactivacion =~ /[a-zA-Z0-9]/){
+
+#if($controlimtlvm ne "")
+if(1 eq 1)
+{
+
+$controlimtvglibre=`/sbin/vgdisplay imtdatos | grep "Free" | sed 's/.\*\\///'`;
+
+
+
+$lvmcontrolmensaje="$lvmcontrolid";
+
+if($lvmcontrolid2 ne "")
+{
+	$lvmcontrolmensaje.=" y $lvmcontrolid2";
+}
+
+if($lvmcontrolid3 ne "")
+{
+	$lvmcontrolmensaje.=" y $lvmcontrolid3";
+}
+
+if($lvmcontrolid4 ne "")
+{
+	$lvmcontrolmensaje.=" y $lvmcontrolid4";
+}
+
+if($fullscreendire =~ /icingamenuv3.htm/)
+{
+	$mod="omd";
+	$tamanosoft="101 MB";
+}
+
+if($fullscreendire =~ /papercut.htm/)
+{
+	$tamanosoft="177 MB";
+}
+
+if($fullscreendire =~ /viewpower.htm/)
+{
+	$mod="viewpower";
+	$tamanosoft="91 MB";
+}
+
+
+
+
+open(OLD, "< ${controlimtclouddir}/controlimt-${mod}")    or die "can't open ${controlimtclouddir}/controlimt-${mod}: $!";
+		
+	while (<OLD>) 
+	{
+		if(/^\s*URL\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$URL = $data[1];
+		}
+		
+		if(/^\s*FILE\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$FILE = $data[1];
+		}
+		
+		if(/^\s*MD5SUM\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$MD5SUM = $data[1];
+		}
+		
+		if(/^\s*TOTALTAMANO\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$TOTALTAMANO = $data[1];
+		}
+		
+		if(/^\s*TIMESOLICI\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$TIMESOLICI = $data[1];
+		}
+		
+		if(/^\s*DSTLVM\s*=.*$/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			$_ =~ s/"//g;
+			@data = split (/\s*=\s*/,$_);
+		 	$DSTLVM = $data[1];
+		}
+	}
+
+close(OLD)     or die "can't close ${controlimtclouddir}/controlimt-${mod}: $!";
+			
+
+$TAMANOTOTAL="$TOTALTAMANO";
+
+$CONTROLTAMANO=`du -s ${DSTLVM}/${FILE} | awk '{print $1}'`;
+
+$PORCENPROGRESS=int($CONTROLTAMANO*100 / $TAMANOTOTAL);
+
+if($PORCENPROGRESS eq 0 && $q->param('env') ne "downloadimtcloud")
+{
+$acciondownload="onclick=\"downloadimtcloud('$mod')\"";
+$accioninstall="";
+$coloracciondownload="#809e12";
+$coloraccioninstall="gray";
+$cursoracciondownload="cursor:pointer";
+$cursoraccioninstall="";
+}
+else
+{
+$acciondownload="";
+$accioninstall="onclick=\"installimtcloud('$mod')\"";
+$coloracciondownload="gray";
+$coloraccioninstall="#809e12";
+$cursoracciondownload="";
+$cursoraccioninstall="cursor:pointer";
+}
+
+
+$INSTALLFINISH=`${controlimtclouddir}/installfinish-$mod`;
+$INSTALLFINISH =~ s/(\r?\n)//g;
+
+
+if($INSTALLFINISH eq 1 || $INSTALLFINISH eq "")
+{
+print <<EOF;
+
+<script type="text/javascript">
+
+function closecapa(container,container2)
+{
+		/*document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();*/
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+var objContainer2 = eval(container2);
+objContainer2.style.visibility='hidden';
+
+}
+
+
+function downloadimtcloud(opc)
+{
+	if(!confirm('¿Desea realizar la descarga?'))
+	return false;
+
+	//document.getElementById('acciondownload').style.background='gray';
+	//document.getElementById('acciondownload').style.cursor='pointer';
+	
+	document.theform.mod.value = opc;
+	document.theform.env.value="downloadimtcloud";
+	document.theform.submit();
+}
+
+function installimtcloud(opc)
+{
+	if(!confirm('¿Desea realizar la instalación?'))
+	return false;
+	
+	document.theform.mod.value = opc;
+	document.theform.env.value="installimtcloud";
+	document.theform.submit();
+}
+
+
+</script>
+
+<div style="position:absolute; left:0; top:0; visibility:visible; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 10000; width:100%;" name=cfdiskcapa id=cfdiskcapa>
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="position:absolute; top:150; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 650px; height: 340px; left: 20%;
+  -webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;" name=cfdiskcapa2 id=cfdiskcapa2>
+<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%" style="
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;"><tr><td align=center>
+
+
+<br>
+
+<table border="0"><tr>
+<td align="center" width="120"><img src="../images/nubedownload.gif" border="0">
+</td>
+<td width="10" valign="center" align="left"></td>
+<td align="left" width="340"><font size=2>El presente servicio requiere iniciar la descarga online para la posterior instalación sobre el volumen lógico LVM <b>($lvmcontrolmensaje)</b>.</font>
+</tr></table>
+
+<br>
+<table width="600"><tr><td>
+<font size=2>-El tamaño de descarga del módulo de servicio es: <b>$tamanosoft ($lvmcontrolid)</b>.</font>
+
+</td></tr></table>
+
+	
+	<iframe src="controldownload.htm?mod=$mod" name="controldownload" frameborder="no" scrolling="no" width=400 height=100></iframe>
+
+<br><br>
+
+<table><tr><td>
+
+<div id="acciondownload" style="background: $coloracciondownload;
+  -webkit-border-radius: 28;
+  -moz-border-radius: 20;
+  border-radius: 20px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;${cursoracciondownload};width:140" align=center $acciondownload class="bordenegrosombra">Descargar Online</div>
+
+</td><td width=50></td><td>
+
+<div style="background: $coloraccioninstall;
+  -webkit-border-radius: 28;
+  -moz-border-radius: 20;
+  border-radius: 20px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;${cursoraccioninstall};width:80" align=center $accioninstall class="bordenegrosombra">Instalar</div>
+
+</td></tr></table>
+
+
+<input name="genlvm" type="hidden" value="">
+<input name="nombrelvm" type="hidden" value="">
+<input name="tamanolvm" type="hidden" value="">
+<input name="nombrelvm2" type="hidden" value="">
+<input name="tamanolvm2" type="hidden" value="">
+<input name="nombrelvm3" type="hidden" value="">
+<input name="tamanolvm3" type="hidden" value="">
+<input name="nombrelvm4" type="hidden" value="">
+<input name="tamanolvm4" type="hidden" value="">
+<br>
+</table>
+</div>
+EOF
+}
+}
+
+}
+
+
+
+if($avisoregisactivimt eq "1")
+{
+print <<EOF;
+
+<script type="text/javascript">
+
+function closecapa2(container)
+{
+		/*document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();*/
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+}
+
+</script>
+
+<div style="position:absolute; top:230; visibility:visible; Z-INDEX: 1003; margin-left: auto; margin-right: auto; width: 380px; height: 200px; left: 32%" name=infopanel id=infopanel>
+<!--<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%"><tr><td align=center>-->
+
+<div style="background:#99cc33; width:380; height:205;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<table><tr><td height="6"></td></table>
+<div style="background:white; width:360; height:185;-webkit-box-shadow: 0px 1px 5px black;
+  -moz-box-shadow: 0px 1px 5px black;
+  box-shadow: 0px 1px 5px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<br>
+<div class="bordenegrosombra2" style="cursor:pointer;width:80px" onClick="closecapa2('infopanel')"><font size=2>Cerrar</font></div><br>
+
+<br>
+
+<table width="340">
+<tr><td><font size=3><b>Detalles:</b></font></td></tr>
+<tr><td>
+<font size=2>$mensajeregisactivimt</font>
+</td></tr></table>
+
+</div></div>
+
+<!--</td></tr>
+</table>-->
+</div>
+EOF
+}
+
+
+if($fullscreendire !~ /lanservices.htm|dns.htm|rutasestaticas.htm|dhcpserver.htm/ && $controlcodigoactivacion !~ /[a-zA-Z0-9]/){
+
+#$CONTROLRESOLV1=`/usr/bin/dig +time=1 +tries=1 www.google.es | grep "ANSWER: 0"`;
+#$CONTROLRESOLV1 =~ s/(\r?\n)//g;
+
+$CONTROLRESOLV=`/usr/bin/dig +time=1 +tries=1 www.google.es | grep "no servers"`;
+$CONTROLRESOLV =~ s/(\r?\n)//g;
+
+$ip=$ENV{'REMOTE_ADDR'};
+my $country = lc($gi->country_code_by_addr($ip));
+
+print <<EOF;
+<div
+
+style="background:#3e73a8; margin-top:10; margin-left:0; margin-top:0;
+-webkit-box-shadow: 0px 0px 6px 0px black;
+  -moz-box-shadow: 0px 0px 6px 0px black;
+  box-shadow: 0px 0px 6px 0px black;
+  position:absolute; top:0; right:0; bottom:0; visibility:visible; z-index: 1001; width:750; height:10000" onclick="void(0);event.cancelBubble=true;" id="nodosimt">
+<iframe src="/imt/moduloscircuv3.htm" frameborder="0" width='700' scrolling="no"></iframe>
+</div>
+
+<div style="position:absolute; left:0; top:0; visibility:visible; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 10000; width:100%;" >
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="position:absolute; top:70; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 450px; height: 250px; right: 35%">
+<table cellpadding="0" class="bordenegrosombra2" cellspacing="0" width="100%" height="100%" style="background: white;
+-webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<tr>
+<td  height="23" class="barratitulogrisleft" align="center" width=50%>&nbsp;<b><font color=white><u>Activación nueva</u></b></font></td>
+<td  height="23" class="barratitulogrisright" align="center" width=50%>&nbsp;<b><font color=white>Portabilidad</b></font></td>
+</tr> 
+<tr><td height=5></td></tr> 
+  <tr><td align=center colspan=5>
+
+<table border=0 width=350><tr><td>
+<a href="http://www.imtcloud.com/imtcloudweb/${country}/Registro.html" target="new"><font color="black" style="font-size:15px">Regístrese en <strong><font color="#3e73a8">www.imtcloud.com</font></strong> para obtener los datos de nueva activación.</font></a>
+</td></tr></table>
+
+<br>
+
+<table border=0 width=350><tr><td width=20></td><td align=center>
+
+<font size=4>
+
+<!--<table>
+<tr><td><img src="/images/conectadook.gif"></td><td><font size=4>Conexión a internet</font><br><div align=right><font color='#3e73a8' size=2><a href="lanservices.htm"><b><u>Configuración lan</u></b></a></font>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div></td></tr>
+<tr><td><img src="/images/conectadook.gif"></td><td><font size=4>Disponible servidor de registro</font><br><div align=right><font color='#3e73a8' size=2><b>48 horas restan para el registro</b></font></div></td></tr>
+</table>-->
+
+<table bgcolor=white class="bordenegrosombra2" width=250s>
+<tr><td height=2></td><tr>
+<tr><td width=5></td><td>ID USUARIO</td><td width=3></td><td><input type=text size=13 class='campotxt' name='activnumcliente' onkeypress="return validarkey(event)"></td><td width=5></td></tr>
+
+<tr><td width=5></td><td>ID LICENCIA</td><td width=3></td><td><input type=text size=13 class='campotxt' name='activnumlicencia' onkeypress="return validarkey(event)"></td><td width=5></td></tr>
+
+<tr><td width=5></td><td>ID ACTIVACIóN</td><td width=3></td><td><input type=text size=13 class='campotxt' name='activcodactivacion' onkeypress="return validarkey(event)"></td><td width=5></td></tr>
+<tr><td height=2></td><tr>
+</table>
+<input name="regisactivimt" type="hidden" value="">
+
+</font>
+
+<br>
+
+</td>
+</tr></table>
+
+
+<table border="0" align="center" cellpadding="0" cellspacing="0">
+<tr>
+<td>
+<!--<input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="regisimt()">
+
+<input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()">
+-->
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:80" align=center onclick="regisimt()" class="bordenegrosombra"><b><font>Activar</font></b></div>
+
+
+</td>
+</tr>
+</table>
+
+
+</td></tr>
+</table>
+</div>
+
+EOF
+if($CONTROLRESOLV ne ""){
+print <<EOF;
+
+<div style="position:absolute; bottom:70; visibility:visible; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 250px; height: 150px; left: 30px">
+<table cellpadding="0" class="bordenegrosombra2" cellspacing="0" width="100%" height="100%" style="background: white;
+-webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<tr>
+<td  height="23" class="barratitulorojosinredonbottom" align="center" width=50%>&nbsp;<b><font color=white>No tienes conexión a Internet</b></font></td>
+</tr> 
+<tr><td height=10></td></tr> 
+  <tr><td align=center colspan=5>
+
+Secciones disponibles para configuración:<br><br>
+
+<table border=0 width=150>
+<tr><td><a href="lanservices.htm"><font style="font-size:11px;color:#3e73a8">-Configuración de red</font></a></td></tr>
+<tr><td><a href="dns.htm"><font style="font-size:11px;color:#3e73a8">-Resolución DNS</font></a></td></tr>
+<tr><td><a href="dhcpserver.htm"><font style="font-size:11px;color:#3e73a8">-Servicio DHCP</font></a></td></tr>
+<tr><td><a href="virtualserver.htm"><font style="font-size:11px;color:#3e73a8">-Virtual Server</font></a></td></tr>
+</table>
+
+<br>
+
+</td></tr>
+</table>
+</div>
+
+EOF
+}
+print <<EOF;
+
+EOF
+}
+
+if($fullscreendire =~ /nxfilter1234.htm/){
+
+print <<EOF;
+<div style="position:absolute; left:0; top:0; visibility:visible; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 10000; width:100%;" >
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="position:absolute; top:80; visibility:visible; Z-INDEX: 1001; margin-left: auto; margin-right: auto; width: 647px; height: 470px; left: 20%">
+<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%" style="background: url(../images/bg-blue.png)"><tr><td align=center>
+
+<table border=0 width=480><tr><td width=20></td><td>
+
+<br><br>
+
+<font size=2 face=verdana>
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';font-weight: bold;">End User License Agreement (EULA) for NxFilter and its client
+programs.
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">By accepting this agreement or by installing NxFilter or one of its
+client programs offered by or on behalf of Jahastech or by clicking
+"Install", you agree to the following terms, notwithstanding anything
+to the contrary in this agreement.</span></p>
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">"SOFTWARE" means a DNS filtering application named NxFilter and its
+client programs and their related programs distributed by Jahastech.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">1. License
+  Subject to your compliance with these terms and conditions,
+  Jahastech. grants you a royalty-free, non-exclusive,
+  non-transferable license to use SOFTWARE for non-commercial
+  purposes. Jahastech reserves all rights in SOFTWARE not expressly
+  granted to you here.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">2. Restrictions
+  The source code, design, and structure of SOFTWARE are trade
+  secrets. You will not disassemble, decompile, or reverse engineer
+  it, in whole or in part, except to the extent expressly permitted
+  by law, or distribute it. You will not use SOFTWARE for illegal
+  purposes. You will comply with all export laws. SOFTWARE is
+  licensed, not sold.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">3. Distribution
+  You may distribute an unlimited number of copies of SOFTWARE;
+  provided that each copy shall be a true and complete copy,
+  including all copyright and trademark notices, and shall be
+  accompanied by a copy of this EULA.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">4. Third party database
+  SOFTWARE does not include any third party database or blacklist
+  license for domain categorization. Jahastech only provides
+  the means of using third party database for SOFTWARE. You must
+  obtain a valid license or agreement for using third party database.
+  Jahastech does not take any responsibility for using third party
+  database without proper license.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">5. Commercial use
+  You can not sell SOFTWARE itself but you can provide SOFTWARE
+  as a part of your service as long as you have a proper license
+  agreement with all the third parties involved.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">6. Rebranding and customization
+  SOFTWARE can be rebranded or customized with the agreement from
+  Jahastech. However such modification can not be done on the binary
+  files with 'jar', 'exe' extensions. The distribution of a rebranded
+  or customized copy of SOFTWARE is only possible with a valid
+  commercial license purchased from Jahastech.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">7. Usage report
+  SOFTWARE may send a usage report to Jahastech. Such usage report
+  shall not contain any personal information belongs to the end
+  user.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">8. No Warranties
+  Jahastech expressly disclaims any warranty for SOFTWARE. SOFTWARE
+  and any related documentation is provided "as is" without warranty
+  of any kind, either express or implied, including, without
+  limitation, the implied warranties or merchantability, fitness
+  for a particular purpose, or noninfringement. The entire risk
+  arising out of use or performance of SOFTWARE remains with you.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">9. No liability for damages
+  In no event shall Jahastech be liable for any special,
+  consequential, incidental or indirect damages whatsoever
+  (including, without limitation, damages for loss of business
+  profits, business interruption, loss of business information,
+  or any other pecuniary loss) arising out of the use of or
+  inability to use this product, even if the Jahastech is aware
+  of the possibility of such damages and known defects.</span></p>
+
+
+<p><span style="font-size: 8.000000pt; font-family: 'Helvetica';">10. Contact
+  If you have any questions, contact us at support at nxfilter.org.</span></p>
+
+
+
+</font>
+
+<br>
+
+</td>
+</tr></table>
+
+</td></tr>
+</table>
+</div>
+EOF
+}
+
+
+#print "$idforo";
+#$sth->finish();
+#$dbh->disconnect();
+
+if ($fullscreendire ne "imtlayers.htm")
+{
+return 1;
+}
+

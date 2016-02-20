@@ -1,0 +1,4090 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+use Geo::IP;
+use POSIX qw(strftime);
+my $gi = Geo::IP->new(GEOIP_STANDARD);
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{		
+			 if (/^\s*VRS\s*=.*$/)
+     		 {
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$version = $data[1];
+			 }				
+
+	}
+close(OLD);
+
+
+$ip=$ENV{'REMOTE_ADDR'};
+my $country = lc($gi->country_code_by_addr($ip));
+
+#$dbuser="fecbjeyh_root";
+#$dbpass="qwerty-12";
+#$dbbase="fecbjeyh_infodesain";
+
+
+#$infotest=`/opt/imt/gestor/tools/networking/ptelnet.pl 82.194.73.157 3306`;
+
+#unless($infotest =~ /no conecta/)
+#{
+#$infotest2=`/usr/bin/mysql -h 82.194.73.157 -u $dbuser -D $dbbase -p$dbpass -s -e \"SELECT * FROM imt_updates order by upid desc\" --connect_timeout=3`;
+#}
+
+#unless($infotest =~ /no conecta/)
+#{
+#  unless($infotest2 eq "")
+#  {
+
+#    my $dbh = DBI->connect("DBI:mysql:database=$dbbase;host=82.194.73.157;port=3306",$dbuser,$dbpass)
+#               	 or die "Couldn't connect to database: " . DBI->errstr;
+
+
+#my $sth = $dbh->prepare("SELECT * FROM imt_updates order by upid desc")
+#                	or die "Couldn't prepare statement: " . $dbh->errstr;
+
+#$sth->execute()  or die "Couldn't execute statement: " . $sth->errstr;	
+
+
+#$totalactuversi=0;	
+
+#while (@linea = $sth->fetchrow_array) {
+#  						
+#				if($linea[1] ne $version)
+#				{
+#					if($totalactuversi eq 0)
+#					{
+#						$estadoactuversi="NO ";
+#					}
+#					$totalactuversi++;
+#				}
+#				else
+#				{
+#					last;
+#				}
+#				
+#				$sth->finish();
+#				$dbh->disconnect();
+#				
+#		}
+#		
+#		
+#  }		
+#}
+
+
+
+
+$id = $session->id();
+
+$numnotas=0;
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $listanotas")    or die "can't open $listanotas: $!";
+		
+	while (<OLD>) 
+	{
+			unless (/^#/)
+     		{
+				$numnotas=$numnotas+1;
+			}
+	}
+
+	close(OLD)     or die "can't close $listanotas: $!";
+	
+
+
+
+
+
+
+
+
+
+
+
+	open(OLD, "< $mostrarmodu")    or die "can't open $mostrarmodu: $!";
+		
+	while (<OLD>) 
+	{
+	
+	
+	######################
+	#Antivirus Perimetral#
+	######################
+	
+			if (/^\s*ANTIVIRUS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] eq "1") {$ANTIVIRUS_MOSTRADO = "1";}else{$ANTIVIRUS_MOSTRADO = "0";}
+				
+			}
+			
+										
+#----------------------------------------------------------------------------			
+			
+
+
+	###########
+	#Servicios#
+	###########
+			
+			
+			if (/^\s*NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$NETBIOS_MOSTRADO = "1";}else{$NETBIOS_MOSTRADO = "0";}
+				
+			}
+
+			if (/^\s*GROUPWARE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GROUPWARE_MOSTRADO = "1";}else{$GROUPWARE_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*VTIGER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VTIGER_MOSTRADO = "1";}else{$VTIGER_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*DOLIBARR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$DOLIBARR_MOSTRADO = "1";}else{$DOLIBARR_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*OPENERP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENERP_MOSTRADO = "1";}else{$OPENERP_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*OTRS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OTRS_MOSTRADO = "1";}else{$OTRS_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*MANTIS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MANTIS_MOSTRADO = "1";}else{$MANTIS_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*ITOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ITOP_MOSTRADO = "1";}else{$ITOP_MOSTRADO = "0";}
+				
+			}
+									
+			if (/^\s*WAKEONLAN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$WAKEONLAN_MOSTRADO = "1";}else{$WAKEONLAN_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*POWEROFFPCS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$POWEROFFPCS_MOSTRADO = "1";}else{$POWEROFFPCS_MOSTRADO = "0";}
+			}
+
+			if (/^\s*CIR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CIR_MOSTRADO = "1";}else{$CIR_MOSTRADO = "0";}
+			}
+
+
+			if (/^\s*MENSAJERIA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MENSAJERIA_MOSTRADO = "1";}else{$MENSAJERIA_MOSTRADO = "0";}
+			}
+
+			if (/^\s*AUDITOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$AUDITOR_MOSTRADO = "1";}else{$AUDITOR_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*RAT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$RAT_MOSTRADO = "1";}else{$RAT_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*FTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FTP_MOSTRADO = "1";}else{$FTP_MOSTRADO = "0";}
+			}
+						
+			if (/^\s*SERVERDNS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SERVERDNS_MOSTRADO = "1";}else{$SERVERDNS_MOSTRADO = "0";}
+			}
+
+			
+			if (/^\s*BACKUPPC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BACKUPPC_MOSTRADO = "1";}else{$BACKUPPC_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*OWNCLOUD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OWNCLOUD_MOSTRADO = "1";}else{$OWNCLOUD_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*GLUSTERFS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GLUSTERFS_MOSTRADO = "1";}else{$GLUSTERFS_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*ELKARBACKUP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ELKARBACKUP_MOSTRADO = "1";}else{$ELKARBACKUP_MOSTRADO = "0";}
+			}
+
+
+#----------------------------------------------------------------------------
+
+	###########
+	#Seguridad#
+	###########
+			
+			
+			if (/^\s*FIREWALL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FIREWALL_MOSTRADO = "1";}else{$FIREWALL_MOSTRADO = "0";}
+			}
+									
+			if (/^\s*PORTSHADOW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PORTSHADOW_MOSTRADO = "1";}else{$PORTSHADOW_MOSTRADO = "0";}
+
+			}
+				
+			if (/^\s*IDS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$IDS_MOSTRADO = "1";}else{$IDS_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*HOTSPOT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$HOTSPOT_MOSTRADO = "1";}else{$HOTSPOT_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*BLOQUEOP2P\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BLOQUEOP2P_MOSTRADO = "1";}else{$BLOQUEOP2P_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*BLOQUEOMSN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BLOQUEOMSN_MOSTRADO = "1";}else{$BLOQUEOMSN_MOSTRADO = "0";}
+
+			}
+				
+#----------------------------------------------------------------------------			
+			
+	######################
+	#   Comunicación     #
+	######################
+			
+			if (/^\s*XBLUE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$XBLUE_MOSTRADO = "1";}else{$XBLUE_MOSTRADO = "0";}
+				
+			}
+							
+			if (/^\s*ASTERISK\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ASTERISK_MOSTRADO = "1";}else{$ASTERISK_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*SBC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SBC_MOSTRADO = "1";}else{$SBC_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*FAX\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FAX_MOSTRADO = "1";}else{$FAX_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*FAXOCR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FAXOCR_MOSTRADO = "1";}else{$FAXOCR_MOSTRADO = "0";}
+				
+			}
+										
+
+#----------------------------------------------------------------------------			
+			
+	######################
+	#   Multimedia       #
+	######################
+			
+			if (/^\s*HILOMUSICAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$HILOMUSICAL_MOSTRADO = "1";}else{$HILOMUSICAL_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*ZONEMINDER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ZONEMINDER_MOSTRADO = "1";}else{$ZONEMINDER_MOSTRADO = "0";}
+				
+			}											
+
+				
+#----------------------------------------------------------------------------			
+			
+	######################
+	# Conectividad de red#
+	######################
+	
+			
+			if (/^\s*PPTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PPTP_MOSTRADO = "1";}else{$PPTP_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*OPENVPN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENVPN_MOSTRADO = "1";}else{$OPENVPN_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*VPNIPSEC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPNIPSEC_MOSTRADO = "1";}else{$VPNIPSEC_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*VPNWEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPNWEB_MOSTRADO = "1";}else{$VPNWEB_MOSTRADO = "0";}
+				
+			}
+			
+			if (/^\s*VPNP2P\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPNP2P_MOSTRADO = "1";}else{$VPNP2P_MOSTRADO = "0";}
+				
+			}
+						
+	#----------------------------------------------------------------------------			
+			
+	
+	################
+	#Monitorización#
+	################
+		
+			
+			if (/^\s*VISORPASO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VISORPASO_MOSTRADO = "1";}else{$VISORPASO_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*KATALYZER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$KATALYZER_MOSTRADO = "1";}else{$KATALYZER_MOSTRADO = "0";}
+			}			
+			
+			if (/^\s*CACTI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CACTI_MOSTRADO = "1";}else{$CACTI_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*NTOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$NTOP_MOSTRADO = "1";}else{$NTOP_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*ZABBIX\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ZABBIX_MOSTRADO = "1";}else{$ZABBIX_MOSTRADO = "0";}
+			}
+						
+			if (/^\s*OCS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OCS_MOSTRADO = "1";}else{$OCS_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*ICINGA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ICINGA_MOSTRADO = "1";}else{$ICINGA_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*PANDORAFMS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PANDORAFMS_MOSTRADO = "1";}else{$PANDORAFMS_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*HYPERIC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$HYPERIC_MOSTRADO = "1";}else{$HYPERIC_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*KIBANA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$KIBANA_MOSTRADO = "1";}else{$KIBANA_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*LOGSTASH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$LOGSTASH_MOSTRADO = "1";}else{$LOGSTASH_MOSTRADO = "0";}
+			}
+	
+
+#----------------------------------------------------------------------------			
+			
+	
+	################
+	#Centralización#
+	################
+		
+			
+			if (/^\s*WIFICENTER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$WIFICENTER_MOSTRADO = "1";}else{$WIFICENTER_MOSTRADO = "0";}
+			}	
+			
+			if (/^\s*VIEWPOWER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VIEWPOWER_MOSTRADO = "1";}else{$VIEWPOWER_MOSTRADO = "0";}
+			}	
+	
+			
+									
+#----------------------------------------------------------------------------			
+			
+	####################
+	# Control de correo#
+	####################
+		
+			
+			if (/^\s*SPAM\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SPAM_MOSTRADO = "1";}else{$SPAM_MOSTRADO = "0";}
+
+			}
+			
+			
+			if (/^\s*SMTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] eq "1") {$SMTP_MOSTRADO = "1";}else{$SMTP_MOSTRADO = "0";}
+				
+			}
+			
+
+#----------------------------------------------------------------------------			
+			
+	#####################################
+	#Tráfico de red, alta disponibilidad#
+	#####################################
+	
+			
+
+			if (/^\s*BACKUPLINEA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BACKUPLINEA_MOSTRADO = "1";}else{$BACKUPLINEA_MOSTRADO = "0";}
+
+			}		
+			
+			if (/^\s*BALANCEADORCARGA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BALANCEADORCARGA_MOSTRADO = "1";}else{$BALANCEADORCARGA_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*QOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$QOS_MOSTRADO = "1";}else{$QOS_MOSTRADO = "0";}
+
+			}
+						
+
+#----------------------------------------------------------------------------			
+			
+	#####################
+	#Programas Adaptados#
+	#####################
+	
+						
+			if (/^\s*OSCOMMERCE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OSCOMMERCE_MOSTRADO = "1";}else{$OSCOMMERCE_MOSTRADO = "0";}
+
+			}	
+			
+			if (/^\s*PAPERCUT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PAPERCUT_MOSTRADO = "1";}else{$PAPERCUT_MOSTRADO = "0";}
+
+			}	
+
+#----------------------------------------------------------------------------			
+			
+	#####################
+	####### BBDD ########
+	#####################
+
+
+			if (/^\s*MYSQL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MYSQL_MOSTRADO = "1";}else{$MYSQL_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*POSTGRESQL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$POSTGRESQL_MOSTRADO = "1";}else{$POSTGRESQL_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*RADIUS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$RADIUS_MOSTRADO = "1";}else{$RADIUS_MOSTRADO = "0";}
+
+			}
+
+
+
+#----------------------------------------------------------------------------			
+			
+	#############
+	#Rendimiento#
+	#############
+	
+						
+			if (/^\s*PREFETCH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PREFETCH_MOSTRADO = "1";}else{$PREFETCH_MOSTRADO = "0";}
+
+			}
+			
+			if (/^\s*WOC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$WOC_MOSTRADO = "1";}else{$WOC_MOSTRADO = "0";}
+
+			}		
+			
+			if (/^\s*CACHEDINAMICO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CACHEDINAMICO_MOSTRADO = "1";}else{$CACHEDINAMICO_MOSTRADO = "0";}
+
+			}	
+			
+			if (/^\s*OPENNOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENNOP_MOSTRADO = "1";}else{$OPENNOP_MOSTRADO = "0";}
+
+			}					
+			
+			
+#----------------------------------------------------------------------------			
+			
+	################
+	#Automatización#
+	################
+	
+						
+			if (/^\s*GESTUM\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GESTUM_MOSTRADO = "1";}else{$GESTUM_MOSTRADO = "0";}
+
+			}					
+						
+			if (/^\s*MAMW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MAMW_MOSTRADO = "1";}else{$MAMW_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*MFC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MFC_MOSTRADO = "1";}else{$MFC_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*MFCAUTO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MFCAUTO_MOSTRADO = "1";}else{$MFCAUTO_MOSTRADO = "0";}
+			}
+			
+			if (/^\s*MFCSERVER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MFCSERVER_MOSTRADO = "1";}else{$MFCSERVER_MOSTRADO = "0";}
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $mostrarmodu: $!";
+
+
+
+
+
+
+	
+
+$numservicios=0;
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+	
+			if (/^\s*NOMBREID\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$nombreid = $data[1];
+			}
+	
+	##########
+	#Contador#
+	##########
+	
+			if (/^\s*IMT.*=[13].*$/)
+     		{
+				$numservicios=$numservicios+1;
+				
+			}
+	
+	 
+			 if (/^\s*VRS\s*=.*$/)
+     		 {
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$version = $data[1];
+			 }
+	
+	#######HARDWARE#######
+	#ROUTER ADSL ACTIVADO#
+	######################
+
+			if (/^\s*ROUTER_ADSL_ACTIVADO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] eq "1") {$ROUTER_ADSL_ACTIVADO = "1";}
+				
+			}
+
+	############
+	#DESPLIEGUE#
+	############
+
+			if (/^\s*DESPLIEGUE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				$DESPLIEGUE = $data[1];
+				
+			}
+
+	######################
+	#Antivirus Perimetral#
+	######################
+	
+			if (/^\s*IMT_ANTIVIRUS_HTTP_FTP_POP3\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] eq "1") {$ANTIVIRUS_HTTP_FTP_POP3 = "1";}
+				
+			}
+			
+			if (/^\s*IMT_ANTIVIRUS_SMTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] eq "1") {$ANTIVIRUS_SMTP = "1";}
+				
+			}
+			
+			if (/^\s*IMT_MULTIPLE_AV\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] eq "1") {$MULTIPLE_AV = "1";}
+				
+			}
+			
+				
+#----------------------------------------------------------------------------			
+			
+
+
+	###########
+	#Servicios#
+	###########
+			
+			
+			if (/^\s*IMT_ALMACEN_NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ALMACEN_NETBIOS = "1";}
+				
+			}
+
+			if (/^\s*IMT_GROUPWARE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GROUPWARE = "1";}
+				
+			}
+			
+			if (/^\s*IMT_VTIGER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VTIGER = "1";}
+				
+			}
+			
+			if (/^\s*IMT_DOLIBARR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$DOLIBARR = "1";}
+				
+			}
+			
+			if (/^\s*IMT_OPENERP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENERP = "1";}
+				
+			}
+			
+			if (/^\s*IMT_OTRS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OTRS = "1";}
+				
+			}
+			
+			if (/^\s*IMT_MANTIS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MANTIS = "1";}
+				
+			}
+			
+			if (/^\s*IMT_ITOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ITOP = "1";}
+				
+			}
+			
+			if (/^\s*IMT_PORTAL_DE_IMAGEN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PORTAL_DE_IMAGEN = "1";}
+				
+			}
+						
+			if (/^\s*IMT_WAKEONLAN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$WAKEONLAN = "1";}
+			}
+			
+			if (/^\s*IMT_POWEROFF_PCS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$POWEROFF_PCS = "1";}
+			}
+
+			if (/^\s*IMT_SISTEMA_CIR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SISTEMA_CIR = "1";}
+			}
+
+
+			if (/^\s*IMT_SERVIDOR_DE_MENSAJERIA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SERVIDOR_DE_MENSAJERIA = "1";}
+			}
+
+			if (/^\s*IMT_AUDITOR_DE_SEGURIDAD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$AUDITOR_DE_SEGURIDAD = "1";}
+			}
+			
+			if (/^\s*IMT_RAT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$RAT = "1";}
+			}
+			
+			if (/^\s*IMT_SERVIDOR_FTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SERVIDOR_FTP = "1";}
+			}
+			
+			if (/^\s*IMT_SERVIDOR_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SERVIDOR_WEB = "1";}
+			}
+			
+			if (/^\s*IMT_SERVIDOR_DNS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SERVIDOR_DNS = "1";}
+			}
+
+			if (/^\s*IMT_MAMW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MAMW = "1";}
+			}
+			
+			if (/^\s*IMT_MFC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MFC = "1";}
+			}
+			
+			if (/^\s*IMT_MFCAUTO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MFCAUTO = "1";}
+			}
+			
+			if (/^\s*IMT_MFCSERVER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MFCSERVER = "1";}
+			}
+			
+			if (/^\s*IMT_BACKUPPC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BACKUPPC = "1";}
+			}
+			
+			if (/^\s*IMT_OWNCLOUD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OWNCLOUD = "1";}
+			}
+			
+			if (/^\s*IMT_GLUSTERFS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GLUSTERFS = "1";}
+			}
+			
+			if (/^\s*IMT_ELKARBACKUP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ELKARBACKUP = "1";}
+			}
+
+#----------------------------------------------------------------------------			
+			
+	################
+	#Virtualización#
+	################
+	
+			
+			if (/^\s*IMT_VIRTUALXEN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VIRTUALXEN = "1";}
+
+			}
+			
+			if (/^\s*IMT_OPENVZ\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENVZ = "1";}
+
+			}				
+
+
+#----------------------------------------------------------------------------
+
+	###########
+	#Seguridad#
+	###########
+			
+			
+			if (/^\s*IMT_FIREWALL_PERIMETRAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FIREWALL_PERIMETRAL = "1";}
+			}
+			
+			if (/^\s*IMT_CONTROL_CAPA7\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CONTROL_CAPA7 = "1";}
+				
+			}
+			
+			if (/^\s*IMT_BLOQUEADOR_P2P_MSN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BLOQUEADOR_P2P_MSN = "1";}
+
+			}
+			
+			if (/^\s*IMT_SISTEMA_PORTSHADOW\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SISTEMA_PORTSHADOW = "1";}
+
+			}
+				
+			if (/^\s*IMT_INTRUSION_DETECTION\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$INTRUSION_DETECTION = "1";}
+
+			}
+			
+			if (/^\s*IMT_PORTAL_CAUTIVO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PORTAL_CAUTIVO = "1";}
+
+			}
+			
+				
+#----------------------------------------------------------------------------			
+			
+	######################
+	#   Comunicación     #
+	######################
+			
+			if (/^\s*IMT_XBLUE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$XBLUE = "1";}
+				
+			}
+				
+			if (/^\s*IMT_COMUNICADOR_BLUETOOTH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$COMUNICADOR_BLUETOOTH = "1";}
+				
+			}
+			
+			if (/^\s*IMT_VOZ_SOBRE_IP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VOZ_SOBRE_IP = "1";}
+				
+			}
+			
+			if (/^\s*IMT_SBC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SBC = "1";}
+				
+			}
+			
+			if (/^\s*IMT_FAX_SOBRE_IP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FAX_SOBRE_IP = "1";}
+				
+			}
+			
+			if (/^\s*IMT_FAX_OCR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FAX_OCR = "1";}
+				
+			}
+			
+			if (/^\s*IMT_SIP_PROXY_SERVER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SIP_PROXY_SERVER = "1";}
+				
+			}	
+				
+				
+	#----------------------------------------------------------------------------			
+			
+	######################
+	#   Multimedia       #
+	######################
+			
+			if (/^\s*IMT_HILOMUSICAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$HILOMUSICAL = "1";}
+				
+			}
+			
+			if (/^\s*IMT_ZONEMINDER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ZONEMINDER = "1";}
+				
+			}		
+				
+				
+							
+#----------------------------------------------------------------------------			
+			
+	######################
+	# Conectividad de red#
+	######################
+	
+			
+			if (/^\s*IMT_VPN_PPTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPN_PPTP = "1";}
+				
+			}
+			
+			if (/^\s*IMT_OPENVPN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENVPN = "1";}
+				
+			}
+			
+			if (/^\s*IMT_VPN_IPSEC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPN_IPSEC = "1";}
+				
+			}
+			
+			if (/^\s*IMT_VPN_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPN_WEB = "1";}
+				
+			}
+			
+			if (/^\s*IMT_VPNP2P\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VPNP2P = "1";}
+				
+			}
+			
+			if (/^\s*IMT_VNC_REFLECTOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VNC_REFLECTOR = "1";}
+				
+			}
+
+			
+	#----------------------------------------------------------------------------			
+			
+	###########
+	# Hardware#
+	###########
+	
+			if (/^\s*IMT_ROUTER_ADSL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ROUTER_ADSL = "1";}
+			}
+			
+			if (/^\s*IMT_DISCO_ALMACEN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$DISCO_ALMACEN = "1";}
+			}
+			
+			if (/^\s*IMT_TARJETA_3G\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$TARJETA_3G = "1";}
+			}
+
+			if (/^\s*IMT_CONEXION_WIFI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CONEXION_WIFI = "1";}
+			}
+	
+	#----------------------------------------------------------------------------			
+			
+	################
+	#Monitorización#
+	################
+		
+			
+			if (/^\s*IMT_CONTROLADOR_DE_PASO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CONTROLADOR_DE_PASO = "1";}
+			}
+				
+			if (/^\s*IMT_KATALYZER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$KATALYZER = "1";}
+			}				
+						
+			if (/^\s*IMT_RASTREADOR_NETBIOS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$RASTREADOR_NETBIOS = "1";}
+			}
+
+			if (/^\s*IMT_CACTI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CACTI = "1";}
+			}
+			
+			if (/^\s*IMT_NTOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$NTOP = "1";}
+			}
+			
+			if (/^\s*IMT_ZABBIX\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ZABBIX = "1";}
+			}
+			
+			if (/^\s*IMT_SB_EVENTLOG_MONITOR\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SB_EVENTLOG_MONITOR = "1";}
+			}
+			
+			if (/^\s*IMT_OCS_INVENTORY\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OCS_INVENTORY = "1";}
+			}
+			
+			if (/^\s*IMT_MULTIFUNCION\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MULTIFUNCION = "1";}
+			}
+			
+			if (/^\s*IMT_ICINGA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$ICINGA = "1";}
+			}
+			
+			if (/^\s*IMT_PANDORAFMS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PANDORAFMS = "1";}
+			}
+			
+			if (/^\s*IMT_HYPERIC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$HYPERIC = "1";}
+			}
+			
+			if (/^\s*IMT_KIBANA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$KIBANA = "1";}
+			}
+			
+			if (/^\s*IMT_LOGSTASH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$LOGSTASH = "1";}
+			}
+									
+#----------------------------------------------------------------------------			
+			
+	####################
+	# Control de correo#
+	####################
+		
+			
+			if (/^\s*IMT_SISTEMA_ANTISPAM\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SISTEMA_ANTISPAM = "1";}
+
+			}
+			
+			if (/^\s*IMT_SMTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$SMTP = "1";}
+
+			}
+			
+			if (/^\s*IMT_FETCHMAIL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FETCHMAIL = "1";}
+
+			}
+			
+			if (/^\s*IMT_GOTMAIL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GOTMAIL = "1";}
+
+			}
+			
+									
+#----------------------------------------------------------------------------			
+			
+	#############
+	#Control Web#
+	#############
+	
+			
+			if (/^\s*IMT_FILTRADOR_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$FILTRADOR_WEB = "1";}
+
+			}		
+
+			if (/^\s*IMT_CHIVATO_WEB\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CHIVATO_WEB = "1";}
+
+			}
+
+			if (/^\s*IMT_HTTPINVERSO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$HTTPINVERSO = "1";}
+
+			}
+			
+			if (/^\s*IMT_PRIVOXY\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PRIVOXY = "1";}
+
+			}
+			
+			if (/^\s*IMT_TRADUCTOR_WEB_OPENTRAD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$TRADUCTOR_WEB_OPENTRAD = "1";}
+
+			}
+			
+			if (/^\s*IMT_OPTENET\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPTENET = "1";}
+
+			}					
+							
+
+#----------------------------------------------------------------------------			
+			
+	#####################################
+	#Tráfico de red, alta disponibilidad#
+	#####################################
+	
+			
+			if (/^\s*IMT_BACKUP_DE_LINEA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BACKUP_DE_LINEA = "1";}
+
+			}		
+			
+			if (/^\s*IMT_BALANCEADOR_DE_CARGA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$BALANCEADOR_DE_CARGA = "1";}
+
+			}
+			
+			if (/^\s*IMT_CONTROLADOR_DE_CAUDAL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CONTROLADOR_DE_CAUDAL = "1";}
+
+			}
+			
+			if (/^\s*IMT_REGULADORHTTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$REGULADORHTTP = "1";}
+			}	
+			
+			if (/^\s*IMT_TECNOLOGIA_VRRP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$TECNOLOGIA_VRRP = "1";}
+
+			}				
+			
+			if (/^\s*IMT_TECNOLOGIA_CARP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$TECNOLOGIA_CARP = "1";}
+
+			}				
+
+#----------------------------------------------------------------------------			
+			
+	#####################
+	#Programas Adaptados#
+	#####################
+	
+						
+			if (/^\s*IMT_OSCOMMERCE\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OSCOMMERCE = "1";}
+
+			}
+			
+			if (/^\s*IMT_PAPERCUT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PAPERCUT = "1";}
+
+			}
+			
+			
+	#####################
+	####### BBDD ########
+	#####################
+	
+						
+			if (/^\s*IMT_MYSQL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$MYSQL = "1";}
+
+			}	
+			
+			if (/^\s*IMT_POSTGRESQL\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$POSTGRESQL = "1";}
+
+			}
+			
+			if (/^\s*IMT_RADIUS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$RADIUS = "1";}
+
+			}								
+
+	
+	#####################
+	####### PREFETCH ########
+	#####################
+	
+						
+			if (/^\s*IMT_PREFETCH\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$PREFETCH = "1";}
+
+			}
+			
+	
+	#####################
+	####### WOC ########
+	#####################
+	
+						
+			if (/^\s*IMT_WOC\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$WOC = "1";}
+
+			}	
+			
+	
+	##############################
+	####### CACHEDINAMICO ########
+	##############################
+	
+						
+			if (/^\s*IMT_CACHEDINAMICO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$CACHEDINAMICO = "1";}
+
+			}
+			
+	##############################
+	####### OPENNOP ##############
+	##############################
+	
+						
+			if (/^\s*IMT_OPENNOP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$OPENNOP = "1";}
+
+			}										
+	
+	#####################
+	####### GESTUM ########
+	#####################
+	
+						
+			if (/^\s*IMT_GESTUM\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$GESTUM = "1";}
+
+			}				
+		
+		
+	#####################
+	####### GESTUM ########
+	#####################
+	
+						
+			if (/^\s*IMT_WIFICENTER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$WIFICENTER = "1";}
+
+			}	
+			
+			if (/^\s*IMT_VIEWPOWER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				if ($data[1] eq "1") {$VIEWPOWER = "1";}
+
+			}		
+										
+			
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+	
+	#----------------------------------------------------------------------------			
+			
+
+
+if ($vistaestilo eq "imtdefecto")
+{
+	$logoarriba="logoimtcloudazulpeque.gif";
+}
+
+if ($vistaestilo eq "imtlinux")
+{
+	$logoarriba="logolinux.gif";
+}
+
+if ($vistaestilo eq "imtavanti")
+{
+	$logoarriba="sarenet.gif";
+}
+
+if ($vistaestilo eq "imtpersonal")
+{
+	$logoarriba="logopersonal.jpg";
+}
+
+
+	if($q->param('enviar') eq "3")
+	{
+		system("/bin/echo '' > $accesslog");
+	}
+	
+
+if($idioma eq "espanol")
+{
+	$idiomarutaweb = "es";
+}
+elsif($idioma eq "ingles")
+{
+	$idiomarutaweb = "en";
+}
+elsif($idioma eq "aleman")
+{
+	$idiomarutaweb = "de";
+}
+elsif($idioma eq "frances")
+{
+	$idiomarutaweb = "fr";
+}
+elsif($idioma eq "portugues")
+{
+	$idiomarutaweb = "pt";
+}
+elsif($idioma eq "italiano")
+{
+	$idiomarutaweb = "it";
+}
+
+
+$tamanobutton="0%";
+
+
+$ipdesti=$ENV{'HTTP_HOST'};
+$ipdesti =~ s/\:.*//;
+
+
+if($versionimt =~ /imt3/)
+{
+	$versienlace="v3";
+}
+elsif($versionimt =~ /imtv4/)
+{
+	$versienlace="";
+}
+else
+{
+	$versienlace="";
+}
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<META HTTP-EQUIV="PRAGMA" CONTENT="NO-CACHE">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript1.2">
+
+var BrowserDetect = {
+	init: function () {
+		this.browser = this.searchString(this.dataBrowser) || "An unknown browser";
+		this.version = this.searchVersion(navigator.userAgent)
+			|| this.searchVersion(navigator.appVersion)
+			|| "an unknown version";
+		this.OS = this.searchString(this.dataOS) || "an unknown OS";
+	},
+	searchString: function (data) {
+		for (var i=0;i<data.length;i++)	{
+			var dataString = data[i].string;
+			var dataProp = data[i].prop;
+			this.versionSearchString = data[i].versionSearch || data[i].identity;
+			if (dataString) {
+				if (dataString.indexOf(data[i].subString) != -1)
+					return data[i].identity;
+			}
+			else if (dataProp)
+				return data[i].identity;
+		}
+	},
+	searchVersion: function (dataString) {
+		var index = dataString.indexOf(this.versionSearchString);
+		if (index == -1) return;
+		return parseFloat(dataString.substring(index+this.versionSearchString.length+1));
+	},
+	dataBrowser: [
+		{ 	string: navigator.userAgent,
+			subString: "OmniWeb",
+			versionSearch: "OmniWeb/",
+			identity: "OmniWeb"
+		},
+		{
+			string: navigator.vendor,
+			subString: "Apple",
+			identity: "Safari"
+		},
+		{
+			prop: window.opera,
+			identity: "Opera"
+		},
+		{
+			string: navigator.vendor,
+			subString: "iCab",
+			identity: "iCab"
+		},
+		{
+			string: navigator.vendor,
+			subString: "KDE",
+			identity: "Konqueror"
+		},
+		{
+			string: navigator.userAgent,
+			subString: "Firefox",
+			identity: "Firefox"
+		},
+		{
+			string: navigator.vendor,
+			subString: "Camino",
+			identity: "Camino"
+		},
+		{		// for newer Netscapes (6+)
+			string: navigator.userAgent,
+			subString: "Netscape",
+			identity: "Netscape"
+		},
+		{
+			string: navigator.userAgent,
+			subString: "MSIE",
+			identity: "Explorer",
+			versionSearch: "MSIE"
+		},
+		{
+			string: navigator.userAgent,
+			subString: "Gecko",
+			identity: "Mozilla",
+			versionSearch: "rv"
+		},
+		{ 		// for older Netscapes (4-)
+			string: navigator.userAgent,
+			subString: "Mozilla",
+			identity: "Netscape",
+			versionSearch: "Mozilla"
+		}
+	],
+	dataOS : [
+		{
+			string: navigator.platform,
+			subString: "Win",
+			identity: "Windows"
+		},
+		{
+			string: navigator.platform,
+			subString: "Mac",
+			identity: "Mac"
+		},
+		{
+			string: navigator.platform,
+			subString: "Linux",
+			identity: "Linux"
+		}
+	]
+
+};
+BrowserDetect.init();
+</script>
+
+
+<script type="text/javascript" src="/images/jquery-1.2.2.pack.js"></script>
+<script type="text/javascript" src="/images/animatedcollapse.js"></script>
+
+<script type="text/javascript">
+
+animatedcollapse.addDiv('general', 'fade=1')
+animatedcollapse.addDiv('configuracion', 'fade=1')
+animatedcollapse.addDiv('avanzada', 'fade=1')
+animatedcollapse.addDiv('mantenimiento', 'fade=1')
+animatedcollapse.addDiv('analisis', 'fade=1')
+//animatedcollapse.addDiv('soporte', 'fade=1')
+
+animatedcollapse.addDiv('servired', 'fade=1')
+animatedcollapse.addDiv('seguridad', 'fade=1')
+animatedcollapse.addDiv('controlcorreo', 'fade=1')
+animatedcollapse.addDiv('monitor', 'fade=1')
+animatedcollapse.addDiv('centraliza', 'fade=1')
+animatedcollapse.addDiv('controlweb', 'fade=1')
+animatedcollapse.addDiv('conectividad', 'fade=1')
+animatedcollapse.addDiv('traficored', 'fade=1')
+animatedcollapse.addDiv('almacenamiento', 'fade=1')
+animatedcollapse.addDiv('domotica', 'fade=1')
+//animatedcollapse.addDiv('servicios', 'fade=1')
+animatedcollapse.addDiv('comunicacion', 'fade=1')
+animatedcollapse.addDiv('multimedia', 'fade=1')
+animatedcollapse.addDiv('gestion', 'fade=1')
+animatedcollapse.addDiv('virtualizacion', 'fade=1')
+animatedcollapse.addDiv('basesdatos', 'fade=1')
+animatedcollapse.addDiv('rendimiento', 'fade=1')
+animatedcollapse.addDiv('automatizacion', 'fade=1')
+
+/*animatedcollapse.addDiv('cat', 'fade=0,speed=400,group=pets')
+animatedcollapse.addDiv('dog', 'fade=0,speed=400,group=pets,persist=1,hide=1')
+animatedcollapse.addDiv('rabbit', 'fade=0,speed=400,group=pets,hide=1')*/
+
+animatedcollapse.init()
+
+</script>
+
+
+
+ <script type="text/javascript" language="javascript">
+    var isDOM      = (typeof(document.getElementsByTagName) != 'undefined') ? 1 : 0;
+    var isIE4      = ((typeof(document.all) != 'undefined') && (parseInt(navigator.appVersion) >= 4)) ? 1 : 0;
+    var isNS4      = (typeof(document.layers) != 'undefined') ? 1 : 0;
+    var capable    = (isDOM || isIE4 || isNS4) ? 1 : 0;
+    // Uggly fix for Konqueror and Opera that are not fully DOM compliant
+    if (capable && typeof(navigator.userAgent) != 'undefined') {
+        var browserName = ' ' + navigator.userAgent.toLowerCase();
+        if (browserName.indexOf('opera') > 0 || browserName.indexOf('konqueror') > 0) {
+            capable = 0;
+        }
+    }
+    var fontFamily = 'Arial';
+    var isServer   = true;
+    </script>
+
+
+
+<script language="javascript">
+var ip = "$ip"
+
+
+function borrar(opc)
+{
+
+
+	if(!confirm('¿Desea borrar el accesslog?'))
+	return false;
+
+
+		    
+theform2.enviar.value = opc;
+document.theform2.submit();
+
+}
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/masazulpeque.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/menosazulpeque.gif"
+
+function desplegrupo(grupo)
+{
+	var flecha = document.getElementById(grupo);
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+	}
+}	
+
+
+
+flechaavanact =  new Image(27,25);
+flechaavanact.src = "../images/rulepequeazul.gif"
+flechaavandes =  new Image(27,25);
+flechaavandes.src = "../images/rulepequeazul.gif"
+
+function desplegrupo2(grupo)
+{
+	var flecha = document.getElementById(grupo);
+	
+	if(flecha.src == flechaavanact.src)
+	{
+		flecha.src = flechaavandes.src;	
+	}
+	else
+	{
+		flecha.src = flechaavanact.src;	
+	}
+}	
+
+
+function fococaja()
+{
+document.sitesearch.searchtoc.value="";
+document.getElementById("searchtoc").focus();
+}
+
+function fococajaout()
+{
+//document.sitesearch.searchtoc.value="search...";
+}
+
+function buscamenu()
+{
+document.sitesearch.action="tocbusca.htm";
+document.sitesearch.submit();
+}
+
+</script>
+
+                            
+
+
+</head>
+<BODY style="background:white; margin-left:0; margin-top:0;margin-right:20;margin-bottom:0;" onLoad="startBanner()">
+  
+  <table style="background:#3e73a8; margin-top:10; margin-left:0; margin-top:0;
+-webkit-box-shadow: 0px 0px 6px 0px #3e73a8;
+  -moz-box-shadow: 0px 0px 6px 0px #3e73a8;
+  box-shadow: 0px 0px 6px 0px #3e73a8;height:100%;width:165" cellpadding=0 cellspacing=0><tr><td height=10></td></tr><tr><td valign="top">
+
+<script language="JavaScript">
+		top.document.title="$index_titulo";
+	</script>
+
+<div align="left">
+<table cellpadding="0" cellspacing="0" width="100%">
+<tr><td align="left">&nbsp;<IMG SRC="/images/$logoarriba"></td></tr>
+<tr><td height="2"></td></tr>
+</table>
+</div>
+<br>
+
+<form class="sitesearch" name="sitesearch" action="tocbusca.htm">
+    <table cellpadding="0" cellspacing="0">
+    <tr><td width=20></td><td>                     
+    	<div>
+    		<input name="searchtoc" value="search..." onfocus="fococaja()" onblur="fococajaout()"  type="text" size=15 style="border: 0px #ccc solid;font-size:14px;font-family:arial;line-height:15px;color:black;font-size:12px;
+background: white;
+-webkit-box-shadow: 0px 0px 1px white;
+  -moz-box-shadow: 0px 0px 1px white;
+  box-shadow: 0px 0px 1px white;
+  -webkit-border-radius: 5;
+  -moz-border-radius: 5;
+  border-radius: 5px;
+  padding: 3px 4px 3px 4px;">      
+    	</div>
+    </td><td width=5></td><td valign=center><img src="/images/lupaminiazulblanca.gif" style="cursor:pointer" onclick="buscamenu()"></td></tr>
+	 </table>    
+    
+    <!--<a href="http://www.imtcloud.com/es/es/search.html"></a>-->
+</form>
+
+EOF
+
+if($sesiperfil eq "Admin" || $sesiperfil eq "Monitor") {
+print <<EOF;
+
+
+<!--<table class="cuadroblanco" width="170"><tr><td height=5></td></tr><tr><td align="center">-->
+<center>
+<table style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;color:#1F75BC;
+background: white;
+-webkit-box-shadow: 0px 1px 3px #ffffff;
+  -moz-box-shadow: 0px 1px 3px #ffffff;
+  box-shadow: 0px 1px 3px #ffffff;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;" width="150" cellpaddin=0 cellspacing=0><tr><td height=5></td></tr>
+<tr><td align="center"><b><font size=2>$toc_general</font></b></td></tr>
+<tr><td height=2></td></tr>
+<tr><td align="center">
+<!--&nbsp;&nbsp;&nbsp;<FONT SIZE=2 COLOR='#9e3c12'><b><u>$toc_general</u></b></FONT>
+<br><br>-->
+
+<div onclick="javascript:animatedcollapse.toggle('general');desplegrupo('generalbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_informacion</b></td><td width="6"><img src="/images/masazulpeque.gif" id="generalbutton"></td><td width="4"></td></tr></table></td>
+<!--<td width="1"></td><td>-->
+<!--<a href="javascript:animatedcollapse.toggle('general')">--><!--<img src="../images/mas.jpg" border="0" id="generalbutton" style="width:$tamanobutton;">--><!--</a>-->
+<!--</td>--></tr></table>
+</div>
+
+<div id="general" style="width: 140px; display:none">
+<table style="width: 140px;; background-image:url(/images/azulgrado.jpg); BORDER-RIGHT: #9FC3F0 1px dashed; border-bottom: #9FC3F0 1px dashed"><tr><td>
+<A HREF=inicio.htm target=main>-$toc_inicio</A><br>
+<A HREF=modulos${versienlace}.htm target=main>-$modintegrados</A><br>
+<A HREF=listadomodulos.htm target=main>-$toc_listmod</A><br>
+<A HREF="https://www.imtcloud.com/es/Servicios%20IMT.html" target=_blank>-Software</A><br>
+<!--<A HREF=infoservicios.htm target=main>-$toc_infoservicios ($numservicios)</b></b></A><br>-->
+<!--<A HREF=networkmap.htm target=main>-Network Map</A><br>-->
+<A HREF="https://www.imtcloud.com/es/Soporte.html" target=_blank>-$toc_documentacion</b></b></A><br>
+<!--<A HREF="http://www.imtcloud.com/descargas/manual_imt3_v5.0.html" target=_blank>-$toc_helpguide</b></b></A><br>-->
+<!--<A HREF=nodisponible.htm target=main>-Comparativa</b></b></A><br>-->
+<!--<A HREF=http://foro.infodesain.com target=main>-$toc_officialforum</b></b></A><br>-->
+<!--<A HREF=nodisponible.htm target=main>-$toc_evolucion</b></b></A><br>-->
+<!--<A HREF=licencias.htm target=main>-$toc_licencias</b></b></A><br>-->
+</td></tr></table><br>
+</div>
+
+<div onclick="javascript:animatedcollapse.toggle('configuracion');desplegrupo('configuracionbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_configuracion</b></td><td width="6"><img src="/images/masazulpeque.gif" id="configuracionbutton"></td><td width="4"></td></tr></table></td>
+<!--<td width="1"></td><td>-->
+<!--<a href="javascript:animatedcollapse.toggle('configuracion')">--><!--<img src="../images/mas.jpg" border="0" id="configuracionbutton" style="width:$tamanobutton">--><!--</a>-->
+<!--</td>--></tr></table>
+</div>
+
+
+<div id="configuracion" style="width: 140px; display:none">
+<table style="width: 140px;; background-image:url(/images/azulgrado.jpg); BORDER-RIGHT: #9FC3F0 1px dashed; border-bottom: #9FC3F0 1px dashed"><tr><td>
+<A HREF=despliegue.htm target=main>-$toc_despliegue</A><br>
+<A HREF=lanservices.htm target=main>-$confred</A><br>
+<A HREF=autoregishostsv3.htm target=main>-$gestorobjetos</A><br>
+<A HREF=virtualserver.htm target=main>-$toc_virtualserver</A><br>
+<!--<A HREF=dhcpserver.htm target=main>-$toc_dhcpserver</A><br>-->
+<A HREF=dns.htm target=main>-$toc_dns</A><br>
+<!--<A HREF=servired${versienlace}.htm target=main>-Servicios de red</A><br>-->
+
+
+<!--<div onclick="javascript:animatedcollapse.toggle('avanzada');desplegrupo('avanzadabutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 width=100 bgcolor="#9FC3F0" border="0"><tr><td height=18>&nbsp;<b><font color="#FFFFFF">$toc_avanzado</font></b></td><td width="10"><img src="/images/masazulpeque.gif" id="avanzadabutton"></td><td width="5"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="avanzada" style="width: 137px; display:none">
+
+<table style="width: 137px;; background-image:url(/images/azulgrado.jpg); BORDER-RIGHT: #9FC3F0 1px dashed;"><tr><td>-->
+<!--<A HREF=dyndns.htm target=main>-$toc_dyndns</A><br>-->
+<!--<A HREF=noip.htm target=main>-No-IP</A><br>-->
+<!--<A HREF=rutasestaticas.htm target=main>-$toc_rutasestaticas</A><br>-->
+<A HREF=natext.htm target=main>-$toc_controlextnat</A><br>
+<A HREF=natexcept.htm target=main>-$excenat</A><br>
+<!--<A HREF=natgestion.htm target=main>-Gestión nat</A><br>-->
+<!--<A HREF=dnsserver.htm target=main>-$toc_dnsserver</A><br>-->
+<A HREF=proxysv3.htm target=main>-$toc_proxysperimetro</A><br>
+<!--NO<A HREF=proxys.htm target=main>-Alta disponibilidad</A><br>-->
+<!--<A HREF=pppoe.htm target=main>-PPPoE</A><br>-->
+EOF
+if($versienlace eq "v3") {
+print <<EOF;
+<!--<A HREF=radius${versienlace}.htm target=main>-Radius</A><br>-->
+EOF
+}
+if($versienlace eq "v0") {
+print <<EOF;
+<A HREF=bridge.htm target=main>-Bridge</A><br>
+EOF
+}
+print <<EOF;
+<!--<A HREF=proxysip.htm target=main>-$toc_sip</A><br>-->
+<!--NO<A HREF=vncreflector.htm target=main>-Proxy VNC</A><br>-->
+<!--NO<A HREF=nodisponible.htm target=main>-Proxy ARP</A><br>-->
+<!--<A HREF=snmp.htm target=main>-$toc_snmp</font></A><br>-->
+<!--<A HREF=carp.htm target=main>-CARP(failover)</font></A><br>-->
+<!--NO<A HREF=nodisponible.htm target=main>-BGP/OSPF/RIP</font></A><br>-->
+
+<A HREF=nas.htm target=main>-$uninas</A><br>
+<!--NO<A HREF=nodisponible.htm target=main>-$toc_connectdisk</A><br>-->
+<!--<A HREF=hardware${versienlace}.htm target=main>-$toc_perifericos</A><br>-->
+<!--<A HREF=gestorkernel.htm target=main>-$toc_kernelmanag</A><br>-->
+<A HREF=gestorcerti.htm target=main>-$gestorcertiweb</A><br>
+<!--NO<A HREF=proxys.htm target=main>-Gestor certi SSH</A><br>-->
+<A HREF=configeneral.htm target=main>-$toc_configeneral</A><br>
+<!--NO<A HREF=configfactory.htm target=main>-$toc_cfabrica</A><br>-->
+<!--<A HREF=integracion.htm target=main>-$toc_entorin</A><br>-->
+<!--
+<table cellpadding="0" cellspacing="0">
+<tr><td height="8"></td></tr>
+<td width="8"></td><td>
+<img src='../images/minilogos.gif'>
+</td>
+</tr></table>-->
+
+<!--</td></tr>
+</table>
+</div>-->
+
+</td></tr>
+</table><br>
+</div>
+
+
+<div onclick="javascript:animatedcollapse.toggle('mantenimiento');desplegrupo('mantenimientobutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_mantenimiento</b></td><td width="6"><img src="/images/masazulpeque.gif" id="mantenimientobutton"></td><td width="4"></td></tr></table></td>
+<!--<td width="1"></td><td>-->
+<!--<a href="javascript:animatedcollapse.toggle('mantenimiento')">--><!--<img src="../images/mas.jpg" border="0" id="mantenimientobutton" style="width:$tamanobutton">--><!--</a>-->
+<!--</td>--></tr></table>
+</div>
+
+
+<div id="mantenimiento" style="width: 140px; display:none">
+<table style="width: 140px;; background-image:url(/images/azulgrado.jpg); BORDER-RIGHT: #9FC3F0 1px dashed; border-bottom: #9FC3F0 1px dashed"><tr> <td>
+<A HREF=controlmodulos.htm target=main>-$toc_cmodulos</A><br>
+<A HREF=parareini.htm target=main>-$toc_apagadoreini</A><br>
+<!--<A HREF=acpiwakeup.htm target=main>-ACPI Wakeup</A><br>-->
+<A HREF=poliacceso.htm target=main>-$toc_controlacceso</A><br>
+<A HREF=webshell.htm target=main>-Web shell</A><br>
+<A HREF=backupimt.htm target=main>-$toc_backup</A><br>
+<!--<A HREF=snapshotimt.htm target=main>-Snapshot I.M.T.</b></b></A><br>-->
+<!--<A HREF=nodisponible.htm target=main>-Mirrors · Backup Online</A><br>-->
+<A HREF=update.htm target=main>-$toc_update</b></b></A><br>
+<!--<A HREF=nodisponible.htm target=main>-Asistencia gestor</b></b></A><br>-->
+<!--<A HREF=roadmap.htm target=main>-Road Map</b></b></A><br>-->
+<A HREF=systemupgrade.htm target=main>-System Upgrade </b></b></A><br>
+<!--<A HREF=nodisponible.htm target=main>-$toc_herramientas</b></b></A><br>-->
+</td></tr></table><br>
+</div>
+
+
+<div onclick="javascript:animatedcollapse.toggle('analisis');desplegrupo('analisisbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$titulo4</b></td><td width="6"><img src="/images/masazulpeque.gif" id="analisisbutton"></td><td width="4"></td></tr></table></td>
+<!--<td width="1"></td><td>-->
+<!--<a href="javascript:animatedcollapse.toggle('analisis')">--><!--<img src="../images/mas.jpg" border="0" id="analisisbutton" style="width:$tamanobutton">--><!--</a>-->
+<!--</td>--></tr></table>
+</div>
+
+
+<div id="analisis" style="width: 140px; display:none"> 
+<table style="width: 140px;; background-image:url(/images/azulgrado.jpg); BORDER-RIGHT: #9FC3F0 1px dashed; border-bottom: #9FC3F0 1px dashed"><tr> <td>
+<!--<A HREF=graficosmenu${versienlace}.htm target=main>-$toc_graficos </A><br>-->
+<A HREF=sysinfo.htm target=main>-$infosistema </A><br>
+<A HREF=monit.htm target=main>-$monialerta </A><br>
+<A HREF=netstatnat.htm target=main>-$conectnat</A><br>
+<!--<A HREF=dispositivos.htm target=main>-$toc_dispositivos</b></b></A><br>-->
+<!--<A HREF=nodisponible.htm target=main>-$toc_incidencias</A><br>-->
+<!--<A HREF=nodisponible.htm target=main>-Gestor de Alertas</A><br>-->
+<A HREF=controllogs.htm target=main>-$toc_controldelogs</A><br>
+<!--<A HREF=controlcertikeys.htm target=main>-$toc_controlcertikeys</A><br>-->
+<A HREF=histomodulos.htm target=main>-$toc_histousomodulos</A><br>
+<A HREF=inform.htm target=main>-$inforeje</A><br>
+</td></tr></table><br>
+</div>
+
+</td></tr>
+<tr><td height="10"></td></tr>
+</table>
+
+
+
+<br>
+EOF
+}
+print <<EOF;
+
+<table style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;color:#1F75BC;
+background: white;
+-webkit-box-shadow: 0px 1px 3px #ffffff;
+  -moz-box-shadow: 0px 1px 3px #ffffff;
+  box-shadow: 0px 1px 3px #ffffff;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;" width="150" cellpaddin=0 cellspacing=0><tr><td height=5></td></tr>
+
+<tr><td align="center"><b><font size=2>$toc_modulos</font></b></td></tr>
+
+<!--<tr><td align="center">
+<select name="infopais" id="infopais" style="font-weight:bold; color:#3e73a8; font-size:8pt;">
+<option value="AF" $checkedAF>Local</option>
+<option value="AF" $checkedAF>Cloud</option>
+<option value="AF" $checkedAF>Mobile</option>
+</select>
+</td></tr>-->
+
+<tr><td height=2></td></tr>
+<tr><td align="center">
+
+
+<div onclick="javascript:animatedcollapse.toggle('servired');desplegrupo('serviredbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupored</b></td><td width="6"><img src="/images/masazulpeque.gif" id="serviredbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="servired" style="width: 140px; display:none">  
+<table><tr><td height="3"></td></tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=dhcpserver.htm target=main>-$toc_dhcpserv</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=dnsserver.htm target=main>-$toc_dnsserv</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=snmp.htm target=main>-$toc_snmp</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=proxysip.htm target=main>-$toc_sip</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=dyndns.htm target=main>-$toc_dyndns</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=noip.htm target=main>-$toc_noip</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=daloradiusv3.htm target=main>-$toc_radius</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=carp.htm target=main>-$toc_vrrp</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=/phpmyadmin/ target=new>-$toc_mysql</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=/phppgadmin/ target=new>-$toc_postgre</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=/phpldapadmin/ target=new>-$toc_ldap</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=cirpanel.htm target=main>-$toc_gestorcir </A>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=wakeonlan.htm target=main>-$toc_wakeonlan</A>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=poweroffpcs.htm target=main>-$toc_poweroff</A>
+</td>
+</tr></table>
+
+<table><tr><td height="3"></td></tr></table>
+</div>
+
+EOF
+
+if(($FIREWALL_PERIMETRAL eq "1" && $FIREWALL_MOSTRADO eq "1") || ($INTRUSION_DETECTION eq "1" && $IDS_MOSTRADO eq "1") || ($AUDITOR_DE_SEGURIDAD eq "1" && $AUDITOR_MOSTRADO eq "1") || ($BLOQUEADOR_P2P_MSN eq "1"  && ($BLOQUEOP2P_MOSTRADO eq "1" || $BLOQUEOMSN_MOSTRADO eq "1")) || ($SISTEMA_PORTSHADOW eq "1" && PORTSHADOW_MOSTRADO eq "1") || ($PORTAL_CAUTIVO eq "1" && $HOTSPOT_MOSTRADO eq "1") || ($ANTIVIRUS_HTTP_FTP_POP3 eq "1" && $ANTIVIRUS_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('seguridad');desplegrupo('seguridadbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo1</b></td><td width="6"><img src="/images/masazulpeque.gif" id="seguridadbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="seguridad" style="width: 140px; display:none">  
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+
+if($FIREWALL_PERIMETRAL eq "1" && $FIREWALL_MOSTRADO eq "1") {
+$fwtipovalor=`/bin/cat $fwtipo`;
+$fwtipovalor =~ s/(\r?\n)//g;
+$fwtipovalor = $fwtipovalor+1;
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=fwsecuencial.htm target=main>-$toc_firewall</A><br>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=fwaplica.htm target=main>-$toc_controlapli</A><br>
+</td>
+</tr></table>
+EOF
+}
+
+if($INTRUSION_DETECTION eq "1" && $IDS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=idsmenuv3.htm target=main>-$toc_idps</A><br>
+</td>
+</tr></table>
+EOF
+}
+
+if($ANTIVIRUS_HTTP_FTP_POP3 eq "1" && $ANTIVIRUS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=avpanel.htm target=main>-$toc_antivirusperi</A><br>
+</td>
+</tr></table>
+EOF
+}
+
+if($AUDITOR_DE_SEGURIDAD eq "1" && $AUDITOR_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=auditorv3.htm target=main>-$toc_auditor</A><br>
+</td>
+</tr></table>
+EOF
+}
+#if($BLOQUEADOR_P2P_MSN eq "1" && ($BLOQUEOP2P_MOSTRADO eq "1" || $BLOQUEOMSN_MOSTRADO eq "1")) {
+#print <<EOF;
+#<table style="width:140" cellpadding="0" cellspacing="0"><tr>
+#<td width="7"></td><td align="left">
+#<A HREF=p2pipv3.htm target=main>-Bloqueo P2P</A>
+#</td>
+#</tr></table>
+#EOF
+#}
+if($SISTEMA_PORTSHADOW eq "1" && $PORTSHADOW_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=portshadowauto.htm target=main>-$toc_portknoking</A>
+</td>
+</tr></table>
+EOF
+}
+if($PORTAL_CAUTIVO eq "1" && $HOTSPOT_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=portalcautivo.htm target=main>-$toc_portalcautivo</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($SISTEMA_ANTISPAM eq "1" && $SPAM_MOSTRADO eq "1") || ($SMTP eq "1" && $SMTP_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('controlcorreo');desplegrupo('controlcorreobutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo3</b></td><td width="6"><img src="/images/masazulpeque.gif" id="controlcorreobutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="controlcorreo" style="width: 150px; display:none"> 
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+
+if($SISTEMA_ANTISPAM eq "1" && $SPAM_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=antispamconfig.htm target=main>-$toc_antispam</A>
+</td>
+</tr></table>
+EOF
+}
+
+
+if($SMTP eq "1" && $SMTP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=smtpconfig.htm target=main>-$toc_smtp</A><br>
+</td>
+</tr></table>
+EOF
+}
+
+if($FETCHMAIL eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=fetchmail.htm target=main>-$toc_fetchmail</A><br>
+</td>
+</tr></table>
+EOF
+}
+
+if($GOTMAIL eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_gotmail</A><br>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if($RASTREADOR_NETBIOS eq "1" || ($CONTROLADOR_DE_PASO eq "1" && $VISORPASO_MOSTRADO eq "1") || ($CACTI eq "1" && $CACTI_MOSTRADO eq "1") || ($OCS_INVENTORY eq "1" && $OCS_MOSTRADO eq "1") || ($ZABBIX eq "1" && $ZABBIX_MOSTRADO eq "1") || ($NTOP eq "1" && $NTOP_MOSTRADO eq "1") || ($ICINGA eq "1" && $ICINGA_MOSTRADO eq "1") || ($HYPERIC eq "1" && $HYPERIC_MOSTRADO eq "1") || ($KATALYZER eq "1" && $KATALYZER_MOSTRADO eq "1") || ($KIBANA eq "1" && $KIBANA_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('monitor');desplegrupo('monitorbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo4</b></td><td width="6"><img src="/images/masazulpeque.gif" id="monitorbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="monitor" style="width: 150px; display:none"> 
+<table><tr><td height="3"></td></tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=regiscontrolcapa7.htm target=main>-$toc_anaaplica</A>
+</td>
+</tr></table>
+EOF
+
+if($RASTREADOR_NETBIOS eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=rastreo.htm target=main>-$toc_rastreonetbios</A>
+</td>
+</tr></table>
+EOF
+}
+#if($CONTROLADOR_DE_PASO eq "1" && $VISORPASO_MOSTRADO eq "1") {
+#print <<EOF;
+#<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+#<td width="7"></td><td align="left">
+#<A HREF=pasopanel.htm target=main>-$toc_controlpaso</A>
+#</td>
+#</tr></table>
+#EOF
+#}
+if($KATALYZER eq "1" && $KATALYZER_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=katalyzer.htm target=main>-$toc_katatyzer</A>
+</td>
+</tr></table>
+EOF
+}
+#if($MUNIN eq "1" && $MUNIN_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=graficosmenuv3.htm target=main>-$toc_munin</A>
+</td>
+</tr></table>
+EOF
+#}
+if($CACTI eq "1" && $CACTI_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=cacti.htm target=main>-$toc_cacti</A>
+</td>
+</tr></table>
+EOF
+}
+if($NTOP eq "1" && $NTOP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=ntopv3.htm target=main>-$toc_ntopng</A>
+</td>
+</tr></table>
+EOF
+}
+if($ZABBIX eq "1" && $ZABBIX_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=zabbix.htm target=main>-$toc_zabbix</A>
+</td>
+</tr></table>
+EOF
+}
+if($SB_EVENTLOG_MONITOR eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=/sbeventlog target=main>-$toc_sb</A>
+</td>
+</tr></table>
+EOF
+}
+if($OCS_INVENTORY eq "1" && $OCS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="ocs.htm" target=main>-$toc_ocs</A>
+</td>
+</tr></table>
+EOF
+}
+if($MULTIFUNCION eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="multifuncion.htm" target=main>-$toc_multimonitor</A>
+</td>
+</tr></table>
+EOF
+}
+if($ICINGA eq "1"  && $ICINGA_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="icingamenuv3.htm" target=main>-$toc_icinga</A>
+</td>
+</tr></table>
+EOF
+}
+if($PANDORAFMS eq "1"  && $PANDORAFMS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="pandorafmsv3.htm" target=main>-$toc_pandora</A>
+</td>
+</tr></table>
+EOF
+}
+if($HYPERIC eq "1"  && $HYPERIC_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="hyperic.htm" target=main>-$toc_hyperic</A>
+</td>
+</tr></table>
+EOF
+}
+if($LOGSTASH eq "1"  && $LOGSTASH_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="logstash.htm" target=main>-Logstash</A>
+</td>
+</tr></table>
+EOF
+}
+if($KIBANA eq "111"  && $KIBANA_MOSTRADO eq "1111") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF="kibana.htm" target=main>-$toc_kibana</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($WIFICENTER eq "1" && $WIFICENTER_MOSTRADO eq "1") || ($VIEWPOWER eq "1" && $VIEWPOWER_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('centraliza');desplegrupo('centralizabutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>Centralización</b></td><td width="6"><img src="/images/masazulpeque.gif" id="centralizabutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="centraliza" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($WIFICENTER eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=unifi.htm target=main>-$toc_unifi</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($WIFICENTER eq "1" ) {
+print <<EOF;
+<!--<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=unifivideo.htm target=main>-$toc_unifivideo</A>
+</td>
+</tr></table>-->
+EOF
+}
+
+if($WIFICENTER eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mfi.htm target=main>-$toc_mfi</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=viewpower.htm target=main>-$toc_viewpower</A>
+</td>
+</tr></table>
+
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=litepoints.htm target=main>-$toc_pointcent</A>
+</td>
+</tr></table>
+EOF
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if($FILTRADOR_WEB eq "1" || $CHIVATO_WEB eq "1" || $HTTPINVERSO eq "1" || $PRIVOXY eq "1" || $TRADUCTOR_WEB_OPENTRAD eq "1" || $OPTENET eq "1") {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('controlweb');desplegrupo('controlwebbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo5</b></td><td width="6"><img src="/images/masazulpeque.gif" id="controlwebbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="controlweb" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($FILTRADOR_WEB eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=filtroweb.htm target=main>-$toc_filtradoweb</A>
+</td>
+</tr></table>
+EOF
+}
+if($OPTENET eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-Optenet</A>
+</td>
+</tr></table>
+EOF
+}
+if($CHIVATO_WEB eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=chivatomenuv3.htm target=main>-$toc_chivatoweb</A>
+</td>
+</tr></table>
+EOF
+
+#if($INTRUSION_DETECTION eq "1" && $IDS_MOSTRADO eq "1") {
+print <<EOF;
+
+<table style="width:140" cellpadding="0" cellspacing="0">
+<tr><td width="7"></td><td align="left">
+<A HREF=nxfilter.htm target=main>-$toc_nxf</A><br>
+</td>
+</tr></table>
+EOF
+#}
+
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=httpinverso.htm target=main>-$toc_nginx</A>
+</td>
+</tr></table>
+EOF
+}
+if($PRIVOXY eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=privoxy.htm target=main>-$toc_privo</A>
+</td>
+</tr></table>
+EOF
+}
+if($TRADUCTOR_WEB_OPENTRAD eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_opentrad</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($VPN_PPTP eq "1" && $PPTP_MOSTRADO eq "1") || ($OPENVPN eq "1" && $OPENVPN_MOSTRADO eq "1") || ($VPN_IPSEC eq "1" && $VPNIPSEC_MOSTRADO eq "1") || $VPN_WEB eq "10" && $VPNWEB_MOSTRADO eq "1" || $VPNP2P eq "10" && $VPNP2P_MOSTRADO eq "1" || $VNC_REFLECTOR eq "10" || ($RAT eq "1" && $RAT_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('conectividad');desplegrupo('conectividadbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo6</b></td><td width="6"><img src="/images/masazulpeque.gif" id="conectividadbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="conectividad" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($VPN_PPTP eq "1" && $PPTP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=vpnpptpconfig.htm target=main>-$toc_vpnpptpservice</A>
+</td>
+</tr></table>
+EOF
+}
+if($OPENVPN eq "1" && $OPENVPN_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=openvpnconfig.htm target=main>-$toc_openvpnservice</A>
+</td>
+</tr></table>
+EOF
+}
+if($VPN_IPSEC eq "1" && $VPNIPSEC_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=ipsecconfig.htm target=main>-$toc_vpnipesc</A>
+</td>
+</tr></table>
+EOF
+}
+if($VPN_WEB eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=vpnwebssl.htm target=main>-$toc_vpnwebssl</A>
+</td>
+</tr></table>
+EOF
+}
+if($VPNP2P eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_vpnp2p</A>
+</td>
+</tr></table>
+EOF
+}
+if($VPN_WEB eq "10" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_vpnssh</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<!--<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=guacamole.htm target=main>-$toc_guacamo</A>
+</td>
+</tr></table>-->
+EOF
+if($RAT eq "1" && $RAT_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=rat.htm target=main>-$toc_rat</A>
+</td>
+</tr></table>
+EOF
+}
+if($VPN_WEB eq "10" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_sockstu</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($BACKUP_DE_LINEA eq "1" && $BACKUPLINEA_MOSTRADO eq "1") || ($BALANCEADOR_DE_CARGA eq "1" && $BALANCEADORCARGA_MOSTRADO eq "1") || $TECNOLOGIA_VRRP eq "1" || ($CONTROLADOR_DE_CAUDAL eq "1" && $QOS_MOSTRADO eq "1") || $REGULADORHTTP eq "1" || $TECNOLOGIA_CARP eq "1") {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('traficored');desplegrupo('traficoredbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo7</b></td><td width="6"><img src="/images/masazulpeque.gif" id="traficoredbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="traficored" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($BACKUP_DE_LINEA eq "1" && $BACKUPLINEA_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=backuplineav3.htm target=main>-$toc_backupdelinea</A>
+</td>
+</tr></table>
+EOF
+}
+if($BALANCEADOR_DE_CARGA eq "1" && $BALANCEADORCARGA_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=balanceo.htm target=main>-$toc_balancarga</A>
+</td>
+</tr></table>
+EOF
+}
+if($CONTROLADOR_DE_CAUDAL eq "1" && $QOS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=menuqosv3.htm target=main>-$toc_qoscontro</A>
+</td>
+</tr></table>
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=opentrafficshaper.htm target=main>-Opentrafficshaper</A>
+</td>
+</tr></table>
+EOF
+}
+if($REGULADORHTTP eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=pasopanel.htm target=main>-$toc_reguladortrafi</A>
+</td>
+</tr></table>
+EOF
+}
+if($TECNOLOGIA_VRRP eq "1" || $TECNOLOGIA_CARP eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_tecnovrrp/CARP</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($ALMACEN_NETBIOS eq "1" && $NETBIOS_MOSTRADO eq "1") || ($BACKUPPC eq "1" && $BACKUPPC_MOSTRADO eq "1") || ($SERVIDOR_FTP eq "1" && $FTP_MOSTRADO eq "1") || $SERVIDOR_WEB eq "1" || ($OWNCLOUD eq "1" && $OWNCLOUD_MOSTRADO eq "1") || ($ELKARBACKUP eq "1" && $ELKARBACKUP_MOSTRADO eq "1") || ($GLUSTERFS eq "1" && $GLUSTERFS_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('almacenamiento');desplegrupo('almacenamientobutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_almacenamiento</b></td><td width="6"><img src="/images/masazulpeque.gif" id="almacenamientobutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="almacenamiento" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($ALMACEN_NETBIOS eq "1" && $NETBIOS_MOSTRADO eq "1") {
+print <<EOF;
+<!--<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=netbiospanel.htm target=main>-$toc_almacennetbios </A>
+</td>
+</tr></table>-->
+EOF
+}
+
+if($PORTAL_DE_IMAGEN eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=portalimagenv3.htm target=main>-Gallery </A>
+</td>
+</tr></table>
+EOF
+}
+
+if($SERVIDOR_FTP eq "1" && $FTP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=ftpserverv3.htm target=main>-$toc_servidorftp</A>
+</td>
+</tr></table>
+EOF
+}
+if($SERVIDOR_WEB eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_servweb</A>
+</td>
+</tr></table>
+EOF
+}
+if($BACKUPPC eq "1" && $BACKUPPC_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=backuppc.htm target=main>-$toc_backupc</A>
+</td>
+</tr></table>
+EOF
+}
+if($ELKARBACKUP eq "1" && $ELKARBACKUP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=elkarbackupv3.htm target=main>-$toc_elkarbackup</A>
+</td>
+</tr></table>
+EOF
+}
+if($OWNCLOUD eq "1" && $OWNCLOUD_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=owncloudv3.htm target=main>-$toc_owncloud</A>
+</td>
+</tr></table>
+EOF
+}
+if(1 eq 1) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=openmediavaultv3.htm target=main>-$toc_openmedia</A>
+</td>
+</tr></table>
+EOF
+}
+if($GLUSTERFS eq "1" && $GLUSTERFS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_clust</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+print <<EOF;
+<!--<div onclick="javascript:animatedcollapse.toggle('domotica');desplegrupo('domoticabutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>Domótica</b></td><td width="6"><img src="/images/masazulpeque.gif" id="domoticabutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+<div id="domotica" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>-->
+EOF
+
+print <<EOF;
+<!--<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_opendomo</A>
+</td>
+</tr></table>-->
+EOF
+
+print <<EOF;
+<!--<table><tr><td height="3"></td></tr></table>
+</div>-->
+EOF
+
+if(($FAX_SOBRE_IP eq "1" && $FAX_MOSTRADO eq "1") || ($FAX_OCR eq "1" && $FAXOCR_MOSTRADO eq "1") || ($VOZ_SOBRE_IP eq "1" && $ASTERISK_MOSTRADO eq "1") || $COMUNICADOR_BLUETOOTH eq "1" || ($SERVIDOR_DE_MENSAJERIA eq "1" && $MENSAJERIA_MOSTRADO eq "1") || ($XBLUE eq "1" && $XBLUE_MOSTRADO eq "1") || ($SBC eq "1" && $SBC_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('comunicacion');desplegrupo('comunicacionbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$grupo9</b></td><td width="6"><img src="/images/masazulpeque.gif" id="comunicacionbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="comunicacion" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($XBLUE eq "1" && $XBLUE_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=xblue.htm target=main>-$toc_xblue</A>
+</td>
+</tr></table>
+EOF
+}
+#if($COMUNICADOR_BLUETOOTH eq "1" ) {
+#print <<EOF;
+#<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+#<td width="7"></td><td align="left">
+#<A HREF=nodisponible.htm target=main>-$toc_alertabluetooth</A>
+#</td>
+#</tr></table>
+#EOF
+#}
+if($FAX_SOBRE_IP eq "1" && $FAX_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=faxconfig.htm target=main>-$toc_serverfax</A>
+</td>
+</tr></table>
+EOF
+}
+#if($FAX_OCR eq "1" && $FAXOCR_MOSTRADO eq "1") {
+#print <<EOF;
+#<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+#<td width="7"></td><td align="left">
+#<A HREF=faxmailocr.htm target=main>-$toc_serverfaxocr</A>
+#</td>
+#</tr></table>
+#EOF
+#}
+if($VOZ_SOBRE_IP eq "1" && $ASTERISK_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=asterisk.htm target=main>-$toc_asteriskvo</A>
+</td>
+</tr></table>
+EOF
+}
+if($SBC eq "1" && $SBC_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=sbcv3.htm target=main>-$toc_sbc</A>
+</td>
+</tr></table>
+EOF
+}
+if($SERVIDOR_DE_MENSAJERIA eq "1" && $MENSAJERIA_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=jabber.htm target=main>-$toc_servmens</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($HILOMUSICAL eq "1" && $HILOMUSICAL_MOSTRADO eq "1") || ($ZONEMINDER eq "1" && $ZONEMINDER_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('multimedia');desplegrupo('multimediabutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_multimedia</b></td><td width="6"><img src="/images/masazulpeque.gif" id="multimediabutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="multimedia" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table> 
+EOF
+
+if($HILOMUSICAL eq "1" && $HILOMUSICAL_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=hilomusical.htm target=main>-$toc_hilomus</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($ZONEMINDER eq "1" && $ZONEMINDER_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=zoneminder.htm target=main>-$toc_zonemin</A>
+</td>
+</tr></table>
+EOF
+}
+
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($OSCOMMERCE eq "1" && $OSCOMMERCE_MOSTRADO eq "1") || ($GROUPWARE eq "1" && $GROUPWARE_MOSTRADO eq "1") || ($VTIGER eq "1" && $VTIGER_MOSTRADO eq "1") || ($DOLIBARR eq "1" && $DOLIBARR_MOSTRADO eq "1") || ($PAPERCUT eq "1" && $PAPERCUT_MOSTRADO eq "1") || ($OPENERP eq "1" && $OPENERP_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('gestion');desplegrupo('gestionbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_gestion</b></td><td width="6"><img src="/images/masazulpeque.gif" id="gestionbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="gestion" style="width: 150px; display:none"> 
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($PAPERCUT eq "1" && $PAPERCUT_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=papercut.htm target=main>-$toc_papercut</A>
+</td>
+</tr></table>
+EOF
+}
+if($OSCOMMERCE eq "1" && $OSCOMMERCE_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=oscommerce.htm target=main>-$toc_oscomerce</A>
+</td>
+</tr></table>
+EOF
+}
+if($GROUPWARE eq "1" && $GROUPWARE_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=groupware.htm target=main>-$toc_groupware</A>
+</td>
+</tr></table>
+EOF
+}
+if($VTIGER eq "1" && $VTIGER_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=vtiger.htm target=main>-$toc_vtig </A>
+</td>
+</tr></table>
+EOF
+}
+if($DOLIBARR eq "1" && $DOLIBARR_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=dolibarr.htm target=main>-$toc_dolibar</A>
+</td>
+</tr></table>
+EOF
+}
+if($OPENERP eq "1" && $OPENERP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=openerpv3.htm target=main>-$toc_openerp</A>
+</td>
+</tr></table>
+EOF
+}
+if($OTRS eq "1" && $OTRS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=otrsv3.htm target=main>-$toc_otrsn</A>
+</td>
+</tr></table>
+EOF
+}
+if($MANTIS eq "1" && $MANTIS_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mantisv3.htm target=main>-$toc_mantisn</A>
+</td>
+</tr></table>
+EOF
+}
+if($ITOP eq "1" && $ITOP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=itopv3.htm target=main>-$toc_itopn</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if($VIRTUALXEN eq "1" || $OPENVZ eq "1") {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('virtualizacion');desplegrupo('virtualizacionbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_virtualizacion</b></td><td width="6"><img src="/images/masazulpeque.gif" id="virtualizacionbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+
+<div id="virtualizacion" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($OPENVZ eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_openvz</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($VIRTUALXEN eq "1" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-$toc_virtualxen</A>
+</td>
+</tr></table>
+EOF
+}
+
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if($MYSQL eq "10" || $POSTGRESQL eq "10") {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('basesdatos');desplegrupo('basesdatosbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_bbdd</b></td><td width="6"><img src="/images/masazulpeque.gif" id="basesdatosbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+<div id="basesdatos" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($POSTGRESQL eq "10" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=nodisponible.htm target=main>-PostgreSQL</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($MYSQL eq "10" ) {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mysqlv3.htm target=main>-MySQL</A>
+</td>
+</tr></table>
+EOF
+}
+
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($PREFETCH eq "1" && $PREFETCH_MOSTRADO eq "1") || ($WOC eq "1" && $WOC_MOSTRADO eq "1") || ($CACHEDINAMICO eq "1" && $CACHEDINAMICO_MOSTRADO eq "1") || ($OPENNOP eq "1" && $OPENNOP_MOSTRADO eq "1")) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('rendimiento');desplegrupo('rendimientobutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_rendimiento</b></td><td width="6"><img src="/images/masazulpeque.gif" id="rendimientobutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+<div id="rendimiento" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($PREFETCH eq "1" && $PREFETCH_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=prefetch.htm target=main>-$toc_precargaproxy</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($WOC eq "10" && $WOC_MOSTRADO eq "10") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=woc.htm target=main>-$toc_wanoptimize</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($CACHEDINAMICO eq "1" && $CACHEDINAMICO_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=cachedinamicov3.htm target=main>-$toc_cacheadorn</A>
+</td>
+</tr></table>
+EOF
+}
+
+if($OPENNOP eq "1" && $OPENNOP_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=opennopv3.htm target=main>-$toc_wanoptimize</A>
+</td>
+</tr></table>
+EOF
+}
+
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+if(($GESTUM eq "1" && $GESTUM_MOSTRADO eq "1") || ($MAMW eq "1" && $MAMW_MOSTRADO eq "1") || ($MFC eq "1" && $MFC_MOSTRADO eq "1") || ($MFCAUTO eq "1" && $MFCAUTO_MOSTRADO eq "1") || ($MFCSERVER eq "1" && $MFCSERVER_MOSTRADO eq "1") ) {
+print <<EOF;
+
+<div onclick="javascript:animatedcollapse.toggle('automatizacion');desplegrupo('automatizacionbutton')" style="cursor:pointer">
+<table cellspacing="0" cellspacing="0"><tr><td><table cellpadding=0 cellspacing=0 class="bordecuadrof" width=125><tr><td width=115 height=18>&nbsp;<b>$toc_automatizacion</b></td><td width="6"><img src="/images/masazulpeque.gif" id="automatizacionbutton"></td><td width="4"></td></tr></table></td>
+</tr></table>
+</div>
+
+<div id="automatizacion" style="width: 150px; display:none">
+<table><tr><td height="3"></td></tr></table>
+EOF
+
+if($GESTUM eq "1" && $GESTUM_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=gestum.htm target=main>-$toc_gestumn</A>
+</td>
+</tr></table>
+EOF
+}
+if($MAMW eq "1" && $MAMW_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mamwmenu.htm target=main>-$toc_mamwn</A>
+</td>
+</tr></table>
+EOF
+}
+if($MFC eq "1" && $MFC_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mfc.htm target=main>-MFC Agent</A>
+</td>
+</tr></table>
+EOF
+}
+if($MFCAUTO eq "1" && $MFCAUTO_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mfcauto.htm target=main>-MFC Auto</A>
+</td>
+</tr></table>
+EOF
+}
+if($MFCSERVER eq "1" && $MFCSERVER_MOSTRADO eq "1") {
+print <<EOF;
+<table style="width:140" cellpadding="0" cellspacing="0"><tr> 
+<td width="7"></td><td align="left">
+<A HREF=mfcserver.htm target=main>-MFC Server</A>
+</td>
+</tr></table>
+EOF
+}
+print <<EOF;
+<table><tr><td height="3"></td></tr></table>
+</div>
+EOF
+}
+
+print <<EOF;
+
+</td></tr>
+<tr><td height="10"></td></tr>
+</table>
+
+
+<br>
+
+</td></tr></table>
+</center>
+</BODY>
+
+
+<script language="javascript">
+
+var speed = 0 // decrease value to increase speed (must be positive)
+
+var pause = 3500 // increase value to increase pause
+
+var timerID = null
+var bannerRunning = false
+
+var ar = new Array()
+ar[0] = "vrs $version"
+ar[1] = "ID $nombreid"
+ar[2] = "IP $ipdesti"
+EOF
+unless($infotest =~ /no conecta/)
+{
+   unless($infotest2 eq "")
+   {
+print <<EOF;
+ar[1] = "Su sistema I.M.T. ${estadoactuversi}está actualizado (última versión)"
+ar[2] = "Requiere $totalactuversi paquetes de actualización"
+ar[3] = "Ver últimos cambios en Update Services (mantenimiento)"
+EOF
+  }
+}
+print <<EOF;
+var message = 0
+var state = ""
+
+clearState()
+
+function stopBanner() {
+if (bannerRunning)
+clearTimeout(timerID)
+
+bannerRunning = false
+}
+
+function startBanner() {
+stopBanner()
+
+showBanner()
+
+
+}
+
+function clearState() {
+state = ""
+
+for (var i = 0; i < ar[message].length; ++i) {
+state += "0"
+}
+}
+
+function showBanner() {
+
+if (getString()) {
+message++
+if (ar.length <= message)
+message = 0
+clearState()
+
+timerID = setTimeout("showBanner()", pause)
+
+bannerRunning = true
+} else {
+
+var str = ""
+
+for (var j = 0; j < state.length; ++j) {
+str += (state.charAt(j) == "1") ? ar[message].charAt(j) : " "
+}
+//alert(str);
+//window.status = str
+//top.document.title = '$index_titulo          '+str;
+
+//if (BrowserDetect.browser == "Firefox") { 
+	top.document.title = '$index_titulo - '+str;
+//} 
+//else
+//{
+//	window.status = str;
+//}
+
+timerID = setTimeout("showBanner()", speed)
+
+bannerRunning = true
+}
+
+}
+
+function getString() {
+var full = true
+
+for (var j = 0; j < state.length; ++j) {
+if (state.charAt(j) == 0)
+full = false
+}
+
+if (full)
+return true
+
+while (1) {
+
+var num = getRandom(ar[message].length)
+if (state.charAt(num) == "0")
+break
+}
+
+state = state.substring(0, num) + "1" + state.substring(num + 1, state.length)
+
+return false
+}
+
+function getRandom(max) {
+return Math.round((max - 1) * Math.random())
+}
+
+</script>
+
+<!--<iframe src="tituloupdate.htm"  frameborder="no" scrolling="no" width=0% height=0%></iframe>-->
+</html>
+EOF
+

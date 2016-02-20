@@ -1,0 +1,1221 @@
+#! /usr/bin/perl -wX
+
+use CGI;
+$q = new CGI;
+use Geo::IP;
+use POSIX qw(strftime);
+#use Captcha::reCAPTCHA;
+#use CGI::Simple;
+my $gi = Geo::IP->new(GEOIP_STANDARD);
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+if($q->param('demoshow') eq "1")
+{
+     $avisodemoshow="visible";
+}
+else
+{
+     $avisodemoshow="hidden";
+}
+
+if($q->param('acceso') ne "")
+	{
+		$acceso=$q->param('acceso');
+		system("/bin/echo $acceso > $tipoacceso");
+	}	
+
+
+$tipoacceso=`/bin/cat $tipoacceso`;
+$tipoacceso =~ s/(\r?\n)//g;
+
+#señal de estado del numred
+#·····································································
+if($tipoacceso eq "1") 
+{
+$checkedvirtualkey = "checked";
+$lectura="readOnly";
+$virtualkey="";
+}
+else
+{
+$checkednormal = "checked";
+$lectura="";
+$virtualkey="return;";
+}
+
+
+#lectura inicial de los servicios
+#···············································································
+
+        open(OLD, "< $moduloruta")    or die "can't open $modulos: $!";
+
+        while (<OLD>)
+        {
+
+                        if (/^\s*IDIOMA\s*=.*$/)
+                {
+                                chomp;
+                                $_ =~ s/^\s+//;
+                                @data = split (/\s*=\s*/,$_);
+                                $idioma = $data[1];
+                        }
+
+                         if (/^\s*VISTA\s*=.*$/)
+                         {
+                                chomp;
+                                $_ =~ s/^\s+//;
+                                @data = split (/\s*=\s*/,$_);
+                                $vistaestilo = $data[1];
+                         }
+						 
+						 if (/^\s*ACTIVADO\s*=.*$/)
+                         {
+                                chomp;
+                                $_ =~ s/^\s+//;
+                                @data = split (/\s*=\s*/,$_);
+                                $ACTIVADO = $data[1];
+                         }
+
+
+        }
+
+        close(OLD)     or die "can't close $modulos: $!";
+
+#lectura de idioma
+#···············································································	
+
+	open(OLD, "< $modulos")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*VRS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$version = $data[1];
+				@numeroversion = split (/\./,$version);
+				$numerovrs = $numeroversion[0];
+			}
+	
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+
+if($idioma eq "ingles")
+{
+	$idioma="English";
+	$idioma2="ingles";
+}
+elsif($idioma eq "aleman")
+{
+	$idioma="Deutsch";
+	$idioma2="aleman";
+}
+elsif($idioma eq "frances")
+{
+	$idioma="Français";
+	$idioma2="frances";
+}
+elsif($idioma eq "espanol")
+{
+	$idioma="Español";
+	$idioma2="espanol";
+}
+elsif($idioma eq "portugues")
+{
+	$idioma="Portuguese";
+	$idioma2="portugues";
+}
+elsif($idioma eq "italiano")
+{
+	$idioma="Italiano";
+	$idioma2="italiano";
+}
+elsif($idioma eq "euskera")
+{
+	$idioma="Euskera";
+	$idioma2="euskera";
+}
+elsif($idioma eq "catalan")
+{
+	$idioma="Catalán";
+	$idioma2="catalan";
+}
+elsif($idioma eq "gallego")
+{
+	$idioma="Gallego";
+	$idioma2="gallego";
+}
+elsif($idioma eq "ruso")
+{
+	$idioma="Ruso";
+	$idioma2="ruso";
+}
+elsif($idioma eq "polaco")
+{
+	$idioma="Polski";
+	$idioma2="polaco";
+}
+elsif($idioma eq "euskera")
+{
+	$idioma="Euskera";
+	$idioma2="euskera";
+}
+elsif($idioma eq "personalizado")
+{
+	$idioma="Personalizado";
+}
+
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{			
+			if (/^\s*INFOLOCALIDAD\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$infolocalidad = $data[1];
+				$infolocalidad =~ s/"//g;
+			}
+		
+	}
+
+	close(OLD)     or die "can't close $modulos: $!";
+
+
+open(OLD, "< $varimtslave")    or die "can't open $varimtslave: $!";
+                
+        while (<OLD>)
+        {                       
+                        if (/^\s*ACTIVSLAVE\s*=.*$/)
+                {
+                                chomp;
+                                $_ =~ s/^\s+//;
+                                @data = split (/\s*=\s*/,$_);
+                                $activslave = $data[1];
+                                $activslave =~ s/"//g;
+                        }
+        }
+
+close(OLD)     or die "can't close $varimtslave: $!";
+
+
+open(OLD, "< $enlacegoogle")    or die "can't open $enlacegoogle: $!";
+		
+	while (<OLD>) 
+	{			
+			chomp;
+				$_ =~ s/^\s+//;
+				
+				if ($_ =~ /staticmap><tr><td><img\ssrc=(http\:\/\/maps\.google\.com.*min_priority=1)/m)
+    			{ 
+    				$enlacemap=$1;
+					$enlacemap =~ s/w=275/w=620/;
+					$enlacemap =~ s/h=275/h=410/;
+					$enlacemap =~ s/zm=2200/zm=3100/;
+				}
+		
+	}
+
+	close(OLD)     or die "can't close $aux: $!";
+
+
+
+$ip=$ENV{'REMOTE_ADDR'};
+my $country = lc($gi->country_code_by_addr($ip));
+my $country2 = $gi->country_name_by_addr($ip);
+
+
+if($ip =~ /192\.121\.212\./)
+{
+$country="";
+}
+
+
+$comple=$q->param('sesioff');
+
+
+$testproxyip=`/sbin/ifconfig | grep $ip`;
+
+if($testproxyip ne "")
+{
+	$avisoproxyip="visible";
+}
+else
+{
+	$avisoproxyip="hidden";
+}
+
+if($activslave eq 1)
+{
+        $avisoslave="visible";
+}
+else
+{
+        $avisoslave="hidden";
+}
+
+if($versionimt =~ /imt3/)
+{
+	$versienlace="v3";
+}
+else
+{
+	$versienlace="v2";
+}
+
+$yearactual = strftime "%Y", localtime;
+
+
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<meta http-equiv="Window-target" content="_top" >
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+
+
+<script language="JavaScript" type="text/JavaScript">
+
+if (1 == '$comple')
+{
+top.window.location='entrada.htm';
+}
+
+
+<!--
+function MM_reloadPage(init) {  //reloads the window if Nav4 resized
+  if (init==true) with (navigator) {if ((appName=="Netscape")&&(parseInt(appVersion)==4)) {
+    document.MM_pgW=innerWidth; document.MM_pgH=innerHeight; onresize=MM_reloadPage; }}
+  else if (innerWidth!=document.MM_pgW || innerHeight!=document.MM_pgH) location.reload();
+}
+MM_reloadPage(true);
+//-->
+</script>
+
+
+		<script language='javascript'>
+		
+			
+	function enviarvalid()
+	{
+	
+	if(document.form1.idioma == 'Español')
+	{
+		document.form1.idioma='espanol';
+	}
+	
+	//document.form1.action="login.htm";
+	document.form1.submit();
+	
+	}
+
+
+function tipoacceso(opc)
+{
+document.form1.acceso.value=opc;
+document.form1.submit();
+}			
+			
+function cambio()
+{
+document.theform.action='usuarios.htm';
+document.theform.submit();
+}			
+
+
+
+
+
+/*
+ * Copyright (c) 2007 Tom Coote (http://www.tomcoote.co.uk)
+ * This is licensed under GPL (http://www.opensource.org/licenses/gpl-license.php) licenses.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+ 
+/******************************************
+	Corner Dock Navigation
+
+	Author: Tom Coote
+	Date: 24/06/2007
+	Web Site: tomcoote.co.uk
+********************************************/
+
+/* CornerDock
+* The main power constructor which creates and returns a new JavaScript object.
+*/
+function JSCornerDock(sID, iAreaHeight, iAreaWidth) {
+
+	var that = {}; // Must use 'that' so not to confuse with 'this' which is the global object.
+
+	/* Private Variables 
+	*
+	* These variables can only be accessed by functions inside the scope of
+	* any instantiation of this constructor.
+	*/
+	var iDimensionsBig = 150,
+		iDimensionsMedium = 100,
+		iDimensionsSmall = 50;
+	var eDockArea,
+		Animations = {}, // Object to store animation info for each dock pic.
+		speed = 1;
+
+
+    /* Private Functions 
+	*
+	* These functions can only be accessed by functions inside the scope of
+	* any instantiation of this constructor.
+	*/
+
+	function InitiateDock() {
+		eDockArea = document.getElementById(sID);
+		var eDockLinks = eDockArea.getElementsByTagName('a'),
+			i, eImg,
+			iMiddle = Math.round(eDockLinks.length/2);
+
+		eDockArea.style.height = iAreaHeight+'px';
+		eDockArea.style.width = iAreaWidth+'px';
+
+		for(i=0; i < eDockLinks.length; i++) {
+			eImg = eDockLinks[i].getElementsByTagName('img');
+
+			if (eImg.length < 1) {
+				alert('Image missing from Corner Dock, each link must contain an img tag.');
+				return;
+			}
+			if (eImg.length > 1) {
+				alert('To many images in Corner Dock link, each link must contain only one img tag.');
+				return;
+			}
+
+			eImg[0].style.border = 'none';
+			eImg[0].style.position = 'absolute';
+
+			switch (i) {
+				case (iMiddle) :
+					eImg[0].style.height = iDimensionsBig+'px';
+					eImg[0].style.width = iDimensionsBig+'px';
+					eImg[0].style.top = PositionMiddleTop()+'px';
+					eImg[0].style.left = PositionMiddleLeft()+'px';
+					break;
+				case (iMiddle-1) :
+					eImg[0].style.height = iDimensionsMedium+'px';
+					eImg[0].style.width = iDimensionsMedium+'px';
+					eImg[0].style.top = PositionMiddleUpperTop()+'px';
+					eImg[0].style.left = PositionMiddleUpperLeft()+'px';
+					eImg[0].onmouseover = MoveClockWise;
+					break;
+				case (iMiddle-2) :
+					eImg[0].style.height = iDimensionsSmall+'px';
+					eImg[0].style.width = iDimensionsSmall+'px';
+					eImg[0].style.top = PositionMiddleUpperMostTop()+'px';
+					eImg[0].style.left = PositionMiddleUpperMostLeft()+'px';
+					eImg[0].onmouseover = MoveClockWise;
+					break;
+				case (iMiddle+1) :
+					eImg[0].style.height = iDimensionsMedium+'px';
+					eImg[0].style.width = iDimensionsMedium+'px';
+					eImg[0].style.top = PositionMiddleLowerTop()+'px';
+					eImg[0].style.left = PositionMiddleLowerLeft()+'px';
+					eImg[0].onmouseover = MoveAntiClockWise;
+					break;
+				case (iMiddle+2) :
+					eImg[0].style.height = iDimensionsSmall+'px';
+					eImg[0].style.width = iDimensionsSmall+'px';
+					eImg[0].style.top = PositionMiddleLowerMostTop()+'px';
+					eImg[0].style.left = PositionMiddleLowerMostLeft()+'px';
+					eImg[0].onmouseover = MoveAntiClockWise;
+					break;
+				default :
+					eImg[0].style.height = (iDimensionsSmall-10)+'px';
+					eImg[0].style.width = (iDimensionsSmall-10)+'px';
+					eImg[0].style.visibility = 'hidden';
+					if (i < iMiddle) {
+						eImg[0].style.top = PositionHiddenUpperTop()+'px';
+						eImg[0].style.left = PositionHiddenUpperLeft()+'px';
+					}
+					else {
+						eImg[0].style.top = PositionHiddenLowerTop()+'px';
+						eImg[0].style.left = PositionHiddenLowerLeft()+'px';
+					}
+			}
+		}
+	}
+
+	// Positions for all the different states
+	PositionMiddleTop = function() {
+		return findPosX(eDockArea) - (iDimensionsBig/2);
+	};
+	PositionMiddleLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth - (iDimensionsBig/2);
+	};
+	PositionMiddleUpperTop = function() {
+		return findPosX(eDockArea) - (iDimensionsMedium) + 30;
+	};
+	PositionMiddleUpperLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth - iDimensionsBig + 20 - (iDimensionsMedium/2);
+	};
+	PositionMiddleUpperMostTop = function() {
+		return findPosX(eDockArea) - (iDimensionsSmall) + 25;
+	};
+	PositionMiddleUpperMostLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth - iDimensionsBig - iDimensionsMedium - 15 + (iDimensionsSmall/2);
+	};
+	PositionMiddleLowerTop = function() {
+		return findPosX(eDockArea) + (iDimensionsBig/2) + 5;
+	};
+	PositionMiddleLowerLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth - (iDimensionsSmall/2);
+	};
+	PositionMiddleLowerMostTop = function() {
+		return findPosX(eDockArea) + (iDimensionsBig/2) + (iDimensionsMedium/2) + iDimensionsSmall + 10;
+	};
+	PositionMiddleLowerMostLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth + 25 - (iDimensionsMedium/2);
+	};
+	PositionHiddenUpperTop = function() {
+		return findPosX(eDockArea);
+	};
+	PositionHiddenUpperLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth - (iDimensionsBig)-(iDimensionsMedium)-(iDimensionsSmall/2);
+	};
+	PositionHiddenLowerTop = function() {
+		return findPosX(eDockArea) + (iDimensionsBig)+(iDimensionsMedium)+(iDimensionsSmall/2) - 30;
+	};
+	PositionHiddenLowerLeft = function() {
+		return findPosY(eDockArea) + iAreaWidth - iDimensionsSmall + 10;
+	};
+
+	function findPosY(obj) {
+		var curleft = 0;
+		if(obj.offsetParent)
+			while(1) 
+			{
+			curleft += obj.offsetLeft;
+			if(!obj.offsetParent)
+				break;
+			obj = obj.offsetParent;
+			}
+		else if(obj.x)
+			curleft += obj.x;
+		return curleft;
+	}
+
+	function findPosX(obj) {
+		var curtop = 0;
+		if(obj.offsetParent)
+			while(1)
+			{
+			curtop += obj.offsetTop;
+			if(!obj.offsetParent)
+				break;
+			obj = obj.offsetParent;
+			}
+		else if(obj.y)
+			curtop += obj.y;
+		return curtop;
+	}
+
+	function GetPosition(eImg) {
+		if (parseInt(eImg.style.width,10) === (iDimensionsSmall-10)) {
+			if ((findPosX(eDockArea)+iDimensionsSmall) > parseInt(eImg.style.top,10)) {
+				return "UpperHidden";
+			}
+			else {
+				return "LowerHidden";
+			}
+		}
+		if (parseInt(eImg.style.width,10) === iDimensionsSmall) {
+			if (findPosX(eDockArea) > parseInt(eImg.style.top,10)) {
+				return "UpperSmall";
+			}
+			else {
+				return "LowerSmall";
+			}
+		}
+		if (parseInt(eImg.style.width,10) === iDimensionsMedium) {
+			if (findPosX(eDockArea) > parseInt(eImg.style.top,10)) {
+				return "UpperMedium";
+			}
+			else {
+				return "LowerMedium";
+			}
+		}
+		if (parseInt(eImg.style.width,10) === iDimensionsBig) {
+			return "Big";
+		}
+	}
+
+	function SetUpEvents() {
+		var eDockLinks = eDockArea.getElementsByTagName('a'),
+			i, eImg;
+
+		for (i=0; i < eDockLinks.length; i++) {
+			eImg = eDockLinks[i].getElementsByTagName('img');
+
+			eImg[0].onmouseover = null;
+		
+			switch (GetPosition(eImg[0])) {
+				case "LowerMedium" :
+					eImg[0].onmouseover = MoveAntiClockWise;
+					break;
+				case "UpperMedium" :
+					eImg[0].onmouseover = MoveClockWise;
+					break;
+				case "LowerSmall" :
+					eImg[0].onmouseover = MoveAntiClockWise;
+					break;
+				case "UpperSmall" :
+					eImg[0].onmouseover = MoveClockWise;
+					break;
+			}
+		}
+	}
+
+	// Move all images around the dock in a clock wise direction
+	function MoveClockWise() {
+
+		var eDockLinks = eDockArea.getElementsByTagName('a'),
+			i, eImg, eImgNested;
+
+		// Check that we have enough icons to animate
+		var bCanAnimate = false;
+		for (i=0; i < eDockLinks.length; i++) {
+			eImg = eDockLinks[i].getElementsByTagName('img');
+
+			if (GetPosition(eImg[0]) === "UpperMedium") {
+				bCanAnimate = true;
+				break;
+			}
+		}
+		if (!bCanAnimate) {
+			return;
+		}
+		
+		for (i=0; i < eDockLinks.length; i++) {
+			eImg = eDockLinks[i].getElementsByTagName('img');
+
+			eImg[0].onmouseover = null;
+		
+			switch (GetPosition(eImg[0])) {
+				case "Big" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 7;
+					Animations[eDockLinks[i].id+'pixelsY'] = 4;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleLowerTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleLowerLeft();
+					break;
+				case "LowerMedium" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsSmall;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsSmall;
+					Animations[eDockLinks[i].id+'sizeChange'] = 3;
+					Animations[eDockLinks[i].id+'pixelsX'] = 5;
+					Animations[eDockLinks[i].id+'pixelsY'] = 4;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleLowerMostTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleLowerMostLeft();
+					break;
+				case "UpperMedium" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsBig;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsBig;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 4;
+					Animations[eDockLinks[i].id+'pixelsY'] = 4;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleLeft();
+					break;
+				case "LowerSmall" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsSmall-10;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsSmall-10;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 4;
+					Animations[eDockLinks[i].id+'pixelsY'] = 4;
+					eImg[0].style.visibility = 'hidden';
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionHiddenLowerTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionHiddenLowerLeft();
+					break;
+				case "UpperSmall" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 2;
+					Animations[eDockLinks[i].id+'pixelsY'] = 2;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleUpperTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleUpperLeft();
+					break;
+				case "LowerHidden" :
+					// Stays there on clock wise.
+					break;
+				case "UpperHidden" :
+					// Not all of them, just the next one in line
+					eImgNested = eDockLinks[i+1].getElementsByTagName('img');
+
+					if (GetPosition(eImgNested[0]) !== "UpperHidden") {
+						Animations[eDockLinks[i].id+'width'] = iDimensionsSmall;
+						Animations[eDockLinks[i].id+'height']  = iDimensionsSmall;
+						Animations[eDockLinks[i].id+'sizeChange'] = 2;
+						Animations[eDockLinks[i].id+'pixelsX'] = 1;
+						Animations[eDockLinks[i].id+'pixelsY'] = 1;
+						eImg[0].style.visibility = 'visible';
+						Animations[eDockLinks[i].id+'obj'] = eImg[0];
+						if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+							Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+						}
+						Animations[eDockLinks[i].id+'posX'] = PositionMiddleUpperMostTop();
+						Animations[eDockLinks[i].id+'posY'] = PositionMiddleUpperMostLeft();
+					}
+					break;
+			}
+		}
+	}
+
+	// Move all images around the dock in an anti clock wise direction
+	function MoveAntiClockWise() {
+		var eDockLinks = eDockArea.getElementsByTagName('a'),
+			i, eImg, eImgNested;
+
+		// Check that we have enough icons to animate
+		var bCanAnimate = false;
+		for (i=0; i < eDockLinks.length; i++) {
+			eImg = eDockLinks[i].getElementsByTagName('img');
+
+			if (GetPosition(eImg[0]) === "LowerMedium") {
+				bCanAnimate = true;
+				break;
+			}
+		}
+		if (!bCanAnimate) {
+			return;
+		}
+
+		for (i=0; i < eDockLinks.length; i++) {
+			eImg = eDockLinks[i].getElementsByTagName('img');
+
+			eImg[0].onmouseover = null;
+		
+			switch (GetPosition(eImg[0])) {
+				case "Big" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 4;
+					Animations[eDockLinks[i].id+'pixelsY'] = 7;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleUpperTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleUpperLeft();
+					break;
+				case "LowerMedium" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsBig;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsBig;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 6;
+					Animations[eDockLinks[i].id+'pixelsY'] = 2;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleTop(); 
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleLeft();
+					break;
+				case "UpperMedium" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsSmall;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsSmall;
+					Animations[eDockLinks[i].id+'sizeChange'] = 3;
+					Animations[eDockLinks[i].id+'pixelsX'] = 4;
+					Animations[eDockLinks[i].id+'pixelsY'] = 6;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleUpperMostTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleUpperMostLeft();
+					break;
+				case "LowerSmall" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsMedium;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 4;
+					Animations[eDockLinks[i].id+'pixelsY'] = 2;
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionMiddleLowerTop(); 
+					Animations[eDockLinks[i].id+'posY'] = PositionMiddleLowerLeft();
+					break;
+				case "UpperSmall" :
+					Animations[eDockLinks[i].id+'width'] = iDimensionsSmall-10;
+					Animations[eDockLinks[i].id+'height'] = iDimensionsSmall-10;
+					Animations[eDockLinks[i].id+'sizeChange'] = 2;
+					Animations[eDockLinks[i].id+'pixelsX'] = 4;
+					Animations[eDockLinks[i].id+'pixelsY'] = 4;
+					eImg[0].style.visibility = 'hidden';
+					Animations[eDockLinks[i].id+'obj'] = eImg[0];
+					if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+						Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+					}
+					Animations[eDockLinks[i].id+'posX'] = PositionHiddenUpperTop();
+					Animations[eDockLinks[i].id+'posY'] = PositionHiddenUpperLeft();
+					break;
+				case "LowerHidden" :
+					// Not all of them, just the next one in line
+					eImgNested = eDockLinks[i-1].getElementsByTagName('img');
+
+					if (GetPosition(eImgNested[0]) !== "LowerHidden") {
+						Animations[eDockLinks[i].id+'width'] = iDimensionsSmall;
+						Animations[eDockLinks[i].id+'height']  = iDimensionsSmall;
+						Animations[eDockLinks[i].id+'sizeChange'] = 2;
+						Animations[eDockLinks[i].id+'pixelsX'] = 2;
+						Animations[eDockLinks[i].id+'pixelsY'] = 1;
+						eImg[0].style.visibility = 'visible';
+						Animations[eDockLinks[i].id+'obj'] = eImg[0];
+						if (Animations[eDockLinks[i].id+'Interval'] === undefined) {
+							Animations[eDockLinks[i].id+'Interval'] = setInterval("CornerDock.MoveToPosition('" + eDockLinks[i].id + "')",speed);
+						}
+						Animations[eDockLinks[i].id+'posX'] = PositionMiddleLowerMostTop();
+						Animations[eDockLinks[i].id+'posY'] = PositionMiddleLowerMostLeft();
+					}
+					break;
+				case "UpperHidden" :
+					// Stays there on clock wise.
+					break;
+			}
+		}
+	}
+
+	function StopAnimation(sID)
+	{
+		var eDockLinks = eDockArea.getElementsByTagName('a'),
+			i, bFinishedAll = true;
+
+		// Clear up the sizes, they could be a few pixels out
+		if (Animations[sID+'obj']) {
+			Animations[sID+'obj'].style.width = Animations[sID+'width'] + 'px';
+			Animations[sID+'obj'].style.height = Animations[sID+'height'] + 'px';
+		}
+
+		Animations[sID+'Interval'] = clearInterval(Animations[sID+'Interval']);
+		Animations[sID+'posX'] = undefined;
+		Animations[sID+'posY'] = undefined;
+		Animations[sID+'obj'] = undefined;
+		Animations[sID+'width'] = undefined;
+		Animations[sID+'height'] = undefined;
+		Animations[sID+'sizeChange'] = undefined;
+		Animations[sID+'pixelsX'] = undefined;
+		Animations[sID+'pixelsY'] = undefined;
+
+		// Add events back in only when all animation have finished.
+		for (i=0; i < eDockLinks.length; i++) {
+
+			if (Animations[sID+'Interval'] !== undefined) {
+				bFinishedAll = false;
+				break;
+			}
+		}
+
+		if (bFinishedAll) {
+			// Add events back in.
+			animating = false;
+			SetUpEvents();
+		}
+	}
+
+	/* Public Variables 
+	*
+	* These variables are available from the returning object that this constructor creates,
+	* new public variables can be added to the returning object at any time.
+	*/
+
+
+	/* Public Functions 
+	*
+	* These functions are available from the returning object that this constructor creates,
+	* new public functions can be added to the returning object at any time.
+	*/
+	that.RotateClockWise = function() {
+		MoveClockWise();
+	};
+	that.RotateAntiClockWise = function() {
+		MoveAntiClockWise();
+	};
+
+	that.MoveToPosition = function(sID) {
+		
+		var obj = Animations[sID+'obj'];
+
+		if (!obj) {
+			StopAnimation(sID);
+			return;
+		}
+		
+		var currentY = findPosY(obj),
+		    currentX = findPosX(obj);
+		var x = Animations[sID+'posX'], y = Animations[sID+'posY'];
+		var currentWidth = parseInt(obj.style.width,10),
+			currentHeight = parseInt(obj.style.height,10);
+		var width = Animations[sID+'width'], height = Animations[sID+'height'],
+			sizeChange = Animations[sID+'sizeChange'],
+			pixelsX = Animations[sID+'pixelsX'], 
+			pixelsY = Animations[sID+'pixelsY'];
+		
+		// If we have reached the position for this animation stop here.
+		if (currentX == x && currentY == y) {
+			StopAnimation(sID);
+			return;
+		}
+
+		// Change the size of the object
+		if (currentWidth != width) {
+			obj.style.width = (width < currentWidth) ? currentWidth - sizeChange +'px' : currentWidth + sizeChange +'px';
+		}
+		if (currentHeight != height) {
+			obj.style.height = (height < currentHeight) ? currentHeight - sizeChange +'px' : currentHeight + sizeChange +'px';
+		}
+
+		// Change the position of the object if it needs changing.
+		if (currentY != y) {
+			obj.style.left = (y < currentY) ? currentY - pixelsY +'px' : currentY + pixelsY +'px';
+		}
+		if (currentX != x) {
+			obj.style.top = (x < currentX) ? currentX - pixelsX +'px' : currentX + pixelsX +'px';
+		}
+
+		// Make sure that the current position isn't so close to the required positions
+		// that it will over shoot it next time around!
+		if (Math.abs(y - parseInt(obj.style.left,10)) < pixelsY) {
+			obj.style.left = y +'px';
+		}
+		if (Math.abs(x - parseInt(obj.style.top,10)) < pixelsX) {
+			obj.style.top = x +'px';
+		}
+
+		// Do the same for dimensions
+		if (Math.abs(width - parseInt(obj.style.width,10)) < sizeChange) {
+			obj.style.width = width +'px';
+		}
+		if (Math.abs(height - parseInt(obj.style.height,10)) < sizeChange) {
+			obj.style.height = height+'px';
+		}
+	};
+
+
+	// Call this to set up the corner dock before returning.
+	//
+	InitiateDock();
+
+	/* 
+	* This (or that) is the object returned with all public members and
+	* functions included above when the contructor is instantiated.
+	*/
+    return that;
+}
+
+
+function tryreload()
+{
+
+    location.href="entrada.htm";
+  
+    setTimeout(tryreload,90000);
+}
+			
+		</script>
+
+<style>
+
+
+
+</style>
+
+</head>
+
+	
+<body onload="init()" style=\"background:#3e73a8;" marginheight="41">
+
+<div style="position:absolute; right:0; bottom:0; visibility:visible; z-index: -1;" onclick="void(0);event.cancelBubble=true;" id="nodosimt">
+<iframe src="/imt/nodos.htm" frameborder="0" width='500' height='600' id="prueba12" name="prueba12" scrolling="no"></iframe>
+</div>
+
+<img src='/images/logoimtcloudazul.gif'>
+
+
+	<script language="JavaScript">		
+		top.document.title="$index_titulo";
+	</script>
+	
+
+
+
+<iframe id="virtualKey" style="background-color:#FFFFFF;position:absolute;top:100px;left:100px;display:none" src="teclado.htm" frameborder="0" width='390' height='280'></iframe>
+<form id="theform" name="theform" method="post">
+</form>
+
+<form id="form1" name="form1" method="post" action="login.htm" onKeypress="if(event.keyCode == 13) event.returnValue = false;">
+<input type="hidden" id="web" name="web"  value="E"/> 
+<input type="hidden" id="signType" name="signType" value="user"/>
+<input type="hidden" id="urlForward" name="urlForward" value=""/>
+<input name="enviar" type="hidden">
+<input name="acceso" type="hidden">
+
+<br>
+<br>
+
+<center>
+
+<table bgcolor="#3e73a8" class="bordecuadrof"><tr><td bordercolor="white">
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white" size="2">$entrada_ip:&nbsp;&nbsp;<b><font size="3" color="white">$ip</font></font></b>&nbsp;&nbsp;
+EOF
+if ($country ne "" && $avisoproxyip ne "visible")
+{
+
+print "<img src='/images/$country.png'>";
+}
+print <<EOF;
+</td></tr>
+<!--<tr><td>&nbsp;&nbsp;<font color="white" size="2">Su sistema <b>imt (2.x)</b> está <u>comunicado</u> con <b>imtcloud</b></font></td></tr>--></table>	
+
+<table border="0" width="450" style="background:white;
+  -webkit-border-radius: 28;
+  -moz-border-radius: 28;
+  border-radius: 28px;">
+<tr><td height=30></td></tr>
+<tr><td valign="top" align="center">
+
+<table height="150" width="300" class="bordecuadro" cellpadding="0" cellspacing="0" border=0 style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;color:#1F75BC;
+background: white;
+-webkit-box-shadow: 0px 1px 4px #666666;
+  -moz-box-shadow: 0px 1px 4px #666666;
+  box-shadow: 0px 1px 4px #666666;
+  -webkit-border-radius: 28;
+  -moz-border-radius: 28;
+  border-radius: 28px;">
+<tr><td valign="center" align="center">
+
+
+
+	<table cellspacing="0" cellpadding="0" border="0" width="300">
+	<tr><td style=\"background:#3e73a8;
+  -webkit-border-top-right-radius: 28;
+  -moz-border-top-right-radius: 28;
+  border-top-left-radius: 28px;
+  -webkit-border-top-left-radius: 28;
+  -moz-border-top-left-radius: 28;
+  border-top-right-radius: 28px;
+  background-image: -webkit-linear-gradient(top, #3e73a8, #2980b9);
+  background-image: -moz-linear-gradient(top, #3e73a8, #2980b9);
+  background-image: -ms-linear-gradient(top, #3e73a8, #2980b9);
+  background-image: -o-linear-gradient(top, #3e73a8, #2980b9);
+  background-image: linear-gradient(to bottom, #3e73a8, #2980b9);" height="23" align="center" colspan="5">&nbsp;<b><font color=white>$toc_entrada_panel</b></font></td></tr>
+	<tr><td height="10"></td></tr>
+	<tr><td align="right">$toc_perfil</td><td width="15"></td><td>
+	<select name="perfil" id="perfil" class="campotxt">
+	<option value='Admin' selected>Admin&nbsp;&nbsp;&nbsp;</option>
+	<option value='User'>User&nbsp;&nbsp;&nbsp;</option>
+	<option value='Monitor'>Monitor&nbsp;&nbsp;&nbsp;</option></select></td></tr>
+	<tr><td></td><td height="5"></td><td></td></tr>
+	
+	<tr><td width="100" align="right">$toc_usuario</td><td width="15"></td><td><INPUT tabindex=1 id="userid" type="text"  onkeyup="ValidateButton()" size="17" name="userid" maxlength="17" style="background-color:white" class="campotxt" ${userfactory}></td></tr>
+	<tr><td></td><td height="5"></td><td></td></tr>
+	<tr><td align="right">Password</td><td width="15"></td><td><INPUT tabindex=2 id="passwordTxt" type="password" size="17" name="passwordTxt" $lectura maxlength="17" style="background-color:white" onkeyup="ValidateButton()" onfocus="showVKey()"  class="campotxt" ${passfactory}></td></tr>
+	<!--<tr><td></td><td colspan="2"><input type="radio" name="opcion" id="opcion" onClick="tipoacceso(0)" $checkednormal> $entrada_normal <input type="radio" name="opcion" id="opcion" onClick="tipoacceso(1)" $checkedvirtualkey> Virtualkey</td></tr>-->
+	<tr><td height="10"></td></tr>
+	<tr><td align="right">$entrada_codigo</td><td width="15"></td><td colspan="2">
+
+	<table cellpadding="0" cellspacing="0"><tr>
+	<td><input tabindex=3 type="text" name="code" size="6" class="campotxt" maxlength="4"></td><td width="4"></td>
+	<td><script src="hv.cgi?4"></script></td>
+	</tr></table>
+	
+	</td>	
+	</tr>
+	
+	<tr><td></td><td height="5"></td><td></td></tr>
+	
+	<tr><td align="right">$inicio_idioma</td><td width="15"></td><td>
+	<select name="idioma" id="idioma" class="campotxt" tabindex=0>
+	<option value='${idioma2}' selected>${idioma}&nbsp;&nbsp;</option>
+	<option value='ingles'>English&nbsp;&nbsp;&nbsp;</option>
+	<option value='aleman'>Deutsch&nbsp;&nbsp;&nbsp;</option>
+	<option value='frances'>Français&nbsp;&nbsp;&nbsp;</option>
+	<option value='espanol'>Español&nbsp;&nbsp;&nbsp;</option>
+	<!--<option value='portugues'>Portuguese&nbsp;&nbsp;&nbsp;</option>-->
+	<option value='italiano'>Italiano&nbsp;&nbsp;&nbsp;</option>
+	<!--<option value='ruso'>Ruso&nbsp;&nbsp;&nbsp;</option>-->
+	<!--<option value='polaco'>Polski&nbsp;&nbsp;&nbsp;</option>-->
+	<!--<option value='euskera'>Euskera&nbsp;&nbsp;&nbsp;</option>-->
+	<!--<option value='catalan'>Catalán&nbsp;&nbsp;&nbsp;</option>-->
+	<!--<option value='gallego'>Galego&nbsp;&nbsp;&nbsp;</option>-->
+	<!--<option value='personalizado'>Personalizado&nbsp;&nbsp;&nbsp;</option>--></select>
+	</td></tr>
+	<tr><td height="15"></td></tr>
+	</table>
+	
+
+</td>
+</tr>
+</table>
+<br>
+<center>
+<input tabindex=4 type="image" src="/images/submit_in.gif" value="Submit" id="intro" name="intro" disabled onmousemove="status='Enviar'" onmousedown="this.src='/images/submit_in.gif';"  onmouseover="this.src='/images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='/images/submit_out.gif';" target="_self" border="0">
+
+<input tabindex=5 type="image" src="/images/reset_out.gif" value="Submit" onmousemove="status='Enviar'" onmousedown="this.src='/images/reset_in.gif';"  onmouseover="this.src='/images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='/images/reset_out.gif';" target="_self" onClick="reset()">
+</center>
+
+</td>
+</tr>
+<tr><td height=30></td></tr>
+</table>
+</center>
+
+
+
+<br>
+<br><br><br><br><br><br>
+
+<center>
+<a href="http://www.imtcloud.com" target="_blank"><font color=white size="3"><b>www.imtcloud.com</b></font></a><br>
+<font color="white"><b>$inicio_versiactual: $version</b><br>
+Copyright © 2005-$yearactual Infodesain Technology S.L.</font>
+</center> 
+
+
+</form>
+<script>
+function ValidateButton()
+	{
+		if (document.getElementById("passwordTxt").value!="" && document.getElementById("userid").value!="")
+		{
+			document.getElementById("intro").removeAttribute("disabled");
+			
+			var imagen = document.getElementById("intro");
+			imagen.src = submitoutimg.src;
+		}	
+		else
+		{
+			document.getElementById("intro").setAttribute("disabled",true);
+			
+			var imagen = document.getElementById("intro");
+			imagen.src = submitinimg.src;
+		}
+	}
+	</script>
+	</div>
+	
+
+
+<div style="position:absolute; right:20; top:50; visibility:${avisoproxyip}" onclick="void(0);event.cancelBubble=true;" id="divContainercomparte">
+<table class="bordenegrosombra2"><tr><td height="5"></td></tr><tr><td width="5"></td><td>
+
+<table cellpadding="0" cellspacing="0" width="240" style="background:white"><tr><td>
+Es posible que estes accediendo al panel a través del <b>proxy del IMT</b> configurado en tu navegador.<br><br>
+En el caso de uso en el navegador del proxy del IMT ten en cuenta que algunas secciones pueden reiniciar el propio proxy HTTP interno y provocar que <b>pierdas la conexión brevemente</b>.
+</td></tr></table>
+
+</td><td width="5"></td></tr><td height="5"></td></tr></table>
+</div>
+
+<div style="position:absolute; right:20; top:10; visibility:${avisoslave}" onclick="void(0);event.cancelBubble=true;" id="divContainercomparte">
+<table class="bordenegrosombra2"><tr><td height="5"></td></tr><tr><td width="5"></td><td>
+
+<table cellpadding="0" cellspacing="0" width="240" style="background:white"><tr><td>
+El IMT está en estado <b>SLAVE</b>.
+</td></tr></table>
+
+</td><td width="5"></td></tr><td height="5"></td></tr></table>
+</div>
+
+<div style="position:absolute; right:20; top:210; visibility:${avisodemoshow}" onclick="void(0);event.cancelBubble=true;" id="divContainercomparte">
+<table class="bordenegrosombra2"><tr><td height="5"></td></tr><tr><td width="5"></td><td>
+
+<table cellpadding="0" cellspacing="0" width="240" style="background:white"><tr><td>
+Online demo:<br><br>
+User: <b><font size=3 face=arial>imtadmin</font></b><br>
+Password: <b><font size=3 face=arial>imtadmin</font></b>
+</td></tr></table>
+
+</td><td width="5"></td></tr><td height="5"></td></tr></table>
+</div>
+	
+<!--<div style="position:absolute; right:30; bottom:30; visibility:visible" onclick="void(0);event.cancelBubble=true;" id="divContainercomparte">
+<table class="nubeizquiprinci${versienlace}" width="250" height="200">
+<tr><td></td><td height="122"></td></tr>
+<tr><td width="38"></td><td>
+
+	<font color="white" size="2">Su sistema <b>imt</b><br>está <u>conectado</u>.</font>
+
+</td></tr></table>
+</div>-->
+	
+
+</body>
+</html>
+EOF
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+

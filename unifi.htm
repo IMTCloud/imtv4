@@ -1,0 +1,437 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+if($q->param('env') eq "envtipopermi")
+{
+	$tipopermiopci=$q->param('tipopermiopci');
+	$ipredpermit=$q->param('ipredpermit');
+	
+	if($tipopermiopci eq 1)
+	{
+		$valorallow="0.0.0.0/0";
+	}
+	
+	if($tipopermiopci eq 2)
+	{
+		$valorallow="${ipredpermit}";
+	}
+
+	open(OLD, "< $controlaplicafw")    or die "can't open $controlaplicafw: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*CONTROLFWUNIFI\s*=\s*.*$/)
+     		{
+				s/^.*$/CONTROLFWUNIFI\=\"$valorallow\"/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $controlaplicafw: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $controlaplicafw 1>&2");
+	
+	system("$cleanall >/dev/null 2>&1");
+	system("$firewall >/dev/null 2>&1");	
+	system("$prerouting >/dev/null 2>&1");
+
+}
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$unifi=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*UNIFI\s*=\s*.*$/)
+     		{
+				s/^.*$/UNIFI\=$unifi/;
+			}
+			
+			if(/^\s*MONGODB\s*=\s*.*$/)
+     		{
+				s/^.*$/MONGODB\=$unifi/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	
+	if($unifi eq 1)
+	{
+		system("$imtdemoniomongodb start >/dev/null 2>&1");
+		system("$imtdemoniounifi start >/dev/null 2>&1");		
+		sleep(10);
+	}
+	else
+	{
+		system("$imtdemoniomongodb stop >/dev/null 2>&1");
+		system("$imtdemoniounifi stop >/dev/null 2>&1");			
+	}
+	
+}
+
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIFI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$unifi = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($unifi eq "1") 
+{
+	$estadounifi = "activado.gif";
+	$pasarunifi = 0;
+}
+else
+{	
+	$estadounifi = "desactivado.gif";
+	$pasarunifi = 1;
+}
+
+
+	open(OLD, "< $controlaplicafw")    or die "can't open $controlaplicafw: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*CONTROLFWUNIFI\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/"//g;
+				@data = split (/\s*=\s*/,$_);
+		 		$controlfwunifi = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $controlaplicafw: $!";
+
+if($controlfwunifi eq "0.0.0.0/0")
+{
+	$checkedpermitall="checked";
+	$checkedpermitredip="";
+}
+else
+{
+	$checkedpermitall="";
+	$checkedpermitredip="checked";
+	$valorfrom=$controlfwunifi;
+}
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+<script language="javascript">
+
+
+function enviar(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+	if(!confirm('¿Desea ' + estado +' Unifi?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function versi(opc)
+{
+oscuprocessform();
+
+theform.versiocul.value=opc;
+theform.env.value = 2;
+document.theform.submit();
+}
+
+
+function tipopermi()
+{
+oscuprocessform();
+
+document.theform.env.value="envtipopermi";
+document.theform.action='unifi.htm';
+document.theform.submit();
+}
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="versiocul" type="hidden">
+<input name="estado" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><!--<img src='../images/webvpn.gif'>--></td><td width="10"></td><td><FONT SIZE=+1 COLOR=#3e73a8><B>Unifi AP</B></FONT></td></tr></table><br>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<br>
+	<center>
+
+
+<table style="$imagenvisiblemod"><tr>
+<td><img src="../images/$estadounifi" onClick="enviar('$pasarunifi')" style="cursor:pointer"></td><td width="4"></td><td>$monit_activar</td>
+
+<td width="40"></td>
+<td align="center">
+EOF
+
+if($unifi eq "1") 
+{	
+print <<EOF;
+<!--<img src="/images/window_fullscreen.png" border="0" style="cursor:pointer" onClick="myRef = window.open('https://$ENV{'SERVER_NAME'}:8443','mywin','left=330,top=150,width=900,height=600,toolbar=1,resizable=0,status=0,menubar=0,scrollbars=yes');myRef.focus()"><br><b>fullscreen</b>-->
+
+<div id=\"permitirnetworkservice\" style='background: #3e73a8;
+  -webkit-border-top-left-radius: 10;
+  -webkit-border-bottom-left-radius: 10;
+  -moz-border-top-left-radius: 10;
+  -moz-border-bottom-left-radius: 10;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer; width:80; height:50' align=center class='bordenegrosombra' onClick="myRef = window.open('https://$ENV{'SERVER_NAME'}:8443','mywin','left=330,top=150,width=900,height=600,toolbar=1,resizable=0,status=0,menubar=0,scrollbars=yes');myRef.focus()"><br>fullscreen</div>
+
+
+EOF
+}
+print <<EOF;
+</td>
+<td width="40"></td>
+<td>
+
+<table>
+<tr><td></td><td><b>Permitido (directiva firewall):</b></td></tr>
+<tr><td><input type=radio name="tipopermiopci" value=1 $checkedpermitall></td><td>Todas las direcciones</td></tr>
+<tr><td><input type=radio name="tipopermiopci" value=2 $checkedpermitredip></td><td>red/ip <input type="text" name="ipredpermit" size="14" class="campotxt" value="${valorfrom}"></td></tr>
+<tr><td></td><td>
+
+<div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:65;" align=center onClick="tipopermi()" class="bordenegrosombra"><b><font>modificar</font></b></div>
+
+</td></tr></table>
+
+
+</td>
+
+</tr></table>
+
+</td>
+</tr></table>
+		<br>
+EOF
+
+if($unifi eq "1") 
+{	
+print <<EOF;
+<iframe src="https://$ENV{'SERVER_NAME'}:8443" frameborder="no" scrolling="no" width=100% height=1000></iframe>
+EOF
+}
+print <<EOF;
+</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+

@@ -1,0 +1,2332 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/java/jre1.5.0_14/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$serverdns=$q->param('estado');
+	$controlaplidns=$q->param('controlaplidns');
+	$acciondns=$q->param('acciondns');
+	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*SERVERDNS\s*=\s*.*$/)
+     		{
+				s/^.*$/SERVERDNS\=$serverdns/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	
+	
+	if($controlaplidns eq 1)
+	{
+		$i=1;	
+
+		if($acciondns eq 1)
+		{
+			$aplidns="127.0.0.1";	
+		}
+		else
+		{
+			$aplidns="8.8.8.8";	
+		}	
+	
+		open(OLD, "< $dns")    or die "can't open $dns: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		
+			if(/^\s*nameserver/ && $i eq 1)
+     		{
+				s/^.*$/nameserver $aplidns/;
+				
+				$i++;
+			}
+  		  	
+         print NEW $_            or die "can't write $aux: $!";
+             
+		}
+
+		close(OLD)                  or die "can't close $dns: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+	
+		system("/bin/cp $aux $dns 1>&2");
+	}	
+	
+	
+	
+	system("$bind restart >/dev/null 2>&1");
+	
+}
+
+
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		$nombredominio=$q->param('nombredominio');
+		warn "borrar $id";
+		open(OLD, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	    $options=0;
+	    $recolect=0;
+		$acumulado="";
+	
+		while (<OLD>) 
+		{
+			chomp;
+			if (/^\s*zone/)
+     		{
+				
+				$_ =~ /.*/;
+
+			    $recolect=1;	
+				if($acumulado ne "")
+				{
+					print NEW $acumulado;
+				}
+				$acumulado=$_."\n";
+			
+			
+					if($i == $id)
+		 			{
+		 				$recolect=0;	
+        				$acumulado="";
+		 			}
+		 			
+		 			$i=$i+1;
+   				
+			}
+			else
+			{
+			    if( $recolect == 1)
+			    {
+					$acumulado=$acumulado.$_."\n";
+				}
+			}
+
+
+		}
+		close(OLD);			
+		
+		if($acumulado ne "")
+		{
+				print NEW $acumulado;
+		}
+		close(NEW);
+		
+		system("/bin/cp $aux $namedconflocal 1>&2");
+						
+		$submenu=$named.$nombredominio.".db";	
+		system("/bin/rm $submenu >/dev/null 2>&1")
+	}
+	
+			
+	
+	if($q->param('enviar') eq "Borrarsub")
+	{
+	
+		$id=$q->param('id');
+		
+		$nombredominio=$q->param('dominio');		
+		
+		$submenu=$named.$nombredominio.".db";
+					
+	
+		open(OLD, "< ${submenu}")    or die "can't open ${submenu}: $!";
+		
+		while (<OLD>) 
+		{
+			if (/serial/)
+	        {
+                chomp;
+                $_ =~ s/^\s+//;
+                @data = split (/\s*;/,$_);
+                $numfijar = $data[0];
+    	    }
+		}
+		close(OLD);	
+	
+		
+		open(OLD, "< ${submenu}")    or die "can't open ${submenu}: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		print NEW "\$TTL 3D\n";
+		print NEW "@ IN SOA ${nombredominio}. root.${nombredominio}. (\n";
+		print NEW "$numfijar ; serial, todays date + todays serial #\n";
+		print NEW "8H ; refresh, seconds\n";
+		print NEW "2H ; retry, seconds\n";
+		print NEW "4W ; expire, seconds\n";
+		print NEW "1D ) ; minimum, seconds\n";
+		print NEW "\n";
+		print NEW "@\t\tIN\tNS\tns1\n";
+		print NEW "@\t\tIN\tNS\tns2\n\n";
+		
+		$i=1;
+	
+		while (<OLD>) 		
+		{
+				chomp;
+				$_ =~ /.*/;
+				
+				unless(/IN\s+SOA/)
+				{
+				unless(/IN\t+NS/)
+				{		
+					if(/IN/)
+     				{				
+		 				if($i != $id)
+		 				{									
+    						print NEW $_."\n";						
+		 				}
+		 					$i=$i+1;				
+					}
+				}
+				}
+		}
+
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux ${submenu} 1>&2");
+	
+		system("$bind restart >/dev/null 2>&1 &");				
+	}
+	
+	
+	
+	
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+		$newdomain=$q->param('newdomain');
+		
+		open(OLD, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+				
+		$i=0;
+	
+		while (<OLD>) 
+		{
+		  	chomp;
+			$_ =~ /.*/;
+			
+			if($_ =~ /^\s*file\s\"(.*)\.db\"\;/m)
+    		{
+    			$acumulado=$acumulado.$1."|";						
+			}
+
+		}
+		close(OLD);
+		
+		$acumulado=$acumulado.$newdomain;
+		
+		@lista = split(/\|/, $acumulado);
+		@lista = sort(@lista);
+		
+		
+		open(NEW, "> $namedconflocal")     or die "can't open $namedconflocal: $!";
+		
+		print NEW "\n";
+		
+		foreach $inserdominio (@lista)
+		{
+			print NEW "zone \"${inserdominio}\" {\n";
+        	print NEW "\ttype master;\n";
+        	print NEW "\tfile \"${inserdominio}.db\";\n";
+			print NEW "};\n\n";
+		}	
+		
+		close(NEW) or die "can't close $namedconflocal: $!";
+
+
+		#Convertir timestamp a fecha entendible
+		($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime();
+
+		#dando formato a las partes
+		$anyo=sprintf("%02d",$year+1900);
+		$mes=sprintf("%02d",$mon+1);
+		$dia=sprintf("%02d",$mday);
+
+        #concatenando la fecha
+		$fechactual= $anyo.$mes.$dia;
+
+		
+		$timedns=`/bin/cat $controldns`;
+		$timedns =~ s/(\r?\n)//g;
+		
+		@parte = split(/\s*#/, $timedns);
+		$numcontrol = $parte[0];		
+		$fechacontrol = $parte[1];
+		
+				
+		if($fechacontrol ne $fechactual)
+		{
+			system("/bin/echo '1 #${fechactual}' > $controldns");			
+			$numfijar=$fechactual."1";
+		}
+		else
+		{
+			$numcontrol++;
+			system("/bin/echo '${numcontrol} #${fechactual}' > $controldns");
+			$numfijar=$fechacontrol.$numcontrol;
+		}
+				
+		open(NEW, "> ${named}${newdomain}.db")     or die "can't open ${named}${newdomain}.db: $!";
+		
+			print NEW "\$TTL 3D\n";
+			print NEW "@ IN SOA ${newdomain}. root.${newdomain}. (\n";
+			print NEW "$numfijar ; serial, todays date + todays serial #\n";
+			print NEW "8H ; refresh, seconds\n";
+			print NEW "2H ; retry, seconds\n";
+			print NEW "4W ; expire, seconds\n";
+			print NEW "1D ) ; minimum, seconds\n";
+			print NEW "\n";
+			print NEW "@\t\tIN\tNS\tns1\n";
+			print NEW "@\t\tIN\tNS\tns2\n\n";
+			print NEW "ns1\t\tIN\tA\t127.0.0.1\n";
+			print NEW "ns2\t\tIN\tA\t127.0.0.1\n\n";
+		
+		close(NEW) or die "can't close ${named}${newdomain}.db: $!";
+		
+		
+
+		system("$bind restart >/dev/null 2>&1 &");
+		
+	}
+	
+	
+	
+	if($q->param('enviar') eq "insertarsub")
+	{
+		$posinuevo=$q->param('posinuevo');
+		
+		$subdominionuevo=$q->param("subdominionuevo${posinuevo}");
+		$valornuevo=$q->param("valornuevo${posinuevo}");
+		$tiposubdominionuevo=$q->param("tiposubdominionuevo${posinuevo}");
+		$regisnuevo=$q->param("regisnuevo${posinuevo}");
+		
+		$nombredominio=$q->param('dominio');		
+		
+		$submenu=$named.$nombredominio.".db";
+		
+		
+		if( $subdominionuevo eq undef )
+		{
+			last;
+		}
+			
+		if( $valornuevo eq undef )
+		{
+			last;
+		}
+		
+		if( $tiposubdominionuevo eq undef )
+		{
+			last;
+		}
+		
+		
+		open(OLD, "< ${submenu}")    or die "can't open ${submenu}: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+				
+		while (<OLD>) 
+		{
+			if (/.*/)
+     		{
+				chomp;
+				$_ =~ /.*/;					 	
+    			print NEW $_."\n";	
+			}
+
+		}
+		
+		if ($tiposubdominionuevo eq "MX")
+		{
+			$registronuevo="$regisnuevo	";
+		}
+		
+		print NEW "$subdominionuevo		IN	$tiposubdominionuevo	${registronuevo}$valornuevo\n";	
+		
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $submenu 1>&2");
+		
+		system("$bind restart >/dev/null 2>&1 &");
+	}
+		
+
+	
+	
+	if($q->param('enviar') eq "aplicar")
+	{
+		$forwarder1=$q->param('forwarder1');
+		$forwarder2=$q->param('forwarder2');
+		$forwarder3=$q->param('forwarder3');
+		
+		$forwarder1 =~ s/\s+//;
+		$forwarder2 =~ s/\s+//;
+		$forwarder3 =~ s/\s+//;
+		
+		if($forwarder1 ne "") {$forwarder1=$forwarder1.";";}
+		if($forwarder2 ne "") {$forwarder2=$forwarder2.";";}
+		if($forwarder3 ne "") {$forwarder3=$forwarder3.";";}
+	
+		$permitidas=$q->param('permitidas');
+		
+		$xact=$q->param('xact');
+				
+		if($xact eq "1")
+	   	{
+			$comenta="";
+		}
+		else
+     	{
+     		$comenta="//";
+     	}
+     	
+     	if($forwarder1 eq "" && $forwarder2 eq "" && $forwarder3 eq "") { $comenta="//"; }
+		
+		$valormemocachear=$q->param('memocachear');
+		
+		$xact2=$q->param('xact2');
+				
+		if($xact2 eq "1")
+	   	{
+			$comentamemolimit="";
+		}
+		else
+     	{
+     		$comentamemolimit="//";
+     	}
+		
+		
+		open(NEW, "> $fwserverdns")     or die "can't open $fwserverdns: $!";
+		
+		$i=0;
+		@data = split (/\s+/,$permitidas);
+		
+		while( 1 ) 
+		{
+			$permi = $data[$i];
+		
+			if( $permi eq undef )
+			{
+				last;
+			}
+		
+			print NEW "\$IPTABLES -A INPUT -s $permi -p tcp --dport 53 -j ACCEPT&\n\n" or die "can't write $fwserverdns: $!";
+			print NEW "\$IPTABLES -A INPUT -s $permi -p udp --dport 53 -j ACCEPT&\n\n" or die "can't write $fwserverdns: $!";
+		
+			$i=$i+1;
+		}
+		close(NEW) or die "can't close $fwserverdns: $!";
+		
+		
+		
+		open(OLD, "< $namedconfoptions")    or die "can't open $namedconfoptions: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			if(/^[\t|\s|\/]*forwarders/)
+     		{
+				s/^.*$/	${comenta}forwarders { ${forwarder1} ${forwarder2} ${forwarder3} };/;
+			}
+			
+			if(/^[\t|\s|\/]*max-cache-size/)
+     		{
+				s/^.*$/	${comentamemolimit}max-cache-size ${valormemocachear}M;/;
+			}
+  		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $namedconfoptions: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+		
+		system("/bin/cp $aux $namedconfoptions 2>&1");
+		
+		
+		open(NEW, "> $namedconflocal")    or die "cant open $namedconflocal: $!";
+
+		print NEW "\n";		
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			$inserdominio=$q->param("${i}x0");
+			$tipodominio=$q->param("${i}tipodominio");
+			
+			if($tipodominio eq "forward")
+			{
+			$forwarderdom1=$q->param("${i}forwarderdom1");
+			$forwarderdom2=$q->param("${i}forwarderdom2");
+			$forwarderdom3=$q->param("${i}forwarderdom3");
+
+			$forwarderdom1 =~ s/\s+//;
+			$forwarderdom2 =~ s/\s+//;
+			$forwarderdom3 =~ s/\s+//;
+		
+			if($forwarderdom1 ne "") {$forwarderdom1=$forwarderdom1."; ";}
+			if($forwarderdom2 ne "") {$forwarderdom2=$forwarderdom2."; ";}
+			if($forwarderdom3 ne "") {$forwarderdom3=$forwarderdom3."; ";}
+						
+			$activado=$q->param("${i}yact");
+				if($activado ne 1)
+				{
+					$comentadom="//";			
+				}
+				else
+				{
+					$comentadom=""				
+				}
+			}
+			
+			$forwarderdomtotal=$forwarderdom1.$forwarderdom2.$forwarderdom3;			
+			
+			if($forwarderdom1 eq "" && $forwarderdom2 eq "" && $forwarderdom3 eq "") { $comentadom="//"; }
+
+			if( $inserdominio eq undef )
+			{
+				last;
+			}
+
+			print NEW "zone \"${inserdominio}\" {\n";
+        	print NEW "\ttype ${tipodominio};\n";
+        	
+        	if($tipodominio eq "master")
+        	{
+        	print NEW "\tfile \"${inserdominio}.db\";\n";
+        	}
+        	else
+        	{
+			print NEW "\t${comentadom}forwarders { $forwarderdomtotal};\n";	
+        	}
+        	
+			print NEW "};\n\n";
+			
+			$i=$i+1;
+									
+		}
+		
+		close(NEW)     or die "can't close $namedconflocal: $!";
+		
+						
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");
+		
+		system("$bind restart >/dev/null 2>&1");
+	}
+	
+	
+	
+	
+	if($q->param('enviar') eq "aplicarsub")
+	{
+		$posinuevo=$q->param('posinuevo');
+			
+		$nombredominio=$q->param('dominio');		
+		
+		$submenu=$named.$nombredominio.".db";
+	
+	
+		open(OLD, "< ${submenu}")    or die "can't open ${submenu}: $!";
+		
+		while (<OLD>) 
+		{
+			if (/serial/)
+	        {
+                chomp;
+                $_ =~ s/^\s+//;
+                @data = split (/\s*;/,$_);
+                $numfijar = $data[0];
+    	    }
+		}
+		close(OLD);	
+	
+	
+		open(NEW, "> ${submenu}")    or die "cant open ${submenu}: $!";
+		
+		print NEW "\$TTL 3D\n";
+		print NEW "@ IN SOA ${nombredominio}. root.${nombredominio}. (\n";
+		print NEW "$numfijar ; serial, todays date + todays serial #\n";
+		print NEW "8H ; refresh, seconds\n";
+		print NEW "2H ; retry, seconds\n";
+		print NEW "4W ; expire, seconds\n";
+		print NEW "1D ) ; minimum, seconds\n";
+		print NEW "\n";
+		print NEW "@\t\tIN\tNS\tns1\n";
+		print NEW "@\t\tIN\tNS\tns2\n\n";
+		
+		$i=1;	
+			
+		while( 1 ) 
+		{
+		
+			$subdominio=$q->param("${i}n0sub${posinuevo}");
+			$valor=$q->param("${i}n1sub${posinuevo}");
+			$tiposubdominio=$q->param("${i}n2sub${posinuevo}");
+			$regis=$q->param("${i}n3sub${posinuevo}");
+			
+			if( $subdominio eq undef )
+			{
+				last;
+			}
+			
+			if ($tiposubdominio eq "MX")
+			{
+				$registro="$regis	";
+			}
+			else
+			{
+				$registro="";			
+			}
+			
+    		print NEW "${subdominio}		IN	$tiposubdominio	${registro}$valor\n";
+			
+      		$i=$i+1;
+		}
+		
+		close(NEW)     or die "can't close ${submenu}: $!";
+		
+		system("$bind restart >/dev/null 2>&1");
+	
+	}
+			
+		
+		
+
+}
+
+
+
+open(OLD, "< $namedconf")    or die "can't open $namedconf: $!";
+	
+	while (<OLD>) 
+	{
+			if($_ =~ /^MENU\sMASTER\sPASSWD/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+				@data = split (/PASSWD\s/,$_);
+				$password=$data[1];
+			}
+	}
+	close(OLD) or die "can't close $namedconf: $!";
+	
+	
+$comprobarforwarders=0;	
+
+open(OLD, "< $namedconfoptions")    or die "can't open $namedconfoptions: $!";
+	
+	while (<OLD>) 
+	{
+			if($_ =~ /^[\s|\/]*forwarders/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+				$_ =~ s/\s+//g;
+				
+				if($_ =~ /^[\t|\s|\/]*forwarders\s*{\s*(.+);\s*};$/m)
+    			{
+    				$direcciones=$1;					
+				}
+				
+				@data = split (/\s*;\s*/,$direcciones);
+				$forwarder1=$data[0];
+				$forwarder2=$data[1];
+				$forwarder3=$data[2];
+
+				unless($_ =~ /^\s*\/\//)
+				{
+					$comprobarforwarders=1;	
+				}
+				
+			}
+			
+			if($_ =~ /^[\t|\s|\/]*max-cache-size\s([0-9]+)/)
+     		{
+				$memocachear=$1;
+				
+				$comprobarmemolimit= /^\s*\/\//;
+			}
+			
+	}
+	close(OLD) or die "can't close $namedconfoptions: $!";
+
+
+if($comprobarforwarders eq "1") 
+{
+	$activadocomprofw = "1";
+}
+else
+{	
+	$activadocomprofw = "0";
+}	
+
+if($comprobarmemolimit ne "1") 
+{
+	$activado2 = "1";
+}
+else
+{	
+	$activado2 = "0";
+}	
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*SERVERDNS\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$serverdns = $data[1];
+			}
+			
+			if (/^\s*NXFILTER\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$nxfilter = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($serverdns eq "1") 
+{
+	$estadoserverdns = "activado.gif";
+	$pasarserverdns = 0;
+}
+else
+{	
+	$estadoserverdns = "desactivado.gif";
+	$pasarserverdns = 1;
+}	
+
+
+
+
+$i=1;
+open(OLD, "< $fwserverdns")    or die "can't open $fwserverdns: $!";
+		
+	while (<OLD>) 
+	{
+		if (/\$IPTABLES.*tcp/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$sumoip = $data[4];
+			
+			$ipsumar=$ipsumar." ".$sumoip;
+			
+		}
+
+	}
+close(OLD);
+	
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+function isValidIP(tempIP,red){
+	/*if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}*/
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+/**
+ * function isValidNetIp()
+ */
+function isValidNetIP(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('/');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,2}\$/)==-1)
+		return false;
+	
+	
+    var lmask = parseInt(tempIP[1],10);
+
+	
+	if (lmask<0 || lmask > 32 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	//this.el.style.cssText="position:absolute; width:150; height:200; overflow:hidden; top:0; left:0; clip:rect(0,150,200,0); visibility:visible; z-index:2";
+
+this.el.style.cssText="position:absolute; width:414;height:"+this.cnt.offsetHeight
++"; overflow:hidden; top:0; left:0; clip:rect(0,414,"+this.cnt.offsetHeight
++",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+function ConstructObject(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+this.el.style.cssText="position:absolute; width:514;height:"+this.cnt.offsetHeight
++"; overflow:hidden; top:0; left:0; clip:rect(0,514,"+this.cnt.offsetHeight
++",0); visibility:visible";
+
+	//this.el.style.cssText="position:absolute; width:480; height:370; overflow:hidden; top:0; left:0; clip:rect(0,480,370,0); visibility:visible; z-index:1";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function InitialiseScrollableArea(name,data)
+{ 
+    var obj=new ConstructObject(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+}
+
+
+
+
+function toggle(listener,container,x,y,nivel)
+{
+var nivel;
+
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+if(nivel=="subcontrol")
+{
+var valorlistener =  listener.split('n');
+}
+else
+{
+var valorlistener =  listener.split('x');
+}	
+	
+document.theform.nivel.value=nivel;
+document.theform.control.value=listener;
+}
+
+
+
+pcimg =  new Image(18,19);
+pcimg.src = "../images/pc.gif"
+
+redimg =  new Image(23,19);
+redimg.src = "../images/redmini.gif"
+
+inetimg =  new Image(16,19);
+inetimg.src = "../images/minimundo.gif"
+
+routerimg =  new Image(20,20);
+routerimg.src = "../images/dispomini.gif"
+
+serviimg =  new Image(20,20);
+serviimg.src = "../images/servimini.gif"
+
+vpnimg =  new Image(20,20);
+vpnimg.src = "../images/miniredvpn.gif"
+
+
+todosimg =  new Image(20,20);
+todosimg.src = "../images/todos.gif"
+tcpimg =  new Image(20,20);
+tcpimg.src = "../images/tcp.gif"
+udpimg =  new Image(20,20);
+udpimg.src = "../images/udp.gif"
+greimg =  new Image(20,20);
+greimg.src = "../images/gre.gif"
+icmpimg =  new Image(20,20);
+icmpimg.src = "../images/icmp.gif"
+
+
+function aplicarvalor(nombre)
+{
+
+asignar=document.getElementById('control').value;	
+
+	document.getElementById(asignar).value=nombre;
+	
+	clearLista();
+}
+
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	//objContainer1=InitialiseScrollableArea2('divContainer1',null);
+EOF
+
+
+$i=1;
+	open(OLD, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+		
+	$i=1;
+	$lastline="";
+	$sacarzona=0;
+	
+	while (<OLD>) 
+	{
+			if(/^zone.*\{$/)
+     		{
+				print "objContainer${i}=InitialiseScrollableArea('divContainer${i}',null);\n";
+				
+				print "objKontainer${i}=InitialiseScrollableArea2('divKontainer${i}',null);\n";
+			
+			$i=$i+1;
+			}
+	}  
+	close(OLD) or die "can't close $namedconflocal: $!";
+
+
+
+print <<EOF;
+
+	//initRules();
+} 
+
+
+
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha');
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+		document.getElementById('xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById('xact').value=1;
+	}
+}
+
+
+function toggleRegladom(id)
+{
+	var flecha = document.getElementById(id+'flecha');
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+		document.getElementById(id+'yact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById(id+'yact').value=1;
+	}
+}	
+
+
+function toggleRegla2(id)
+{
+	var flecha = document.getElementById('flecha2');
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+		document.getElementById('xact2').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById('xact2').value=1;
+	}
+}	
+
+
+
+
+
+function enviarestado(est)
+{
+
+if (1 == '$nxfilter' && est == 1)
+{
+alert('Previamente a activar el servidor DNS:\\n\\n-Debe desactivar el servicio Nxfilter.\\n-O modificar el puerto 53 a otro puerto en el servidor DNS.');
+return false;
+}
+
+opcestado=0;
+accion=1;
+
+if (est == 1)
+{
+estado = "activar";
+accion = 1;
+
+var controlforwarder = document.getElementById('xact').value;
+
+if (controlforwarder == 0)
+{
+alert('Active y defina los forwarders para optimizar los tiempos de resolución y evitar retardos.\\n');
+}
+
+}
+else
+{
+estado = "desactivar";
+accion = 2;
+}
+
+	if(!confirm('¿Desea ' + estado +' el servidor DNS?'))
+	return false;
+	
+	if(confirm('¿Desea ' + estado + ' en Cliente DNS el uso interno del servidor DNS?'))
+	{
+		opcestado=1;
+	}	
+
+oscuprocessform();
+	
+document.theform.action="dnsserver.htm";
+document.theform.controlaplidns.value=opcestado;	
+document.theform.acciondns.value=accion;
+    
+document.theform.env.value = 1;
+document.theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+
+function load(theForm,lista,nombre)
+{
+	var lista=document.getElementById(lista);
+	if(lista.selectedIndex==-1)
+		return;
+
+	nombre.value=lista.options[lista.selectedIndex].value;
+
+	lista.options[lista.selectedIndex]=null;	
+}
+
+function anadir(theForm)
+{
+	var lista=document.getElementById('lista');
+
+	//if(theForm.nombre.value==null || theForm.nombre.value.search(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))\$/)!=0)
+	//{
+	//	alert('Se esperaba una dirección de correo válida');	
+	//	return false;
+	//}
+	
+	if(isValidIP(theForm.nombre.value)==false && isValidNetIP(theForm.nombre.value)==false)
+	{
+		alert('Se esperaba una IP o Red válida');	
+		return false;
+	}
+
+	lista.options[lista.options.length]=new Option(theForm.nombre.value,theForm.nombre.value);
+	theForm.nombre.value='';
+	return true;
+	
+}
+
+function del()
+{
+	var lista=document.getElementById('lista');
+	if(lista.selectedIndex==-1)
+		return;
+	nombre=lista.options[lista.selectedIndex].value.split('::')[0];
+	
+	selind = lista.selectedIndex;
+	lista.options[lista.selectedIndex]=null;	
+	lista.selectedIndex = selind;
+}
+
+
+function insertar()
+{
+oscuprocessform();
+
+document.theform.enviar.value="Insertar"
+document.theform.action='dnsserver.htm';
+document.theform.submit();
+}
+
+
+function validarForm()
+{
+
+var lista=document.getElementById('lista').options;
+	document.theform.permitidas.value='';
+	for(i=0;i < lista.length;i++)
+	{	
+		document.theform.permitidas.value+=lista[i].value+' ';
+	}
+	
+oscuprocessform();	
+	
+	document.theform.action="dnsserver.htm";
+	document.theform.enviar.value="aplicar"
+	document.theform.submit();
+	
+}
+
+
+function validarForm2(domi,posinuevo)
+{	
+oscuprocessform();
+
+	document.theform.posinuevo.value=posinuevo;
+	document.theform.dominio.value=domi;
+	document.theform.action="dnsserver.htm";
+	document.theform.enviar.value="aplicarsub"
+	document.theform.submit();
+	
+}
+
+
+function enviarsub(domi,posinuevo)
+{
+
+var domi;
+
+/*	if(document.getElementById('subdominionuevo'+posinuevo).value eq "" || document.getElementById('subdominionuevo'+posinuevo).value)
+	{
+	
+	}*/
+
+oscuprocessform();
+
+	document.theform.posinuevo.value=posinuevo;
+	document.theform.dominio.value=domi;
+	document.theform.action="dnsserver.htm";
+	document.theform.enviar.value="insertarsub"
+	document.theform.submit();
+	
+}
+
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0"> <!-- inicio tabla contenedor -->
+<form name="theform" method="post" onsubmit="oscuprocessform()" action="">
+<input name="volver" type="hidden" value="$volver">
+<input name="enviar" type="hidden"><input name="env" type="hidden"><input name="estado" type="hidden"><input name="permitidas" type="hidden">
+<input type="hidden" name="control" id='control'><input type="hidden" name="subcontrol" id='subcontrol'><input type="hidden" name="dominio" id='dominio'>
+<input type="hidden" name="nivel" id='nivel'><input type="hidden" name="posinuevo" id='posinuevo'>
+<input type="hidden" name="controlaplidns" id="controlaplidns">
+<input type="hidden" name="acciondns" id="acciondns"> 
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+EOF
+
+
+$i=1;
+	open(OLD, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+		
+	$lastline="";
+	$sacarzona=0;
+	
+	while (<OLD>) 
+	{
+	
+		if(/^zone.*\{$/)
+     	{
+			$k=$k+1;
+
+	print "<div align=\"left\" onclick=\"void(0);event.cancelBubble=true;\" id=\"divContainer${i}\" style=\"visibility:hidden\">\n";
+	print "<table bgcolor=\"#FFFFFF\" cellspacing=0 cellpadding=0 bordercolor=\"#3e73a8\" width=\"100%\" height=310 border=1>\n";
+	print "<tr><td valign=\"top\" width=\"100%\">\n";
+	print "<div align=\"left\" id=divContainer${i}cnt>\n";
+	print "<table class=\"lista\" cellpadding=0 cellspacing=0 border=0 width=220>\n";
+
+	
+	@data = split (/ /,$_);
+	if($_ =~ /^zone\s\"(.*)\"\s*\{/m)
+    {
+    	$nombredominio=$1;
+	}
+	$submenu=$named.$nombredominio.".db";
+
+	
+	open(OLD2, "< $submenu")    or die "can't open $submenu: $!";
+		
+	$p=0;
+	
+	while (<OLD2>) 
+	{	
+		unless(/IN\s+SOA/)
+		{
+		unless(/IN\t+NS/)
+		{		
+			if (/IN/)
+     		{
+				$p++
+			}
+		}
+		}
+	}
+	close(OLD2) or die "can't close $submenu: $!";
+	$total=$p;
+	
+	print "<table cellspacing=0 cellpadding=0 width=510 border=0>\n";
+	print "<tr><td  height=23  width=\"100%\" background=\"../images/barratitulo4.gif\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color=\"white\"><b>$dnsserver_subdominio\n";
+	print "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$dnsserver_nombre&nbsp;&nbsp;&nbsp;&nbsp;$dnsserver_tipo&nbsp;&nbsp;&nbsp;$dnsserver_mx</b></font></td></tr></table>\n";
+	
+	if($total>8)
+	{
+	print "<div id='scroll' style='height: 202px; overflow: auto;float:center;	width:490px;'>\n";
+	}
+	print "<table cellspacing=\"3\" cellpadding=\"0\" class=\"linea\"  border=0>\n";
+	print "<tr><td></td><td></td><td colspan=8><font color=black>Aplicar cambios a los subdominios creados:</font></td></tr>\n";
+
+sub procesaAcumulado2()
+{
+
+	$subdominio="";
+	$direccion="";
+	$tiposubdominio="";
+	$registros="";
+	
+    if($_[1] !~ /IN/)
+    {
+    	return;
+    }
+
+
+    if($_[1] =~ /^(.+)\t\tIN\t(.+)\t(.+)$/m)
+    {
+    	$subdominio=$1;
+		$direccion=$3;
+		$tiposubdominio=$2;
+		$registros="10";
+	}
+	
+	  
+	if($_[1] =~ /^(.+)\t\tIN\tMX\t(.+)\t(.+)$/m)
+    {
+    	$subdominio=$1;
+		$direccion=$3;
+		$tiposubdominio="MX";
+		$registros=$2;
+		$direccion=$3;
+	}
+
+	#$h=$m;
+				
+	print "<tr>\n";
+	print "<td align='center' width='28'><b><font color='black' size='4'>$m</font></b></td>\n";
+	print "<td align='left' width='26'>
+	
+	<!--<img onclick='window.location.href=\"?id=${m}&dominio=${nombredominio}&enviar=Borrarsub\"' style=\"cursor:pointer;$imagenvisiblebase\" src='../images/no.jpg' border='0' alt='borrar' >-->
+
+	<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${m}&dominio=${nombredominio}&enviar=Borrarsub\"'><b>-</b></div>				
+						
+	
+	</td>\n";
+				
+	print "<td width='95' align='left'><input id='${m}n0sub${i}' name='${m}n0sub${i}' type='text' value='$subdominio' class='campotxt' size=13></td>\n";
+	
+	print "<td width='1'></td>\n";							
+								
+	print "<td width='125' align='left'><input id='${m}n1sub${i}' name='${m}n1sub${i}' type='text' value='$direccion' style='$estilocaja' class='campotxt' size=18></td>\n";
+	
+	print "<td width='1'></td>\n";
+	
+	print "<td width='117' align='left'><select name='${m}n2sub${i}' id='${m}n2sub${i}' class='campotxt2'>\n";
+	print "<option value='$tiposubdominio'>$tiposubdominio</option>\n";
+	print "<option value='A'>A (Dirección IP)</option>\n";
+	print "<option value='MX'>MX (Mail)</option>\n";
+	print "<option value='CNAME'>CNAME (Alias)</option>\n";
+	print "<option value='TXT'>TXT (Etiqueta)</option></select></td>\n";
+	
+	print "<td width='1'></td>\n";
+		
+	print "<td width='35' align='center'><input id='${m}n3sub${i}' name='${m}n3sub${i}' type='text' value='$registros' class='campotxt' size=2></td>\n";
+	
+					
+	
+	print "</tr>\n";
+}
+
+if (-e $submenu)
+{
+		$acumulado="";
+		open(OLD2, "< $submenu")    or die "can't open $submenu: $!";
+				
+		$m=0;
+	
+		while (<OLD2>) 
+		{
+			unless(/IN\s+SOA/)
+			{
+			unless(/IN\t+NS/)
+			{
+			
+			
+				if(/IN/)
+     			{
+					chomp;
+					$_ =~ /.*/;
+				
+					&procesaAcumulado2($m,$acumulado);
+			
+		 			$acumulado=$_."\n";
+				
+		 			$m=$m+1;
+ 				
+				}
+				else
+				{
+					$acumulado=$acumulado.$_."\n";
+				}
+			}	
+			}	
+		}
+		close(OLD2);
+}			
+			
+		if($acumulado ne "")
+		{
+			&procesaAcumulado2($m,$acumulado);
+		}
+	
+			
+			
+			print "</table>\n";
+			
+			if($total>9)
+			{
+			print "</div>\n";
+			}	
+		
+
+			if($p ne 0)
+			{
+			print "<table border='0' align='center' cellpadding='0' cellspacing='0' width='220'>\n";
+            print "<tr><td height='10'></td></tr><tr>\n";
+			print "<td width='30'></td>\n";
+            print "<td align='center' valign='top'><input type='image' src='../images/submit_out.gif' name='boton1' id='boton1' value='Aplicar' onmousemove=\"status='Enviar'\" onmousedown=\"this.src='../images/submit_in.gif';\"  onmouseover=\"this.src='../images/submit_over.gif';\" onmouseout=\"status=window.defaultStatus;this.src='../images/submit_out.gif';\" target='_self' border='0' onclick=validarForm2('$nombredominio','${i}')>\n";
+					
+            print "<input type='image' src='../images/reset_out.gif' value='Cancelar' id='boton2' name='boton2' onmousemove=\"status='Enviar'\" onmousedown=\"this.src='../images/reset_in.gif';\"  onmouseover=\"this.src='../images/reset_over.gif';\" onmouseout=\"status=window.defaultStatus;this.src='../images/reset_out.gif';\" target='_self' onClick='reset()'></td>\n";
+               
+			print "</tr>\n";
+			
+            print "</table><br>\n";
+			}		
+			
+			
+			print "<table cellspacing=\"3\" cellpadding=\"0\" class=\"linea\"  border=0>\n";			
+			print "<tr><td></td><td></td><td colspan=8><font color=black>Insertar nuevo subdominio:</font></td></tr>\n";			
+			print "<tr>\n";
+			print "<td align='left' width='26'></td><td align='left' width='28'>
+			
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick=\"enviarsub('$nombredominio','${i}')\"><b>+</b></div>				
+				
+
+			</td>\n";
+			#print "<td width='1'></td>\n";
+			
+			
+			print "<td width='95' align='left'><input id='subdominionuevo${i}' name='subdominionuevo${i}' type='text' value='' class='campotxt' size=13></td>\n";
+	
+			print "<td width='1'></td>\n";							
+								
+			print "<td width='125' align='left'><input id='valornuevo${i}' name='valornuevo${i}' type='text' value='' style='$estilocaja' class='campotxt' size=18></td>\n";
+			
+			print "<td width='1'></td>\n";
+	
+			print "<td width='117' align='left'><select name='tiposubdominionuevo${i}' id='tiposubdominionuevo${i}' class='campotxt2'>\n";
+			print "<option value=''></option>\n";
+			print "<option value='A'>A (Dirección IP)</option>\n";
+			print "<option value='MX'>MX (Mail)</option>\n";
+			print "<option value='CNAME'>CNAME (Alias)</option>\n";
+			print "<option value='TXT'>TXT (Etiqueta)</option></select></td>\n";
+	
+			print "<td width='1'></td>\n";
+		
+			print "<td width='35' align='center'><input id='regisnuevo${i}' name='regisnuevo${i}' type='text' value='10' class='campotxt' size=2></td>\n";
+			
+			
+			print "</tr>\n";
+			print "<tr><td height='5'></td></tr>\n";
+			print "</table>\n";
+			
+			
+
+			#if($p ne 0)
+			#{
+			#print "<table border='0' align='center' cellpadding='0' cellspacing='0' width='220'>\n";
+         #   print "<tr><td height='10'></td></tr><tr>\n";
+			#print "<td width='30'></td>\n";
+         #   print "<td align='center' valign='top'><input type='image' src='../images/submit_out.gif' name='boton1' id='boton1' value='Aplicar' onmousemove=\"status='Enviar'\" onmousedown=\"this.src='../images/submit_in.gif';\"  onmouseover=\"this.src='../images/submit_over.gif';\" onmouseout=\"status=window.defaultStatus;this.src='../images/submit_out.gif';\" target='_self' border='0' onclick=validarForm2('$nombredominio','${i}')>\n";
+			#		
+         #   print "<input type='image' src='../images/reset_out.gif' value='Cancelar' id='boton2' name='boton2' onmousemove=\"status='Enviar'\" onmousedown=\"this.src='../images/reset_in.gif';\"  onmouseover=\"this.src='../images/reset_over.gif';\" onmouseout=\"status=window.defaultStatus;this.src='../images/reset_out.gif';\" target='_self' onClick='reset()'></td>\n";
+               
+			#print "</tr>\n";
+         #   print "</table><br>\n";
+			#}
+			
+			print "</td></tr></table>\n";
+
+
+           
+
+
+	print "<tr><td height=5></td></tr></table></div></td></tr></table></div>\n";
+	
+
+		$i=$i+1;
+		}
+	}  
+	close(OLD) or die "can't close $namedconflocal: $!";
+
+
+
+
+$i=1;
+	open(OLD, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+		
+	$lastline="";
+	$sacarzona=0;
+	
+	while (<OLD>) 	{
+	
+		if(/^zone.*\{$/)    	{
+			$k=$k+1;
+
+	print "<!--<div align=\"left\" onclick=\"void(0);event.cancelBubble=true;\" id=\"divKontainer${i}\" style=\"visibility:hidden\">\n";
+	print "<table bgcolor=\"#FFFFFF\" cellspacing=0 cellpadding=0 bordercolor=\"#3e73a8\" width=\"100%\" height=310 border=1>\n";
+	print "<tr><td valign=\"top\" width=\"100%\">\n";
+	print "<div align=\"left\" id=divKontainer${i}cnt>
+	
+	<table align='center' border=0>
+	<tr>	<td colspan=2><b>DNS Forwarders</b></td>
+	</tr>
+	<tr>
+	<td><input id='forwarder1' name='forwarder1' type='text'  class='campotxt' size='12' value='$forwarder1'></td><td width='1'></td>
+	<td><input id='forwarder2' name='forwarder2' type='text'  class='campotxt' size='12' value='$forwarder2'></td><td width='1'></td>
+	<td><input id='forwarder3' name='forwarder3' type='text'  class='campotxt' size='12' value='$forwarder3'></td><td width='1'></td>
+	</tr>
+	</table>	
+	<br>
+	</div></td></tr></table></div>-->\n";
+	
+
+		$i=$i+1;		}
+	}  	close(OLD) or die "can't close $namedconflocal: $!";
+
+
+sub procesaAcumulado3()
+{
+
+	$forwarderdom1="";
+	$forwarderdom2="";
+	$forwarderdom3="";
+
+	if($_[1] !~ /^zone/)
+   {
+    	return;
+   }
+   
+   if($_[1] =~ /^[\t|\s|\/]*forwarders\s*{\s*(.+);\s*};\n\n};$/m)
+   {
+   	$direccionesdom=$1;
+   	
+   	@data = split (/\s*;\s*/,$direccionesdom);
+		$forwarderdom1=$data[0];
+		$forwarderdom2=$data[1];
+		$forwarderdom3=$data[2];									
+	}
+	
+	if($_[1] =~ /^[\t|\s]*\/\/forwarders/m)
+   {
+   	$activado=0;					
+	}
+	else
+	{
+		$activado=1;	
+	}	
+
+	print "<div align=\"left\" onclick=\"void(0);event.cancelBubble=true;\" id=\"divKontainer${m}\" style=\"visibility:hidden\">\n";
+	print "<table bgcolor=\"#FFFFFF\" cellspacing=0 cellpadding=0 bordercolor=\"#3e73a8\" width=\"100%\" height=310 border=1>\n";
+	print "<tr><td valign=\"top\" width=\"100%\">\n";
+	print "<div align=\"left\" id=divKontainer${m}cnt>
+	
+	<table align='center' border=0>
+	<tr>
+	<td colspan=2><b>DNS Forwarders</b></td>
+	</tr>
+	<tr>
+	<td><input id='${m}forwarderdom1' name='${m}forwarderdom1' type='text'  class='campotxt' size='14' value='$forwarderdom1'></td><td width='1'></td>
+	<td><input id='${m}forwarderdom2' name='${m}forwarderdom2' type='text'  class='campotxt' size='14' value='$forwarderdom2'></td><td width='1'></td>
+	<td><input id='${m}forwarderdom3' name='${m}forwarderdom3' type='text'  class='campotxt' size='14' value='$forwarderdom3'></td><td width='1'></td>
+	<td>
+	<script language='javascript'>document.write('<img id=\"${m}flecha\" src=\"'+($activado == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegladom(${m})\" >');</script>
+	<input  type='hidden' id='${m}yact' name='${m}yact' value='$activado'/>
+	</td>	
+	</tr>
+	<tr><td colspan=8>Los cambios se aplican a través del submit principal</td></tr>
+	</table>	
+	<br>
+	</div></td></tr></table></div>\n";
+
+}
+
+
+		$acumulado="";
+		open(OLD8, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+				
+		$m=0;
+	
+		while (<OLD8>) 
+		{	
+			if(/^zone.*\{$/)
+   		{
+				chomp;
+				$_ =~ /.*/;
+				
+				&procesaAcumulado3($m,$acumulado);
+			
+	 			$acumulado=$_."\n";
+				
+	 			$m=$m+1;
+ 							}
+			else
+			{
+				$acumulado=$acumulado.$_."\n";
+			}
+		}
+		close(OLD8);			
+			
+		if($acumulado ne "")
+		{
+			&procesaAcumulado3($m,$acumulado);
+		}
+
+
+$colorprinciconfigeneral="white";
+$fondoprinciconfigeneral="#3e73a8";
+
+
+print <<EOF;
+<table cellspacing="0" cellpadding="0" width="100%" border="0">
+<tr>
+<td>
+
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/dns.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$dnsserver_titulo1</B></FONT></td></tr></table>
+
+<!--<HR NOSHADE class="barracolor">-->
+
+
+<table width="890" border="0"><tr><td align="center">
+
+<br>
+<table width="600" border="0"><tr><!--<td align="left">
+<A HREF=$volver target=main><img src="../images/volver.gif" border="0"><br>$fw_volver</a> 
+</td>--><td align="center">	
+<br><br>
+<table style="$imagenvisiblebase"><tr>
+<td><img src="../images/$estadoserverdns" onClick="enviarestado('$pasarserverdns')" style="cursor:pointer"></td><td width="4"></td><td>$dnsserver_activar</td><td width="40"></td>
+</tr></table>
+
+</td></tr></table>
+
+<br><br>
+
+
+<center>
+<table cellpadding="0" cellspacing="0"><tr><td>
+<table style="background:$fondoprinciconfigeneral" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="130"><tr><td width="5"></td><td align="center"><b><!--<a href="dhcpserver.htm?princi=configeneral&volver=$volver">--><font color="$colorprinciconfigeneral">Busqueda directa</font><!--</a>--></b></td></tr></table>
+</td><td width="30"></td><td>
+<table style="background:gray" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="130"><tr><td width="5"></td><td align="center"><b><!--<a href="dhcpserver.htm?princi=rangoips&volver=$volver">--><font color="white">Busqueda inversa</font><!--</a>--></b></td></tr></table>
+</td><td width="500"></td>
+</tr></table>
+</center>
+
+<div style="background:#3e73a8; width:880; height:755;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<table><tr><td height="8"></td></table>
+<div style="background:white; width:840; height:730;-webkit-box-shadow: 0px 1px 5px black;
+  -moz-box-shadow: 0px 1px 5px black;
+  box-shadow: 0px 1px 5px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+
+<br><br>
+
+		
+<table border="0"><tr><td width="150"></td><td>
+
+
+<table cellspacing='3' cellpadding='0' class='linea' border=0 width="260" style="$imagenvisiblebase">
+<tr>
+<td width="19"></td>
+<td width='30'></td><td><font color='black'>$dnsserver_alta</font></td>
+</tr>
+<tr>
+<td width="19"></td>
+<td align='center' width='30'>
+
+<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onClick='insertar()'><b>+</b></div>				
+				
+
+</td>
+<td width='120' align='left'><input id='newdomain' name='newdomain' type='text' value='' class='campotxt' size=22></td>
+</tr>
+</table>
+
+<br>
+
+
+		
+<!--<table cellspacing="0" cellpadding="0" width=380 border="0">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$dnsserver_dominios</b></font></td></tr>
+
+</table>-->
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="380">
+<tr><td width="380" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$dnsserver_dominios</b></font></td></tr>
+
+<tr><td height="10"></td></tr>
+<tr><td align="center">
+
+<div id='scroll' style='height: 355px; overflow: auto;float:center;	width:390px;'>
+	
+<table cellspacing="3" cellpadding="0" width=390 class="linea"  border=0>
+EOF
+
+sub procesaAcumulado()
+{
+    $i=$_[0];
+	$nombretitulo="";
+	
+	
+	 if($_[1] !~ /^zone/)
+    {
+    	return;
+    }
+
+    #if($_[1] =~ /^\s*file\s\"(.*)\.db\"\;/m)
+    #{
+    #	$nombretitulo=$1;
+	 #}
+	 	 
+	 if($_[1] =~ /^zone\s\"(.*)\"\s\{$/m)
+    {
+    	$nombretitulo=$1;
+	 }
+	 
+	 if($_[1] =~ /^\s*type\s(.*)\;/m)
+    {
+    	$tipodominio=$1;
+	 }			
+	
+	print "<tr>\n";
+	print "<td align='center' width='24'><b><font color='black' size='4'>$i</font></b></td>\n";
+	print "<td align='left' width='24'>
+
+	<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 3px 3px 3px 3px;
+  width:20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&nombredominio=${nombretitulo}&enviar=Borrar\"'><b>-</b></div>				
+					
+	
+	</td>\n";
+				
+	print "<td width='145' align='left'><input id='${i}x0' name='${i}x0' type='text' value='$nombretitulo' class='campotxt4' size=22 readonly></td>\n";
+
+	print "<td width='80' align='left'>
+	<select name='${i}tipodominio' id='${i}tipodominio' class='campotxt' style='font-weight:bold; color:#3e73a8'>
+	<option value='$tipodominio' checked>$tipodominio</option>";
+	if($tipodominio eq "forward")	
+	{	
+	print "<option value='master'>master</option>";
+	
+	$contenedorletra="K";
+	}
+	if($tipodominio eq "master")
+	{
+	print "<option value='forward'>forward</option>";
+	
+	$contenedorletra="C";
+	}
+	print "
+	</select>	
+	</td>\n";
+		
+								
+	print "<td align='left' width='35'><img src='../images/submenu.gif' id='${i}x3' style='cursor:pointer; visibility:${visiblesubmenu}' onclick='toggle(\"${i}x3\",obj${contenedorletra}ontainer${i},findPosX(this)+200,findPosY(this)+20,\"control\");event.cancelBubble=true;'></td>\n";										
+	
+	
+	print "</tr>\n";
+}
+
+		$acumulado="";
+		open(OLD, "< $namedconflocal")    or die "can't open $namedconflocal: $!";
+				
+		$i=0;
+		$sacarzona=0;
+	
+		while (<OLD>) 
+		{
+		  
+				if(/^zone.*\"\s*\{$/)
+     			{
+					chomp;
+					$_ =~ /.*/;
+				
+					&procesaAcumulado($i,$acumulado);
+			
+		 			$acumulado=$_."\n";
+		 			$i=$i+1;
+ 				
+				}
+				else
+				{
+					$acumulado=$acumulado.$_."\n";
+				}
+
+		}
+		close(OLD);
+			
+			
+		if($acumulado ne "")
+		{
+			&procesaAcumulado($i,$acumulado);
+		}
+	
+			print "</table></div>\n";
+
+
+
+print <<EOF;
+
+</td></tr></table>
+
+<br>
+
+             
+			  
+</td>
+<td width="120"></td>
+<td valign="top">
+
+<table align="center" border="0">
+<tr>
+<td colspan="2"><b>DNS Forwarders</b></td>
+</tr>
+<tr>
+<td><input id='forwarder1' name='forwarder1' type='text'  class='campotxt' size='12' value='$forwarder1'></td><td width='1'></td>
+<td><input id='forwarder2' name='forwarder2' type='text'  class='campotxt' size='12' value='$forwarder2'></td><td width='1'></td>
+<td><input id='forwarder3' name='forwarder3' type='text'  class='campotxt' size='12' value='$forwarder3'></td><td width='1'></td>
+<td>
+<script language='javascript'>document.write('<img id=\"flecha\" src=\"'+($activadocomprofw == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla()\" >');</script>
+<input  type='hidden' id='xact' name='xact' value='$activadocomprofw'/>
+</td>
+</tr>
+</table>
+
+
+<table border="0" width="200">
+<tr>
+<td colspan="5"><b>$dnsserver_limitmemoria</b></td>
+</tr>
+<tr>
+<td width="25"><input id='memocachear' name='memocachear' type='text'  class='campotxt' size='2' value='$memocachear'></td><td width="100">$dnsserver_mbcachear</td>
+<td>
+<script language='javascript'>document.write('<img id=\"flecha2\" src=\"'+($activado2 == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla2()\" >');</script>
+<input  type='hidden' id='xact2' name='xact2' value='$activado2'/>
+</td>
+</tr>
+</table>
+
+<br>
+
+<!--<table cellpadding="2" cellspacing="0" border="1" width="250" class="bordecuadrof">
+        <tr> 
+          <td class="bordecuadrof"> <table cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr> 
+                <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$toc_controlacceso</b></td>
+              </tr>
+            </table></td>
+        </tr>
+        <tr>
+          <td class="bordecuadrof">-->
+
+	<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="290" height="150">
+		<tr><td width="290" height="23" class="barratituloazul" colspan="2">&nbsp;&nbsp;&nbsp;<b><font color=white>$toc_controlacceso</b></td></tr>
+		<tr><td height="5"></td></tr>
+		<tr><td width="10"></td><td>         
+          
+           <div align="center"> 
+
+<table cellspacing="3" cellpadding="3" align="center" border="0">
+                <tr> 
+                  <td width="60"> <table cellpadding="0" cellspacing="0" border="0">
+                      <tr> 
+                        <td><b>$rat_permitidas</b></td>
+                      </tr>
+                      <tr> 
+                        <td><input id="nombre" size="30" class="campotxt" type="text" name="nombre"></td>
+                      </tr>
+                    </table></td>
+                  <td valign="bottom"><img alt="editar" onClick="load(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flecharriba.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="a&ntilde;adir" onClick="anadir(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flechabajo.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="borrar" onClick="del('lista')" height="17" width="16" src="../images/flechax.gif" style="cursor:pointer"></td>
+                </tr>
+                <tr> 
+                  <td align="left" colspan="4"> <div align="left"> 
+                      <table cellpadding="0" cellspacing="0" border="0" width="260">
+                        <tr> 
+                          <td rowspan="6" width="87%"><select id="lista"  class="campotxt" size="6" name="lista" style="width:100%">
+                              </select></td>
+                        </tr>
+                      </table>
+
+				 </div></td>
+                </tr>
+              </table>
+</td>
+                </tr>
+                <tr><td height="10"></td></tr>
+              </table>
+<br>
+
+			<table border="0" align="center" cellpadding="0" cellspacing="0" width="300">
+                <tr>
+                  <td align="center" valign="top"><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()">
+				  </td>
+				  <td width="60"></td>
+				</tr>
+              </table>
+
+<br><br>
+<table width="290" bordercolor="#3e73a8" style="border-style:dotted dashed; border-width:2px" cellpadding="8"><tr><td>
+- $dnsserver_frase1
+<br><br>
+- $dnsserver_frase2
+<br><br>
+- $dnsserver_frase3
+</td></tr></table>
+
+
+ 
+			  
+</td>
+</tr></table>
+		
+
+</form>
+		</td>
+	</tr>
+	</table>
+	<!-- fin tabla central -->
+	
+	
+</div></div>	
+	
+	</td>
+</tr>
+</table>
+<script language="javascript">InitialiseAreas(); </script>
+
+<script type="text/javascript" language="javascript1.2">
+//cargar lista blanca
+lblanca = '$ipsumar';
+
+lblanca = lblanca.split(" ");
+lblanca = lblanca.sort();
+
+var lista=document.getElementById('lista');	
+
+
+for(i = 0; i < lblanca.length;i++)
+{	
+	if (lblanca[i]=="") continue;
+	nombre=lblanca[i];
+	lista.options[lista.options.length]=new Option(nombre,nombre);
+}
+
+
+</script>
+
+
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+ </body>
+</html>
+EOF

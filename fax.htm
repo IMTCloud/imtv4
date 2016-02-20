@@ -1,0 +1,1344 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+use DBI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_FAX_SOBRE_IP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			
+			if (/^\s*UNIDAD\s*=.*$/)
+	      {
+             chomp;
+             $_ =~ s/^\s+//;
+             @data = split (/\s*=\s*/,$_);
+             $unidad = $data[1];
+    	   }
+
+}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+
+$puerto = `cat $puertoruta`;
+$puerto =~ s/(\r?\n)//g;
+$configmodem = "${configtty}${puerto}";
+						 
+
+if($q->param('enviar') eq "Insertar")
+{
+$user=$q->param('user');
+$pass=$q->param('password');
+system("/usr/sbin/faxadduser -a $pass $user");
+}
+
+
+if($q->param('enviar') eq "Borrar")
+{
+$user=$q->param('id');
+system("/usr/sbin/faxdeluser $user");
+}
+
+
+if($q->param('enviar') eq "adminpass")
+{
+$passadmin=$q->param('passadmin');
+system("/usr/sbin/faxdeluser admin");
+system("/usr/sbin/faxadduser -a $passadmin admin");
+}
+
+
+
+if($q->param('enviar') eq "aplicar")
+{
+
+		$countrycode=$q->param('countrycode');
+		$areacode=$q->param('areacode');
+		$faxnumber=$q->param('faxnumber');
+		$ringsbeforeanswer=$q->param('ringsbeforeanswer');
+		$opcspeak=$q->param('opcspeak');
+		$localidentifier=$q->param('localidentifier');
+		$maxrecvpages=$q->param('maxrecvpages');
+		$modemdialcmd=$q->param('modemdialcmd');
+		
+		$permitidas=$q->param('permitidas');
+		
+		$puertomodem=$q->param('puertomodem');
+		
+		
+		open(NEW, "> $fwserverfax")     or die "can't open $fwserverfax: $!";
+		
+		$i=0;
+		@data = split (/\s+/,$permitidas);
+		
+		while( 1 ) 
+		{
+			$permi = $data[$i];
+		
+			if( $permi eq undef )
+			{
+				last;
+			}
+		
+			print NEW "\$IPTABLES -A INPUT -s $permi -p tcp --dport 4559 -j ACCEPT&\n\n" or die "can't write $fwserverfax: $!";
+		
+			$i=$i+1;
+		}
+		close(NEW) or die "can't close $fwserverfax: $!";
+		
+		
+		
+		open(OLD, "< $configmodem")    or die "can't open $configmodem: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			
+			if (/^\s*CountryCode:.*$/)
+     		{
+				s/^.*$/CountryCode:		$countrycode/;
+			}
+			if (/^\s*AreaCode:.*$/)
+     		{
+				s/^.*$/AreaCode:		$areacode/;
+			}
+			if (/^\s*FAXNumber:.*$/)
+     		{
+				s/^.*$/FAXNumber:		$faxnumber/;
+			}
+			if (/^\s*RingsBeforeAnswer:.*$/)
+     		{
+				s/^.*$/RingsBeforeAnswer:	$ringsbeforeanswer/;
+			}
+			if (/^\s*SpeakerVolume:.*$/)
+     		{
+				s/^.*$/SpeakerVolume:		$opcspeak/;
+			}
+			if (/^\s*LocalIdentifier:.*$/)
+     		{
+				s/^.*$/LocalIdentifier:	$localidentifier/;
+			}
+			if (/^\s*MaxRecvPages:.*$/)
+     		{
+				s/^.*$/MaxRecvPages:		$maxrecvpages/;
+			}
+			if (/^\s*#?ModemDialCmd:.*$/)
+     		{
+				if($modemdialcmd eq "")
+				{
+					$comen="#";
+				}
+				else
+				{
+					$comen="";
+				}
+				
+				s/^.*$/${comen}ModemDialCmd:		ATDT${modemdialcmd}\%s\@/;
+			}
+			
+  		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $crontab: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+
+		system("/bin/cp $aux $configmodem 1>&2");
+		
+		system("/bin/echo '${puertomodem}' > $puertoruta");
+		system("/bin/mv $configmodem ${configtty}${puertomodem} 1>&2");
+
+		$puerto = `cat $puertoruta`;
+		$puerto =~ s/(\r?\n)//g;
+
+		$configtty = "/etc/hylafax/config.ttyS";
+		$configmodem = "${configtty}${puerto}";
+	
+		system("$hylafaxdemonio restart >/dev/null 2>&1 &");
+	
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");
+
+}
+
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$fax=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*FAX\s*=\s*.*$/)
+     		{
+				s/^.*$/FAX\=$fax/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	system("$hylafaxdemonio restart >/dev/null 2>&1 &");
+	
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*FAX\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$fax = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($fax eq "1") 
+{
+	$estadofax = "activado.gif";
+	$pasarfax = 0;
+}
+else
+{	
+	$estadofax = "desactivado.gif";
+	$pasarfax = 1;
+}
+
+
+
+#Configuración del modem
+#···············································································	
+
+	open(OLD, "< $configmodem")    or die "can't open $configmodem: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*CountryCode:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+		 		$countrycode = $data[1];
+			}
+			if (/^\s*AreaCode:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+		 		$areacode = $data[1];
+			}
+			if (/^\s*FAXNumber:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+		 		$faxnumber = $data[1];
+			}
+			if (/^\s*RingsBeforeAnswer:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+		 		$ringsbeforeanswer = $data[1];
+			}
+			if (/^\s*SpeakerVolume:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+		 		$speakervolume = $data[1];
+				
+				if ($speakervolume eq "Off")
+				{
+					$checkedoff="checked";
+				}
+				elsif ($speakervolume eq "Low")
+				{
+					$checkedlow="checked";
+				}
+				elsif ($speakervolume eq "Medium")
+				{
+					$checkedmedium="checked";
+				}
+				elsif ($speakervolume eq "High")
+				{
+					$checkedhigh="checked";
+				}
+				
+			}
+			if (/^\s*LocalIdentifier:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/\"//g;
+				@data = split (/\s+/,$_);
+		 		$localidentifier = $data[1];
+			}
+			if (/^\s*MaxRecvPages:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s+/,$_);
+		 		$maxrecvpages = $data[1];
+			}
+			if (/^\s*#?ModemDialCmd:.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				
+				if ($_ =~ /^\s*#?ModemDialCmd:\s*ATDT([0-9]+)\%s\@$/m)
+    			{ 
+    				$modemdialcmd=$1;
+				}
+				if (/^#/)
+     			{
+					$modemdialcmd="";
+				}
+			}
+	}
+
+	close(OLD)     or die "can't close $configmodem: $!";
+	
+	
+
+
+
+$i=1;
+open(OLD, "< $fwserverfax")    or die "can't open $fwserverfax: $!";
+		
+	while (<OLD>) 
+	{
+		if (/\$IPTABLES/)
+     	{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s+/,$_);
+		 	$sumoip = $data[4];
+			
+			$ipsumar=$ipsumar." ".$sumoip;
+			
+		}
+
+	}
+close(OLD);
+	
+
+$testcom1=`$testpuerto 0`;
+$testcom1 =~ s/(\r?\n)//g;
+
+$testcom2=`$testpuerto 1`;	
+$testcom2 =~ s/(\r?\n)//g;
+
+$testcom3=`$testpuerto 2`;	
+$testcom3 =~ s/(\r?\n)//g;
+
+$testcom4=`$testpuerto 3`;
+$testcom4 =~ s/(\r?\n)//g;
+	
+if($testcom1 eq 0)
+{
+	$comport="1";
+	$mensa="1";
+}
+
+if($testcom2 eq 0)
+{
+	$comport="2";
+	$mensa="1";
+}
+
+if($testcom3 eq 0)
+{
+	$comport="3";
+	$mensa="1";
+}
+
+if($testcom4 eq 0)
+{
+	$comport="4";
+	$mensa="1";
+}	
+
+if ($mensa eq "1")
+{
+	$mensaje="$fax_detectado COM${comport}<br>";
+}
+
+	
+$titulopuerto=$puerto+1;	
+	
+
+$estadisticas=`/usr/sbin/xferfaxstats`;
+#$estadisticas =~ s/(\r?\n)/\<br\>\<br\>/g;
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print<<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+/**
+ * function isValidNetIp()
+ */
+function isValidNetIP(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('/');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,2}\$/)==-1)
+		return false;
+	
+	
+    var lmask = parseInt(tempIP[1],10);
+
+	
+	if (lmask<0 || lmask > 32 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+
+function enviarestado(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el servidor de fax?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function enviaradmin()
+{
+oscuprocessform();
+
+	document.theform.enviar.value="adminpass"
+	document.theform.action='fax.htm';
+	document.theform.submit();
+	
+}
+
+
+function validarForm()
+{
+
+if (theform.countrycode.value != null && theform.countrycode.value.search(/^[0-9]+\$/)==-1)
+{
+	alert("El valor "+theform.countrycode.value+" no es válido");
+	theform.reset()
+	return;
+}
+
+if (theform.areacode.value != null && theform.areacode.value.search(/^[0-9]+\$/)==-1)
+{
+	alert("El valor "+theform.areacode.value+" no es válido");
+	theform.reset()
+	return;
+}
+
+if (theform.ringsbeforeanswer.value != null && theform.ringsbeforeanswer.value.search(/^[0-9]+\$/)==-1)
+{
+	alert("El valor "+theform.ringsbeforeanswer.value+" no es válido");
+	theform.reset()
+	return;
+}
+
+if (theform.maxrecvpages.value != null && theform.maxrecvpages.value.search(/^[0-9]+\$/)==-1)
+{
+	alert("El valor "+theform.maxrecvpages.value+" no es válido");
+	theform.reset()
+	return;
+}
+
+
+if (theform.modemdialcmd.value != "")
+{
+if (theform.modemdialcmd.value != null && theform.modemdialcmd.value.search(/^[0-9]+\$/)==-1)
+{
+	alert("El valor "+theform.modemdialcmd.value+" no es válido");
+	theform.reset()
+	return;
+}
+}
+
+var lista=document.getElementById('lista').options;
+	document.theform.permitidas.value='';
+	for(i=0;i < lista.length;i++)
+	{	
+		document.theform.permitidas.value+=lista[i].value+' ';
+	}
+	
+oscuprocessform();	
+	
+	document.theform.action="fax.htm";
+	document.theform.enviar.value="aplicar"
+	document.theform.submit();
+	
+}
+
+
+</script>
+
+
+
+
+<script>
+
+// Copyright (C) 2005 Ilya S. Lyubinskiy. All rights reserved.
+// Technical support: http://www.php-development.ru/
+//
+// YOU MAY NOT
+// (1) Remove or modify this copyright notice.
+// (2) Distribute this code, any part or any modified version of it.
+//     Instead, you can link to the homepage of this code:
+//     http://www.php-development.ru/javascripts/dropdown.php.
+//
+// YOU MAY
+// (1) Use this code on your website.
+// (2) Use this code as a part of another product provided that
+//     its main use is not creating javascript menus.
+//
+// NO WARRANTY
+// This code is provided "as is" without warranty of any kind, either
+// expressed or implied, including, but not limited to, the implied warranties
+// of merchantability and fitness for a particular purpose. You expressly
+// acknowledge and agree that use of this code is at your own risk.
+
+
+// ----- Popup Control ---------------------------------------------------------
+
+function at_display(x)
+{
+  var win = window.open();
+  for (var i in x) win.document.write(i+' = '+x[i]+'<br>');
+}
+
+// ----- Show Aux -----
+
+function at_show_aux(parent, child)
+{
+  var p = document.getElementById(parent);
+  var c = document.getElementById(child );
+
+  var top  = (c["at_position"] == "y") ? p.offsetHeight+2 : 0;
+  var left = (c["at_position"] == "x") ? p.offsetWidth +2 : 0;
+
+  for (; p; p = p.offsetParent)
+  {
+    top  += p.offsetTop;
+    left += p.offsetLeft;
+  }
+
+  c.style.position   = "absolute";
+  c.style.top        = top +'px';
+  c.style.left       = left+'px';
+  c.style.visibility = "visible";
+}
+
+// ----- Show -----
+
+function at_show()
+{
+  var p = document.getElementById(this["at_parent"]);
+  var c = document.getElementById(this["at_child" ]);
+
+  at_show_aux(p.id, c.id);
+
+  clearTimeout(c["at_timeout"]);
+}
+
+// ----- Hide -----
+
+function at_hide()
+{
+  var c = document.getElementById(this["at_child"]);
+
+  c["at_timeout"] = setTimeout("document.getElementById('"+c.id+"').style.visibility = 'hidden'", 333);
+}
+
+// ----- Click -----
+
+function at_click()
+{
+  var p = document.getElementById(this["at_parent"]);
+  var c = document.getElementById(this["at_child" ]);
+
+  if (c.style.visibility != "visible")
+       at_show_aux(p.id, c.id);
+  else c.style.visibility = "hidden";
+
+  return false;
+}
+
+// ----- Attach -----
+
+// PARAMETERS:
+// parent   - id of visible html element
+// child    - id of invisible html element that will be dropdowned
+// showtype - "click" = you should click the parent to show/hide the child
+//            "hover" = you should place the mouse over the parent to show
+//                      the child
+// position - "x" = the child is displayed to the right of the parent
+//            "y" = the child is displayed below the parent
+// cursor   - Omit to use default cursor or check any CSS manual for possible
+//            values of this field
+
+function at_attach(parent, child, showtype, position, cursor)
+{
+  var p = document.getElementById(parent);
+  var c = document.getElementById(child);
+
+  p["at_parent"]     = p.id;
+  c["at_parent"]     = p.id;
+  p["at_child"]      = c.id;
+  c["at_child"]      = c.id;
+  p["at_position"]   = position;
+  c["at_position"]   = position;
+
+  c.style.position   = "absolute";
+  c.style.visibility = "hidden";
+
+  if (cursor != undefined) p.style.cursor = cursor;
+
+  switch (showtype)
+  {
+    case "click":
+      p.onclick     = at_click;
+      p.onmouseout  = at_hide;
+      c.onmouseover = at_show;
+      c.onmouseout  = at_hide;
+      break;
+    case "hover":
+      p.onmouseover = at_show;
+      p.onmouseout  = at_hide;
+      c.onmouseover = at_show;
+      c.onmouseout  = at_hide;
+      break;
+  }
+}
+
+
+
+function insertar()
+{
+oscuprocessform();
+
+document.theform.enviar.value="Insertar"
+document.theform.action='fax.htm';
+document.theform.submit();
+}
+
+
+
+function load(theForm,lista,nombre)
+{
+	var lista=document.getElementById(lista);
+	if(lista.selectedIndex==-1)
+		return;
+
+	nombre.value=lista.options[lista.selectedIndex].value;
+
+	lista.options[lista.selectedIndex]=null;	
+}
+
+function anadir(theForm)
+{
+	var lista=document.getElementById('lista');
+
+	//if(theForm.nombre.value==null || theForm.nombre.value.search(/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))\$/)!=0)
+	//{
+	//	alert('Se esperaba una dirección de correo válida');	
+	//	return false;
+	//}
+	
+	if(isValidIP(theForm.nombre.value)==false && isValidNetIP(theForm.nombre.value)==false)
+	{
+		alert('Se esperaba una IP o Red válida');	
+		return false;
+	}
+
+	lista.options[lista.options.length]=new Option(theForm.nombre.value,theForm.nombre.value);
+	theForm.nombre.value='';
+	return true;
+	
+}
+
+function del()
+{
+	var lista=document.getElementById('lista');
+	if(lista.selectedIndex==-1)
+		return;
+	nombre=lista.options[lista.selectedIndex].value.split('::')[0];
+	
+	selind = lista.selectedIndex;
+	lista.options[lista.selectedIndex]=null;	
+	lista.selectedIndex = selind;
+}
+
+</script>
+
+
+<style>
+<!--
+
+/* Context menu Script- © Dynamic Drive (www.dynamicdrive.com) Last updated: 01/08/22
+For full source code and Terms Of Use, visit http://www.dynamicdrive.com */
+
+.skin0{
+position:absolute;
+width:165px;
+border:2px solid orange;
+background-color:menu;
+font-family:Verdana;
+line-height:20px;
+cursor:default;
+font-size:10px;
+z-index:100;
+visibility:hidden;
+filter:alpha(opacity=85);-moz-opacity:.85;opacity:.85;
+}
+
+.menuitems{
+padding-left:10px;
+padding-right:10px;
+}
+-->
+</style>
+
+   
+</head><body marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+
+
+
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="volver" type="hidden" value="$volver">
+<input name="enviar" type="hidden"><input name="env" type="hidden"><input name="estado" type="hidden">
+<input name="permitidas" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/fax.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$fax_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<br><br>
+
+<table width="600" cellpadding="0" cellspacing="0" border="0"><tr>
+
+<td align="left">
+<table width="150" cellspacing="0"><tr><td background="../images/barratitulo4.gif" align="center" height="20">
+<div id="menu_parent"><font color="white"><a href="fax.htm"><font color="white"><b>$fax_stats</b></font></a></font></div>
+</td></tr></table>
+
+</td></tr></table>
+
+<div id="menu_child" class="opaco1">
+<table bgcolor="#3e73a8" cellpadding="0" cellspacing="0" class="bordecuadro">
+<tr><td width="350" height="100" bordercolor="white" valign="top">
+
+<table border="0" bordercolor="#3e73a8">
+
+<tr><td>
+<div style="width:inherit">
+<pre style="width:inherit">
+<font color="white" face="Lucida Console">
+$estadisticas
+</font>
+</pre></div>
+</td></tr>
+
+</table>
+
+
+</td></tr></table>
+</div>
+
+
+<script type="text/javascript">
+at_attach("menu_parent", "menu_child", "hover", "y", "pointer");
+</script>
+
+
+<br><br>
+
+<table border=0><tr>
+<td>
+
+<!--<table><tr>
+<td><img src="../images/$estadofax" onClick="enviarestado('$pasarfax')" style="cursor:pointer"></td><td width="4"></td><td>$rat_activar</td><td width="40"></td>
+</tr></table>-->
+
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>
+<br><br>
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="290">
+
+
+<tr><td height="5"></td></tr>
+<tr><td width="20"></td><td width="300" valign="top">
+&nbsp;<b><u><font color="orange">$mensaje</font></u></b>
+<br>
+<table>
+<tr><td align="right"><b>$fax_puerto</b></td><td width="15"></td><td>
+	<select name="puertomodem" id="puertomodem" class="campotxt">
+	<option value='${puerto}' selected><b>COM${titulopuerto}</b>&nbsp;&nbsp;</option>
+EOF
+if($puerto ne 0)
+{
+print <<EOF;
+	<option value='0'>COM1&nbsp;&nbsp;&nbsp;</option>
+EOF
+}
+if($puerto ne 1)
+{
+print <<EOF;
+	<option value='1'>COM2&nbsp;&nbsp;&nbsp;</option>
+EOF
+}
+if($puerto ne 2)
+{
+print <<EOF;
+	<option value='2'>COM3&nbsp;&nbsp;&nbsp;</option>
+EOF
+}
+if($puerto ne 3)
+{
+print <<EOF;
+	<option value='3'>COM4&nbsp;&nbsp;&nbsp;</option>
+EOF
+}
+print <<EOF;
+</select>
+	</td></tr>
+</table>
+
+<br>
+
+<table>
+<tr><td><input value="0" name="permitir" type="checkbox" $permitirsi></td><td>$fax_frase1</td>
+<tr><td><input value="0" name="permitir" type="checkbox" checked></td><td>$fax_frase2</td></tr>
+</table>
+<br>
+
+<table cellspacing="0" cellpadding="0" border="0">
+<tr><td  width="250" height="23" background="../images/barratitulo2.gif" align="center"><font color="white"><b>$fax_config</b></font></td></tr>
+</table><br>
+<table width="160" border="0"><tr>
+<td align='left'><b>CountryCode:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='countrycode' name='countrycode' size=4 value='$countrycode'/></td>
+</tr>
+<tr>
+<td align='left'><b>AreaCode:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='areacode' name='areacode' size=4 value='$areacode'/></td>
+</tr>
+<tr>
+<td align='left'><b>FAXNumber:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='faxnumber' name='faxnumber' size=16 value='$faxnumber'/></td>
+</tr>
+<tr>
+<td align='left'><b>RingsBeforeAnswer:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='ringsbeforeanswer' name='ringsbeforeanswer' size=2 value='$ringsbeforeanswer'/></td>
+</tr>
+<tr><td height="2" colspan="5"></td></tr>
+<tr>
+<td align='left'><b>SpeakerVolume:</b><br> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="../images/minimusic.gif"></td>
+<td align='center' width=5></td>
+<td width='104'> <table cellpadding="0" cellspacing="0"><tr><td align="center"><input type="radio" name="opcspeak" id="opcspeak" value="Off" ${checkedoff}></td><td align="center"><input type="radio" name="opcspeak" id="opcspeak" value="Low" ${checkedlow}></td><td align="center"><input type="radio" name="opcspeak" id="opcspeak" value="Medium" ${checkedmedium}></td><td align="center"><input type="radio" name="opcspeak" id="opcspeak" value="High" ${checkedhigh}></td></tr> <tr><td>Off|</td><td>Low|</td><td>Medium|</td><td>High</td></tr></table></td>
+</tr>
+<tr><td height="2" colspan="5"></td></tr>
+<tr>
+<td align='left'><b>LocalIdentifier:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='localidentifier' name='localidentifier' size=16 value='$localidentifier'/></td>
+</tr>
+<tr>
+<td align='left'><b>MaxRecvPages:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='maxrecvpages' name='maxrecvpages' size=3 value='$maxrecvpages'/></td>
+</tr>
+<tr>
+<td align='left'><b>$fax_prefijo:</b></td>
+<td align='center' width=5></td>
+<td width='104'><input class='campotxt' type='text' id='modemdialcmd' name='modemdialcmd' size=5 value='$modemdialcmd'/></td>
+</tr>
+</table>
+
+
+
+ <br>
+             
+
+</td></tr>
+</table>
+
+<br><br>
+ <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+
+
+
+
+
+
+</td><td width="30"></td><td valign="top">
+
+<br><br><br><br>
+
+<center>
+
+<!--<table cellpadding="2" cellspacing="0" border="1" width="250" class="bordecuadrof">
+        <tr> 
+          <td class="bordecuadrof"> <table cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr> 
+                <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$toc_controlacceso</b></td>
+              </tr>
+            </table></td>
+        </tr>
+        <tr>
+          <td class="bordecuadrof">-->
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="100%">
+		<tr><td width="100%" height="23" class="barratituloazul" colspan="2">&nbsp;&nbsp;&nbsp;&nbsp;<b><font color=white>$toc_controlacceso</b></td></tr>
+		<tr><td height="5"></td></tr>
+		<tr><td width="10"></td><td>
+		
+		<table>	
+        <tr> 
+          <td>          
+          
+           <div align="center"> 
+
+<table cellspacing="3" cellpadding="3" align="center" border="0">
+                <tr> 
+                  <td width="60"> <table cellpadding="0" cellspacing="0" border="0">
+                      <tr> 
+                        <td><b>$rat_permitidas</b></td>
+                      </tr>
+                      <tr> 
+                        <td><input id="nombre" size="30" class="campotxt" type="text" name="nombre"></td>
+                      </tr>
+                    </table></td>
+                  <td valign="bottom"><img alt="editar" onClick="load(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flecharriba.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="a&ntilde;adir" onClick="anadir(document.theform,'lista',document.theform.nombre)" height="17" width="16" src="../images/flechabajo.gif" style="cursor:pointer"></td>
+                  <td valign="bottom"><img alt="borrar" onClick="del('lista')" height="17" width="16" src="../images/flechax.gif" style="cursor:pointer"></td>
+                </tr>
+                <tr> 
+                  <td align="left" colspan="4"> <div align="left"> 
+                      <table cellpadding="0" cellspacing="0" border="0" width="260">
+                        <tr> 
+                          <td rowspan="4" width="87%"><select id="lista"  class="campotxt" size="5" name="lista" style="width:100%">
+                              </select></td>
+                        </tr>
+                      </table>
+
+				 </div></td>
+                </tr>
+              </table>
+</td>
+                </tr>
+              </table>
+              
+              </td>
+                </tr>
+                <tr><td height="5"></td></tr>
+              </table>
+			  
+			  <br>
+			  
+			  
+<table border="0" width="300"><tr><td valign="top">
+<center>		
+<br>
+<table cellspacing="0" cellpadding="0" width=290 border="0">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$vpnpptp_usuario
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PASSWORD</b></font></td></tr>
+
+</table>
+	
+		
+		
+
+
+<table cellspacing="3" cellpadding="0" width=340 class="linea"  border=0>
+
+<tr><td width="30"></td>
+<td width='120' align='left'><b><font color="black">ADMIN</font></b></td>
+<td align='center' width=3></td>
+<td width='130'><input class='campotxt' type='password' id='passadmin' name='passadmin' size=15 value='$linea[2]'/></td><td><img src='../images/ok.gif' onClick="enviaradmin()" style="cursor:pointer"></td>
+</tr>
+</table>
+
+
+<table cellspacing='3' cellpadding='0' width=340 class='linea' border=0>
+<tr>
+<td align='center' width='30'>
+
+<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 8;
+  -moz-border-radius: 8;
+  border-radius: 8px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 1px 1px 1px 1px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onClick='insertar()'><b>+</b></div>				
+						
+
+</td>
+<td width='120' align='left'><input id='user' name='user' type='text' value='' class='campotxt' size=14></td>
+				
+<td align='center' width=3></td>
+	
+<td width='130'><input class='campotxt' type='password' id='password' name='password' size=15 value=''/></td>
+</tr>
+<tr>
+<td></td><td width='110' colspan='4'><font color='black'>$openvpnusername_insert</font></td>
+</tr>
+</table>
+
+
+<table cellspacing="3" cellpadding="0" width=290 class="linea"  border=0 align="left"><tr><td>
+<div id="scroll" style="height: 135px; overflow: auto;float:center;	width:180px;" align="left">
+<table cellspacing="3" cellpadding="0" width=150 class="linea"  border=0>
+EOF
+
+	open(OLD, "< $faxuser")    or die "can't open $faxuser: $!";
+				
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		if (/^\^/)
+     	{
+			unless (/^\^admin/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+				$_ =~ s/[@|^]//g;
+				@data = split (/\:\:/,$_);
+				
+		 		$user = $data[0];
+			
+				$acumulado=$acumulado.$user."|";
+				
+			$i=$i+1;
+			}
+		}
+
+	}
+	close(OLD);
+				
+	@lista = split(/\|/, $acumulado);
+	@lista = sort(@lista);
+		
+	
+	foreach $veruser (@lista)
+	{
+		print "<tr>\n";
+		print "<td align='center' width='30'>
+		
+		<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 8;
+  -moz-border-radius: 8;
+  border-radius: 8px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 1px 1px 1px 1px;
+  width:20;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${veruser}&enviar=Borrar\"'><b>-</b></div>				
+		
+		</td>\n";
+		print "<td width='100' align='left'><input id='${i}x0' name='${i}x0' type='text' value='$veruser' class='campotxt4' size=14 readonly></td>\n";				
+		print "</tr>\n";
+	}		
+
+print "</table></div></td></tr></table>\n";
+
+
+
+print <<EOF;
+</table>
+
+            
+<input type="hidden" name="totaljabber" value="${i}">
+</td>
+
+
+</tr>
+</table>
+
+
+
+
+
+	</td></tr>
+	</table>
+
+
+</center>
+</form>
+
+<script type="text/javascript" language="javascript1.2">
+//cargar lista blanca
+lblanca = '$ipsumar';
+
+lblanca = lblanca.split(" ");
+lblanca = lblanca.sort();
+
+var lista=document.getElementById('lista');	
+
+
+for(i = 0; i < lblanca.length;i++)
+{	
+	if (lblanca[i]=="") continue;
+	nombre=lblanca[i];
+	lista.options[lista.options.length]=new Option(nombre,nombre);
+}
+
+
+</script>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+ </body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

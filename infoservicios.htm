@@ -1,0 +1,765 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+
+<script language="javascript">
+
+
+function enviar(opc)
+{
+
+var opcion = opc
+
+if(opcion==1)
+  {
+	if(!confirm('¿Desea APAGAR el dispositivo?'))
+	return false;
+  }
+
+if(opcion==2)
+  {
+	if(!confirm('¿Desea REINICIAR el dispositivo?'))
+	return false;
+  }
+  
+  oscuprocessform();
+		    
+theform.env.value = opcion;
+document.theform.submit();
+
+
+}
+
+
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/puzle2.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$infoservicios_titulo1</B></FONT></td><td width="30"></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br><br>
+<table><tr>
+<td width="89"></td><td width="408" height="23" class="barratituloazul2" align="center">&nbsp;<b><font color=white>· $infoservicios_descripcion ·</b></font></td><td width="2"></td><td align="center" width="87" class="barratituloazul2"><b><font color=white>· $infoservicios_categoria ·</b></font></td>
+</tr></table>
+<table width="600" class="bordenegrosombra" cellpadding="4" style="-webkit-border-top-right-radius: 0;-moz-border-top-right-radius: 0; border-top-right-radius: 0px;">	
+
+<tr><td height="20"></td></tr>
+<tr><td width="70" align="center"><img src="../images/fwsemaforo.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_firewall_titulo</b> <br>
+$infoservicios_firewall </td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/antivirus2.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_antivirus_titulo</b><br>
+$infoservicios_antivirus</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/antispam.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_antispam_titulo</b><br> 
+$infoservicios_antispam</td><td align="center"><b>$infoservicios_tmail</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/p2p.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_p2p_titulo</b> <br>
+$infoservicios_p2p</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/yahoo.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_msn_titulo</b> <br>
+$infoservicios_msn</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/rastreo.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_rastreador_titulo</b> <br>
+$infoservicios_rastreador</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/bloqueowebmini.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_filtroweb_titulo</b><br>
+$infoservicios_filtroweb</td><td align="center"><b>$infoservicios_tweb</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/vpn.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_vpnpptp_titulo</b><br>
+$infoservicios_vpnpptp</td><td align="center"><b>$infoservicios_tcon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/openvpn.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_openvpn_titulo</b><br>
+$infoservicios_openvpn</td><td align="center"><b>$infoservicios_tcon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/direccionador.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_backuplinea_titulo</b> <br>
+$infoservicios_backuplinea
+</td><td align="center"><b>$infoservicios_tred</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/chivatoweb.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_chivatoweb_titulo</b> <br>
+$infoservicios_chivatoweb
+</td><td align="center"><b>$infoservicios_tweb</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/portknock.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_portshadow_titulo</b> <br>
+$infoservicios_portshadow</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/netbios.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_almacennetbios_titulo</b> <br>
+$infoservicios_almacennetbios
+</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/groupware.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_groupware_titulo</b> <br>
+$infoservicios_groupware</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/cir.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_gestorcir_titulo</b> <br>
+$infoservicios_gestorcir</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/imagenportal.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_portalimagen_titulo</b> <br>
+$infoservicios_portalimagen</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/wakeonlan.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_wakeonlan_titulo</b> <br>
+$infoservicios_wakeonlan</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/balanceo.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_balanceocarga_titulo</b> <br>
+$infoservicios_balanceocarga
+</td><td align="center"><b>$infoservicios_tred</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/router.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_modemadsl_titulo</b><br>
+$infoservicios_modemadsl</td><td align="center"><b>$infoservicios_thard</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/ips.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_ids_titulo</b><br>
+$infoservicios_ids</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/auditor.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_auditorsegur_titulo</b><br>
+$infoservicios_auditorsegur</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/jabber.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_mensajeria_titulo</b><br>
+$infoservicios_mensajeria</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/fax.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_fax_titulo</b><br>
+$infoservicios_fax</td><td align="center"><b>$infoservicios_tcom</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/asterisk.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_asterisk_titulo</b><br>
+$infoservicios_asterisk</td><td align="center"><b>$infoservicios_tcom</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/paso.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_controlpaso_titulo</b><br>
+$infoservicios_controlpaso</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<!--<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/3gm.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_3g_titulo</b><br>
+$infoservicios_3g</td><td align="center"><b>$infoservicios_thard</b></td>
+</tr>-->
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/controlcapa7.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_capa7_titulo</b><br>
+$infoservicios_capa7</td><td align="center"><b>$infoservicios_tseg</b></td>
+
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/smtpscan.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_avsmtp_titulo</b><br>
+$infoservicios_avsmtp
+</td><td align="center"><b>$infoservicios_tmail</b></td>
+</tr>
+
+<!--<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/multiav.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_mav_titulo</b><br>
+$infoservicios_mav
+</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>-->
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/ipsecvpn.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_ipsec_titulo</b><br>
+$infoservicios_ipsec
+</td><td align="center"><b>$infoservicios_tcon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/webvpn.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_ssl_titulo</b><br>
+$infoservicios_ssl
+</td><td align="center"><b>$infoservicios_tcon</b></td>
+</tr>
+
+<!--<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/gestorobras.gif"></td>
+<td width="440" align="justify" class="bordecuadrof">
+<b>$infoservicios_obras_titulo</b><br>
+$infoservicios_obras
+</td><td align="center"><b>$infoservicios_tadapt</b></td>
+</tr>-->
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/wifi.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_cautivo_titulo</b><br>
+$infoservicios_cautivo
+</td><td align="center"><b>$infoservicios_tseg</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/qos.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_qos_titulo</b><br>
+$infoservicios_qos
+</td><td align="center"><b>$infoservicios_tred</b></td>
+</tr>
+
+<!--<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/rat.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_rat_titulo</b><br>
+$infoservicios_rat
+</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>-->
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/grafi.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_sbevent_titulo</b><br>
+$infoservicios_sbevent
+</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/ocsinventory.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_ocs_titulo</b><br>
+$infoservicios_ocs
+</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<!--<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/optenet.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_optenet_titulo</b><br>
+$infoservicios_optenet
+</td><td align="center"><b>$infoservicios_tweb</b></td>
+</tr>-->
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/opentrad.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_opentrad_titulo</b><br>
+$infoservicios_opentrad
+</td><td align="center"><b>$infoservicios_tweb</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/dns.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_dnsserv_titulo</b><br>
+$infoservicios_dnsserv
+</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/ftpbola.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_ftpserv_titulo</b><br>
+$infoservicios_ftpserv
+</td><td align="center"><b>$infoservicios_tserv</b></td>
+</tr>
+
+<!--<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/xblue.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_xblue_titulo</b><br>
+$infoservicios_xblue
+</td><td align="center"><b>$infoservicios_tcom</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/bluetooth.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_bluealert_titulo</b><br>
+$infoservicios_bluealert
+</td><td align="center"><b>$infoservicios_tcom</b></td>
+</tr>-->
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/faxocr.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_faxocr_titulo</b><br>
+$infoservicios_faxocr
+</td><td align="center"><b>$infoservicios_tcom</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/sip.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_proxysip_titulo</b><br>
+$infoservicios_proxysip
+</td><td align="center"><b>$infoservicios_tcom</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/entornos.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_mamw_titulo</b><br>
+$infoservicios_mamw
+</td><td align="center"><b>Automatización</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/oscommerce.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_oscommerce_titulo</b><br>
+$infoservicios_oscommerce
+</td><td align="center"><b>$infoservicios_tadapt</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/cacti.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>$infoservicios_cacti_titulo</b><br>
+$infoservicios_cacti
+</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/ntop.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>NTOP</b><br>
+Permite monitorizar en tiempo real los usuarios y aplicaciones que están consumiendo recursos de red en un instante concreto y además es capaz de ayudarnos a la hora de detectar malas configuraciones de algún equipo.
+</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/autoscanocr.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Gestum</b><br>
+Ofrece una extraordinaria automatización y rápidez en el proceso completo de digitalización e indexado automático de documentación hacia todo tipo de sistemas de gestión documental sin apenas intervención por parte del usuario.
+</td><td align="center"><b>Automatización</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/prefetch.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Acelerador precargas Proxy HTTP</b><br>
+Realiza la descarga de páginas web antes de que lo solicite el usuario a través de un sistema de precargado, acelerandose así el rendimiento en la entrega de datos a los usuarios de la red.
+</td><td align="center"><b>Rendimiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/anoni.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Privoxy</b><br>
+Ofrece privacidad en la navegación, control sobre codigo dañino y publicidad, modificación de datos web y control de cookies.
+</td><td align="center"><b>$infoservicios_tweb</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/logoicinga.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Icinga</b><br>
+Icinga es un sistema que monitorea los elementos de la red, notifica al usuario los errores o caidas, las recuperaciones y genera resultados para la creación de los informes.
+</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/pandorafms.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Pandora FMS</b><br>
+Icinga es un sistema que monitorea los elementos de la red, notifica al usuario los errores o caidas, las recuperaciones y genera resultados para la creación de los informes.
+</td><td align="center"><b>$infoservicios_tmon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/wifitarjeta.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Wifi Center (HomogenWifi)</b><br>
+Concentrador de bajo coste para el control y gestión de dispositivos wifi (Aironet, OmniAcess) y de aquellos que no poseen características propias en su diseño para la centralización (Linksys WRT54GL). 
+</td><td align="center"><b>Centralización</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/wifitarjeta.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Wifi Center (Unifi)</b><br>
+Unifica la gestión de los dispositivos wifi Ubiquiti a través de su propio software integrado.
+</td><td align="center"><b>Centralización</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/httpinverso.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>HTTP Proxy Inverso</b><br>
+Servicio de alto rendimiento para el control de conexiones hacia servicios web internos con funciones de balanceo, autenticación y tolerancia a fallos.
+</td><td align="center"><b>$infoservicios_tweb</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/openvpn.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>VPN P2P</b><br>
+Sistema de VPN que evita el mapeo interno en todos los puntos diseñado para un rápido despliegue con autenticación a través de un servidor RDV .
+</td><td align="center"><b>$infoservicios_tcon</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/backuppc.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>BackupPC</b><br>
+Permite hacer copias de seguridad en las carpetas compartidas de los ordenadores conectados en red.
+</td><td align="center"><b>Almacenamiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/backup.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>ElkarBackup</b><br>
+Permite hacer copias de seguridad en las carpetas compartidas de los ordenadores conectados en red.
+</td><td align="center"><b>Almacenamiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/owncloud.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>OwnCloud</b><br>
+Posibilita de modo privado el almacenamiento en línea de aplicaciones o archivos tal como hacen dropbox o google drive.
+</td><td align="center"><b>Almacenamiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/glusterfs.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>GlusterFS</b><br>
+Sistema que permite la distribución de datos en gluster, la replicación y el balanceo de carga.
+</td><td align="center"><b>Almacenamiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/poweroffpc.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Poweroff PCs</b><br>
+Gestiona de manera simultánea el apagado remoto de varios equipos que se encuentren encendidos.
+</td><td align="center"><b>Servicios</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/hilomusical.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Hilo musical</b><br>
+Sistema para el control de hilo musical administrado desde el IMT.
+</td><td align="center"><b>Multimedia</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/papercut.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Papercut</b><br>
+Servicio de control y gestión de impresoras por cuentas de usuario.
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/vtiger.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Vtiger</b><br>
+Aplicacíon CRM de código abierto con la que crear informes, gestión de clientes, etc.
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/dolibarr.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Dolibarr</b><br>
+Es un software de código abierto y libre para gestionar empresas con actividades profesionales o asociaciones
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/openerp.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>OpenERP</b><br>
+Es un completo sistema de gestión empresarial (ERP) de código abierto que cubre las necesidades de las áreas de contabilidad, finanzas, ventas, RRHH, compras, proyectos, etc.
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/otrs.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>OTRS</b><br>
+Es un software Help Desk de Código Abierto y de Gestión de Servicios de TI libre .
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/mantis.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Mantis</b><br>
+Es un software que constituye una solución completa para gestionar tareas en un equipo de trabajo.
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/itop.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>ITop</b><br>
+Es un sistema de control de operaciones que integra un sistema CMDB conjugado con controles de monitorización, herramientas de reportes y control de inventario.
+</td><td align="center"><b>Gestión</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/aceleradescarga.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Cacheador dinámico</b><br>
+Sistema de cache para la aceleración del acceso a las webs dinámicas. 
+</td><td align="center"><b>Rendimiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/optimizar.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Wan Optimize</b><br>
+Optimización y compresión del tráfico de datos en la wan. 
+</td><td align="center"><b>Rendimiento</b></td>
+</tr>
+
+<tr><td height="10"></td></tr>
+<tr><td width="70" align="center"><img src="../images/mfc.gif"></td>
+<td width="440" align="justify" class="bordenegrosombra2">
+<b>Agente MFC</b><br>
+Permite el control y ánalisis de los datos necesarios de las multifunciones gestionadas y su transmisión de  manera segura.
+</td><td align="center"><b>Automatización</b></td>
+</tr>
+
+<tr><td height="20"></td></tr>
+</table>
+
+
+<td></td></td></tr>
+</table>
+			</center>
+ 
+<br><br><br>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+
+
+

@@ -1,0 +1,4463 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+
+if($q->param('elimiipmacregisvalor') eq "1")
+{
+
+$i=1;
+
+		while( 1 ) 
+		{
+
+			$idcontrolvalor=$q->param("${i}idcontrol");
+			$elimiregisvalor=$q->param("${i}elimiregis");
+
+			
+			if( $idcontrolvalor eq undef )
+			{
+				last;
+			}
+			
+			if($elimiregisvalor eq 1)
+			{			
+			
+			$idcadena=$idcadena.$i." ";
+			
+			}			
+			
+      	$i=$i+1;
+		}
+		
+		
+		
+		#$id=$q->param('id');
+		#warn "borrar $id";
+		
+		open(OLD, "< $dhcpipasigmac")    or die "can't open $dhcpipasigmac: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+	   $recolect=0;
+		$acumulado="";
+	
+		while (<OLD>) 
+		{
+			chomp;
+			if (/^host\s/)
+     		{			
+				$_ =~ /.*/;
+								
+			   $recolect=1;	
+				if($acumulado ne "")
+				{
+					print NEW $acumulado;
+				}
+				$acumulado=$_."\n";
+						
+				if($idcadena =~ /$i/)
+		 		{
+		 			$recolect=0;	
+        			$acumulado="";
+		 		}
+		 			
+		 		$i=$i+1;  				
+			}
+			else
+			{
+			    if( $recolect == 1)
+			    {
+					$acumulado=$acumulado.$_."\n";
+				}
+			}
+
+
+		}
+		close(OLD);			
+		
+		if($acumulado ne "")
+		{
+				print NEW $acumulado;
+		}
+		close(NEW);
+		
+		system("/bin/cp $aux $dhcpipasigmac 1>&2");
+	   			
+}	
+
+
+sub UploadList() 
+{
+      my $fileName = "$dhcpipasigmac";
+
+      my $tempFile = $q->param("file14");
+      #my $subst = $q->param("subst".$paso);
+	   
+	   my $s = ">>";
+	   my $linea = "";
+	   
+		$subst=1;
+
+	   if ($subst eq "1")
+	   {
+	   	  $s = ">";
+	   }
+   		
+   	open(NEW, "$s $fileName")    or die "can't open $fileName: $!";
+
+    	while(<$tempFile>)
+    	{
+    		chomp;
+    		s/\r//s;
+    	   
+    	   $linea = $_;
+         
+         if($linea =~ /([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\s*([a-z0-9]+)\s+(.+)\s*$/)
+         {
+         	$ip=$1;
+         	$mac=$2;
+         	$nombre=$3;
+         }
+         #else
+         #{
+         #	last;
+         #}
+         	#print NEW $_."\n";
+         	
+         	$nombrejun=$nombre;
+         	$nombrejun =~ s/\s+//g;
+         	
+         	if($mac !~ /([0-9A-Fa-f]{2}[\-\:]){5}[0-9A-Fa-f]{2}/)
+         	{
+
+				$mac1 = substr($mac,0,2);
+        		$mac2 = substr($mac,2,2);
+        		$mac3 = substr($mac,4,2);
+        		$mac4 = substr($mac,6,2);
+        		$mac5 = substr($mac,8,2);
+        		$mac6 = substr($mac,10,2);
+        		
+        		$mac=$mac1.':'.$mac2.':'.$mac3.':'.$mac4.':'.$mac5.':'.$mac6;
+         	
+         	}
+         	
+         	my @macs = /((?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2})/g;
+         	
+         	if($nombrejun ne "")
+         	{
+         	print NEW "host $nombrejun {\n";
+				print NEW "	option host-name \"${nombre}\" ;\n";
+				print NEW "	hardware ethernet $mac ;\n";
+				print NEW "	fixed-address $ip ;\n";
+				print NEW "	filename \"/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.0\";\n";
+				print NEW "}\n\n";
+				}
+      }
+
+		close (NEW);
+
+		close($tempFile);
+		unlink($tempFile);
+ 
+    }
+
+
+sub DownloadList()  
+{
+
+        my $fileName = "$dhcpipasigmac";
+        
+        my $name = "dhcpipasigmac";
+        my $linea = "";
+        
+        $name = "listaips";
+
+  		  print "Content-type: application/octet-stream\r\n";
+        print "Content-disposition: attachment; filename=${name}.txt\r\n\r\n";
+      
+    	open(OLD, "< $fileName")    or die "can't open $fileName: $!";
+     	while (<OLD>) 
+     	{
+     		chomp;
+     		$linea = $_;
+  			#if($linea eq "" || $linea =~ /^\s*#.*/ )
+  			#{
+         #	last;
+         #}
+                
+      
+          print $linea."\r\n";
+            
+     	}
+     	close(OLD) or die "can't close $fileName: $!";
+     	
+     	exit;
+     	
+}
+
+
+
+if($q->param('env') eq "uploadipmac")
+{
+   &UploadList();
+}
+
+if($q->param('env') eq "downloadipmac")
+{
+   &DownloadList();
+}
+
+
+if($q->param('env') eq "exportarchivatoweb")
+{
+		
+		$exportaripscontrol=$q->param("exportarips");
+		
+		
+		$i=1;
+		
+		open(NEW, "> $useripnotifi")     or die "can't open $useripnotifi: $!";
+		
+		while( 1 ) 
+		{
+
+			$nombrepc=$q->param("${i}x0");
+			$ippc=$q->param("${i}x2");
+			#$salida=$salida.$nombrepc.$ippc."|";
+
+			if( $nombrepc eq undef )
+			{
+				last;
+			}		
+		  		  	
+         print NEW "${ippc} ${nombrepc}\n";
+         
+         $i++;
+         
+      }   				
+		
+		close(NEW)                  or die "can't close $useripnotifi: $!";
+
+}
+
+
+if($q->param('env') eq 'borrardhcp')
+{	
+	system("/bin/echo '' > $leases");
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*DHCP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$dhcp = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+
+# aplicar
+if($q->param('env') eq 'modificarif')
+{	
+		$reddhcpinterna=$q->param('reddhcpinterna');
+		$reddhcp3=$q->param('reddhcp3');
+		$reddhcp4=$q->param('reddhcp4');
+		$reddhcp5=$q->param('reddhcp5');
+		$reddhcp6=$q->param('reddhcp6');
+
+		if($reddhcpinterna ne ""){$if1="$reddhcpinterna";}
+		if($reddhcp3 ne ""){$if3="$reddhcp3";}
+		if($reddhcp4 ne ""){$if4="$reddhcp4";}
+		if($reddhcp5 ne ""){$if5="$reddhcp5";}
+		if($reddhcp6 ne ""){$if6="$reddhcp6";}
+
+		$iddhcpinternavlan=$q->param("iddhcpinternavlan");
+		$iddhcp3vlan=$q->param("iddhcp3vlan");
+		$iddhcp4vlan=$q->param("iddhcp4vlan");
+		$iddhcp5vlan=$q->param("iddhcp5vlan");
+		$iddhcp6vlan=$q->param("iddhcp6vlan");
+
+		@iddhcpinternavlan = split (/\s*,\s*/,$iddhcpinternavlan);
+		@iddhcp3vlan = split (/\s*,\s*/,$iddhcp3vlan);
+		@iddhcp4vlan = split (/\s*,\s*/,$iddhcp4vlan);
+		@iddhcp5vlan = split (/\s*,\s*/,$iddhcp5vlan);
+		@iddhcp6vlan = split (/\s*,\s*/,$iddhcp6vlan);
+
+		foreach (@iddhcpinternavlan) {
+			$idmarca=$_;
+			$valorvlanmarca=$q->param("reddhcpinternavlan${idmarca}");
+			$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+		}
+
+		foreach (@iddhcp3vlan) {
+			$idmarca=$_;
+			$valorvlanmarca=$q->param("reddhcp3vlan${idmarca}");
+			$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+		}
+
+		foreach (@iddhcp4vlan) {
+			$idmarca=$_;
+			$valorvlanmarca=$q->param("reddhcp4vlan${idmarca}");
+			$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+		}
+
+		foreach (@iddhcp5vlan) {
+			$idmarca=$_;
+			$valorvlanmarca=$q->param("reddhcp5vlan${idmarca}");
+			$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+		}
+
+		foreach (@iddhcp6vlan) {
+			$idmarca=$_;
+			$valorvlanmarca=$q->param("reddhcp6vlan${idmarca}");
+			$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+		}
+
+
+		$lineaifdhcp="$if1 $if3 $if4 $if5 $if6 $ifvlandhcp";
+		$lineaifdhcp =~ s/\s+/ /g;
+		$lineaifdhcp =~ s/\s$//;
+
+
+		##Abria que añadir la variable para wifi 
+		open(NEW, "> $defaultdhcp3server")     or die "can't open $defaultdhcp3server: $!";
+		print NEW "INTERFACES=\"$lineaifdhcp\""; 
+		close(NEW) or die "can't close $defaultdhcp3server: $!";
+
+
+
+#lectura inicial de variables
+#···············································································	
+
+	open(OLD, "< $variables")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IP1\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip1 = $data[1];
+			}
+			elsif(/^\s*MASK1\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mask1 = $data[1];
+			}
+			elsif (/^\s*IP2\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip2 = $data[1];
+			}
+			elsif(/^\s*MASK2\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mask2 = $data[1];
+			}			
+	}
+
+	close(OLD)     or die "can't close $variables: $!";
+	
+	
+
+#lectura inicial de redsegmentada
+#···············································································	
+
+	open(OLD, "< $redsegmentada")    or die "can't open $redsegmentada: $!";
+		
+	while (<OLD>) 
+	{
+
+			if (/^\s*red3ip\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip3 = $data[1];
+			}
+			elsif(/^\s*red3mascara\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mask3 = $data[1];
+			}
+			elsif(/^\s*red3tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red3tipo = $data[1];
+		 	}
+		 	
+		 	if (/^\s*red4ip\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip4 = $data[1];
+			}
+			elsif(/^\s*red4mascara\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mask4 = $data[1];
+			}
+			elsif(/^\s*red4tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red4tipo = $data[1];
+		 	}	
+		 	
+		 	if (/^\s*red5ip\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip5 = $data[1];
+			}
+			elsif(/^\s*red5mascara\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mask5 = $data[1];
+			}
+			elsif(/^\s*red5tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red5tipo = $data[1];
+		 	}
+
+			if (/^\s*red6ip\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ip6 = $data[1];
+			}
+			elsif(/^\s*red6mascara\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$mask6 = $data[1];
+			}
+			elsif(/^\s*red6tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red6tipo = $data[1];
+		 	}
+
+}
+
+close(OLD)     or die "can't close $redsegmentada: $!";		 		
+		 		
+
+$numred=`/bin/cat $controlnumred`;
+$numred =~ s/(\r?\n)//g;
+
+
+		###########################################################
+		#Modificar DHCP de acuerdo a configuración de Lan services# 
+		###########################################################		
+		
+		####red externa#########################
+		system("$variables extsubnet > $aux");
+		open(OLD, "< $aux")    or die "can't open $variables: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetext0 = $_;
+		}
+		close(OLD);
+		@data = split (/\//,$subnetext0);
+		$subnetext = $data[0];
+		#########################################
+		
+		####red interna#########################
+		system("$variables intsubnet > $aux");
+		open(OLD, "< $aux")    or die "can't open $variables: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetint0 = $_;
+		}
+		close(OLD);
+		@data = split (/\//,$subnetint0);
+		$subnetint = $data[0];
+
+		@data2 = split (/\./,$ip1);
+		$ipulti = $data2[3] + 1;
+
+		$parteipprimer= "$data2[0].$data2[1].$data2[2].$ipulti";
+		$parteipfinal= "$data2[0].$data2[1].$data2[2].254";
+		$parteiptres= "$data2[0].$data2[1].$data2[2].";
+		#########################################
+
+		if($numred eq 2)
+		{
+		####red segmentada#########################
+		system("$redsegmentada intsubnet1 > $aux");
+		open(OLD, "< $aux")    or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetint1 = $_;
+		}
+		close(OLD);
+
+		$subnetintcomple1=$subnetint1;
+		@data = split (/\//,$subnetint1);
+		$subnetint1 = $data[0];
+
+		@data2 = split (/\./,$ip3);
+		$ipulti1 = $data2[3] + 1;
+
+		$parteipprimer1= "$data2[0].$data2[1].$data2[2].$ipulti1";
+		$parteipfinal1= "$data2[0].$data2[1].$data2[2].254";
+		$parteiptres1= "$data2[0].$data2[1].$data2[2].";
+
+
+		system("$redsegmentada intsubnet2 > $aux");
+		open(OLD, "< $aux")    or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetint2 = $_;
+		}
+		close(OLD);
+		
+		$subnetintcomple2=$subnetint2;
+		@data = split (/\//,$subnetint2);
+		$subnetint2 = $data[0];
+
+		@data2 = split (/\./,$ip4);
+		$ipulti2 = $data2[3] + 1;
+
+		$parteipprimer2= "$data2[0].$data2[1].$data2[2].$ipulti2";
+		$parteipfinal2= "$data2[0].$data2[1].$data2[2].254";
+		$parteiptres2= "$data2[0].$data2[1].$data2[2].";
+		
+
+		system("$redsegmentada intsubnet3 > $aux");
+		open(OLD, "< $aux")    or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetint3 = $_;
+		}
+		close(OLD);
+		
+		$subnetintcomple3=$subnetint3;
+		@data = split (/\//,$subnetint3);
+		$subnetint3 = $data[0];
+
+		@data2 = split (/\./,$ip5);
+		$ipulti3 = $data2[3] + 1;
+
+		$parteipprimer3= "$data2[0].$data2[1].$data2[2].$ipulti3";
+		$parteipfinal3= "$data2[0].$data2[1].$data2[2].254";
+		$parteiptres3= "$data2[0].$data2[1].$data2[2].";
+		
+		
+		system("$redsegmentada intsubnet4 > $aux");
+		open(OLD, "< $aux")    or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetint4 = $_;
+		}
+		close(OLD);
+		
+		$subnetintcomple4=$subnetint4;
+		@data = split (/\//,$subnetint4);
+		$subnetint4 = $data[0];
+
+		@data2 = split (/\./,$ip6);
+		$ipulti4 = $data2[3] + 1;
+
+		$parteipprimer4= "$data2[0].$data2[1].$data2[2].$ipulti4";
+		$parteipfinal4= "$data2[0].$data2[1].$data2[2].254";
+		$parteiptres4= "$data2[0].$data2[1].$data2[2].";
+
+		
+		system("$wep intsubnetwifi > $aux");
+		open(OLD, "< $aux")    or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+		chomp;
+		$subnetintwifi = $_;
+		}
+		close(OLD);
+		@data = split (/\//,$subnetintwifi);
+		$subnetintwifi = $data[0];
+
+		@data2 = split (/\./,$ipwifi);
+		$ipultiwifi = $data2[3] + 1;
+
+		$parteipprimerwifi= "$data2[0].$data2[1].$data2[2].$ipultiwifi";
+		$parteipfinalwifi= "$data2[0].$data2[1].$data2[2].254";
+		$parteipwifitres= "$data2[0].$data2[1].$data2[2].";
+		#########################################
+}
+
+
+		
+		$contadorpxe=1;
+		$contadortftpservername=1;
+		$contadorbootfilename=1;
+		$contadornextserver=1;
+		$comen1estadoalmu="";		
+						
+		open(NEW, "> $dhcprange")     or die "can't open $dhcprange: $!";
+				
+		print NEW "subnet $subnetint netmask $mask1 ${comen1estado}{\n";
+		print NEW "	${comen1estadoalmu}range $parteipprimer $parteipfinal ;\n";
+		if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0" && ${comen1estadoalmu} eq "") { $almucero="#"; } else { $almucero="#"; }
+		#print NEW "	${comen1estadoalmu}${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+		#$contadornextserver++;
+		#print NEW "	${comen1estadoalmu}option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+		#$contadortftpservername++;
+		#print NEW "	${comen1estadoalmu}option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+		#$contadorbootfilename++;
+		print NEW "	${comen1estadoalmu}option routers $ip1 ;\n";
+		##print NEW "	${comen1estadoalmu}option domain-name-servers $ipdnsfinal ;\n";
+		#print NEW "	${comen1estadoalmu}filename \"${'imagenpxe'.$contadorpxe}\";\n";
+		$contadorpxe++;
+		print NEW "${comen1estadoalmu}} ##DHCP1\n\n";
+		
+
+		$k=1;
+
+			open(OLD, "< $lanvlansint")    or die "can't open $lanvlansint: $!";
+			while (<OLD>) 
+			{
+				if(/vconfig\s.*(eth[0-9]+\.[0-9]+)\s([0-9\.]+)\snetmask\s([0-9\.]+)/)
+     			{
+					$k=$k+1;
+
+					$dispovlan=$1;
+					$ipvlan=$2;
+					$maskvlan=$3;
+
+					$subnetvlanmask=`$net_address2 $ipvlan $maskvlan`;
+					@data = split (/\//,$subnetvlanmask);
+					$subnetvlan = $data[0];
+
+					@data2 = split (/\./,$ipvlan);
+					$ipvlanulti1 = $data2[3] + 1;
+
+					$parteipvlanprimer1= "$data2[0].$data2[1].$data2[2].$ipvlanulti1";
+					$parteipvlanfinal1= "$data2[0].$data2[1].$data2[2].254";
+					
+					if ($controldnsgw eq 1)
+					{
+						$ipdnsfinal="$ipvlan";	
+					}
+					else
+					{
+						$ipdnsfinal="$ipdns";
+					}
+					
+					if(/^#/)
+					{
+						$saltovlandhcp=1;					
+					}
+					else
+					{
+						$saltovlandhcp=0;					
+					}
+
+					if($saltovlandhcp eq 0)
+					{										
+					print NEW "subnet $subnetvlan netmask $maskvlan {\n";
+					print NEW "	range $parteipvlanprimer1 $parteipvlanfinal1 ;\n";
+					if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0") { $almucero="#"; } else { $almucero="#"; }
+					#print NEW "	${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+					#$contadornextserver++;
+					#print NEW "	option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+					#$contadortftpservername++;
+					#print NEW "	option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+					#$contadorbootfilename++;
+					print NEW "	option routers $ipvlan ;\n";
+					##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+					#print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+					#$contadorpxe++;
+					print NEW "} ##DHCP${k}\n\n";
+					}		
+
+					$ifvlandhcp.=" $dispovlan ";
+				}
+			}
+			close(OLD) or die "can't close $lanvlansint: $!";
+			
+
+			open(OLD, "< $lanvlansext")    or die "can't open $lanvlansext: $!";
+			while (<OLD>) 
+			{
+				if(/vconfig\s.*(eth[0-9]+\.[0-9]+)\s([0-9\.]+)\snetmask\s([0-9\.]+)/)
+     			{
+					$k=$k+1;
+
+					$dispovlan=$1;
+					$ipvlan=$2;
+					$maskvlan=$3;
+
+					$subnetvlanmask=`$net_address2 $ipvlan $maskvlan`;
+					@data = split (/\//,$subnetvlanmask);
+					$subnetvlan = $data[0];
+
+					@data2 = split (/\./,$ipvlan);
+					$ipvlanulti1 = $data2[3] + 1;
+
+					$parteipvlanprimer1= "$data2[0].$data2[1].$data2[2].$ipvlanulti1";
+					$parteipvlanfinal1= "$data2[0].$data2[1].$data2[2].254";
+					
+					##print NEW "subnet $subnetvlan netmask $maskvlan {\n";
+					##print NEW "	range $parteipvlanprimer1 $parteipvlanfinal1 ;\n";
+					##print NEW "	next-server $ipvlan ;\n";
+					##print NEW "	option routers $ipvlan ;\n";
+					##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+					##print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+					##print NEW "} ##DHCP${k}\n\n";		
+
+					#Para la externa no aplicarse en dhcp
+					##$ifvlandhcp.=" $dispovlan";
+				}
+			}
+			close(OLD) or die "can't close $lanvlansext: $!";
+		
+		if($numred eq 2)
+		{		
+		
+		if($mask3 ne "" && $red3tipo ne "2")
+		{
+		
+			if ($controldnsgw eq 1)
+			{
+				$ipdnsfinal="$ip3";	
+			}
+			else
+			{
+				$ipdnsfinal="$ipdns";
+			}
+			
+			$k=$k+1;
+			print NEW "subnet $subnetint1 netmask $mask3 ${comen3estado}{\n";
+			print NEW "	${comen3estadoalmu}range $parteipprimer1 $parteipfinal1 ;\n";
+			if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0" && ${comen3estadoalmu} eq "") { $almucero="#"; } else { $almucero="#"; }
+			#print NEW "	${comen3estadoalmu}${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+			#$contadornextserver++;
+			#print NEW "	${comen3estadoalmu}option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+			#$contadortftpservername++;
+			#print NEW "	${comen3estadoalmu}option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+			#$contadorbootfilename++;
+			print NEW "	${comen3estadoalmu}option routers $ip3 ;\n";
+			##print NEW "	${comen3estadoalmu}option domain-name-servers $ipdnsfinal ;\n";
+			#print NEW "	${comen3estadoalmu}filename \"${'imagenpxe'.$contadorpxe}\";\n";
+			#$contadorpxe++;
+			print NEW "${comen3estadoalmu}} ##DHCP${k}\n\n";
+			
+		
+			open(OLD, "< $lanvlans3")    or die "can't open $lanvlans3: $!";
+			while (<OLD>) 
+			{
+				if(/vconfig\s.*(eth[0-9]+\.[0-9]+)\s([0-9\.]+)\snetmask\s([0-9\.]+)/)
+     			{
+					$k=$k+1;
+
+					$dispovlan=$1;
+					$ipvlan=$2;
+					$maskvlan=$3;
+
+					$subnetvlanmask=`$net_address2 $ipvlan $maskvlan`;
+					@data = split (/\//,$subnetvlanmask);
+					$subnetvlan = $data[0];
+
+					@data2 = split (/\./,$ipvlan);
+					$ipvlanulti1 = $data2[3] + 1;
+
+					$parteipvlanprimer1= "$data2[0].$data2[1].$data2[2].$ipvlanulti1";
+					$parteipvlanfinal1= "$data2[0].$data2[1].$data2[2].254";
+					
+					if ($controldnsgw eq 1)
+					{
+						$ipdnsfinal="$ipvlan";	
+					}
+					else
+					{
+						$ipdnsfinal="$ipdns";
+					}
+					
+					if(/^#/)
+					{
+						$saltovlandhcp=1;					
+					}
+					else
+					{
+						$saltovlandhcp=0;					
+					}
+
+					if($saltovlandhcp eq 0)
+					{	
+					print NEW "subnet $subnetvlan netmask $maskvlan {\n";
+					print NEW "	range $parteipvlanprimer1 $parteipvlanfinal1 ;\n";
+					if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0") { $almucero="#"; } else { $almucero="#"; }
+					#print NEW "	${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+					#$contadornextserver++;
+					#print NEW "	option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+					#$contadortftpservername++;
+					#print NEW "	option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+					#$contadorbootfilename++;
+					print NEW "	option routers $ipvlan ;\n";
+					##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+					#print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+					#$contadorpxe++;
+					print NEW "} ##DHCP${k}\n\n";
+					}		
+
+					$ifvlandhcp.=" $dispovlan";
+				}
+			}
+			close(OLD) or die "can't close $lanvlans3: $!";
+		}
+
+		if($mask4 ne "" && $red4tipo ne "2")
+		{
+
+			if ($controldnsgw eq 1)
+			{
+				$ipdnsfinal="$ip4";	
+			}
+			else
+			{
+				$ipdnsfinal="$ipdns";
+			}
+
+			$k=$k+1;
+			print NEW "subnet $subnetint2 netmask $mask4 ${comen4estado}{\n";
+			print NEW "	${comen4estadoalmu}range $parteipprimer2 $parteipfinal2 ;\n";
+			if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0" && ${comen4estadoalmu} eq "") { $almucero="#"; } else { $almucero="#"; }
+			#print NEW "	${comen4estadoalmu}${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+			#$contadornextserver++;
+			#print NEW "	${comen4estadoalmu}option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+			#$contadortftpservername++;
+			#print NEW "	${comen4estadoalmu}option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+			#$contadorbootfilename++;
+			print NEW "	${comen4estadoalmu}option routers $ip4 ;\n";
+			##print NEW "	${comen4estadoalmu}option domain-name-servers $ipdnsfinal ;\n";
+			#print NEW "	${comen4estadoalmu}filename \"${'imagenpxe'.$contadorpxe}\";\n";
+			#$contadorpxe++;
+			print NEW "${comen4estadoalmu}} ##DHCP${k}\n\n";
+
+			open(OLD, "< $lanvlans4")    or die "can't open $lanvlans4: $!";
+			while (<OLD>) 
+			{
+				if(/vconfig\s.*(eth[0-9]+\.[0-9]+)\s([0-9\.]+)\snetmask\s([0-9\.]+)/)
+     			{
+					$k=$k+1;
+
+					$dispovlan=$1;
+					$ipvlan=$2;
+					$maskvlan=$3;
+
+					$subnetvlanmask=`$net_address2 $ipvlan $maskvlan`;
+					@data = split (/\//,$subnetvlanmask);
+					$subnetvlan = $data[0];
+
+					@data2 = split (/\./,$ipvlan);
+					$ipvlanulti1 = $data2[3] + 1;
+
+					$parteipvlanprimer1= "$data2[0].$data2[1].$data2[2].$ipvlanulti1";
+					$parteipvlanfinal1= "$data2[0].$data2[1].$data2[2].254";
+					
+					if ($controldnsgw eq 1)
+					{
+						$ipdnsfinal="$ipvlan";	
+					}
+					else
+					{
+						$ipdnsfinal="$ipdns";
+					}
+					
+					if(/^#/)
+					{
+						$saltovlandhcp=1;					
+					}
+					else
+					{
+						$saltovlandhcp=0;					
+					}
+
+					if($saltovlandhcp eq 0)
+					{	
+					print NEW "subnet $subnetvlan netmask $maskvlan {\n";
+					print NEW "	range $parteipvlanprimer1 $parteipvlanfinal1 ;\n";
+					if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0") { $almucero="#"; } else { $almucero="#"; }
+					#print NEW "	${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+					#$contadornextserver++;
+					#print NEW "	option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+					#$contadortftpservername++;
+					#print NEW "	option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+					#$contadorbootfilename++;
+					print NEW "	option routers $ipvlan ;\n";
+					##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+					#print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+					#$contadorpxe++;
+					print NEW "} ##DHCP${k}\n\n";
+					}		
+
+					$ifvlandhcp.=" $dispovlan";
+				}
+			}
+			close(OLD) or die "can't close $lanvlans4: $!";
+		}
+		
+		if($mask5 ne "" && $red5tipo ne "2")
+		{
+		
+			if ($controldnsgw eq 1)
+			{
+				$ipdnsfinal="$ip5";	
+			}
+			else
+			{
+				$ipdnsfinal="$ipdns";
+			}
+		
+			$k=$k+1;
+			print NEW "subnet $subnetint3 netmask $mask5 ${comen5estado}{\n";
+			print NEW "	${comen5estadoalmu}range $parteipprimer3 $parteipfinal3 ;\n";
+			if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0" && ${comen5estadoalmu} eq "") { $almucero="#"; } else { $almucero="#"; }
+			#print NEW "	${comen5estadoalmu}${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+			#$contadornextserver++;
+			#print NEW "	${comen5estadoalmu}option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+			#$contadortftpservername++;
+			#print NEW "	${comen5estadoalmu}option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+			#$contadorbootfilename++;
+			print NEW "	${comen5estadoalmu}option routers $ip5 ;\n";
+			##print NEW "	${comen5estadoalmu}option domain-name-servers $ipdnsfinal ;\n";
+			#print NEW "	${comen5estadoalmu}filename \"${'imagenpxe'.$contadorpxe}\";\n";
+			#$contadorpxe++;
+			print NEW "${comen5estadoalmu}} ##DHCP${k}\n\n";
+
+			open(OLD, "< $lanvlans5")    or die "can't open $lanvlans5: $!";
+			while (<OLD>) 
+			{
+				if(/vconfig\s.*(eth[0-9]+\.[0-9]+)\s([0-9\.]+)\snetmask\s([0-9\.]+)/)
+     			{
+					$k=$k+1;
+
+					$dispovlan=$1;
+					$ipvlan=$2;
+					$maskvlan=$3;
+
+					$subnetvlanmask=`$net_address2 $ipvlan $maskvlan`;
+					@data = split (/\//,$subnetvlanmask);
+					$subnetvlan = $data[0];
+
+					@data2 = split (/\./,$ipvlan);
+					$ipvlanulti1 = $data2[3] + 1;
+
+					$parteipvlanprimer1= "$data2[0].$data2[1].$data2[2].$ipvlanulti1";
+					$parteipvlanfinal1= "$data2[0].$data2[1].$data2[2].254";
+					
+					if ($controldnsgw eq 1)
+					{
+						$ipdnsfinal="$ipvlan";	
+					}
+					else
+					{
+						$ipdnsfinal="$ipdns";
+					}
+					
+					if(/^#/)
+					{
+						$saltovlandhcp=1;					
+					}
+					else
+					{
+						$saltovlandhcp=0;					
+					}
+
+					if($saltovlandhcp eq 0)
+					{	
+					print NEW "subnet $subnetvlan netmask $maskvlan {\n";
+					print NEW "	range $parteipvlanprimer1 $parteipvlanfinal1 ;\n";
+					if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0") { $almucero="#"; } else { $almucero="#"; }
+					#print NEW "	${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+					#$contadornextserver++;
+					#print NEW "	option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+					#$contadortftpservername++;
+					#print NEW "	option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+					#$contadorbootfilename++;
+					print NEW "	option routers $ipvlan ;\n";
+					##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+					#print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+					#$contadorpxe++;
+					print NEW "} ##DHCP${k}\n\n";
+					}		
+
+					$ifvlandhcp.=" $dispovlan";
+				}
+			}
+			close(OLD) or die "can't close $lanvlans5: $!";
+		}
+		
+		if($mask6 ne "" && $red6tipo ne "2")
+		{
+		
+			if ($controldnsgw eq 1)
+			{
+				$ipdnsfinal="$ip6";	
+			}
+			else
+			{
+				$ipdnsfinal="$ipdns";
+			}
+		
+			$k=$k+1;
+			print NEW "subnet $subnetint4 netmask $mask6 ${comen6estado}{\n";
+			print NEW "	${comen6estadoalmu}range $parteipprimer4 $parteipfinal4 ;\n";
+			if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0" && ${comen6estadoalmu} eq "") { $almucero="#"; } else { $almucero="#"; }
+			#print NEW "	${comen6estadoalmu}${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+			#$contadornextserver++;
+			#print NEW "	${comen6estadoalmu}option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+			#$contadortftpservername++;
+			#print NEW "	${comen6estadoalmu}option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+			#$contadorbootfilename++;
+			print NEW "	${comen6estadoalmu}option routers $ip6 ;\n";
+			##print NEW "	${comen6estadoalmu}option domain-name-servers $ipdnsfinal ;\n";
+			#print NEW "${comen6estadoalmu}filename \"${'imagenpxe'.$contadorpxe}\";} ##DHCP${k}\n\n";
+			#$contadorpxe++;
+
+			open(OLD, "< $lanvlans6")    or die "can't open $lanvlans6: $!";
+			while (<OLD>) 
+			{
+				if(/vconfig\s.*(eth[0-9]+\.[0-9]+)\s([0-9\.]+)\snetmask\s([0-9\.]+)/)
+     			{
+					$k=$k+1;
+
+					$dispovlan=$1;
+					$ipvlan=$2;
+					$maskvlan=$3;
+
+					$subnetvlanmask=`$net_address2 $ipvlan $maskvlan`;
+					@data = split (/\//,$subnetvlanmask);
+					$subnetvlan = $data[0];
+
+					@data2 = split (/\./,$ipvlan);
+					$ipvlanulti1 = $data2[3] + 1;
+
+					$parteipvlanprimer1= "$data2[0].$data2[1].$data2[2].$ipvlanulti1";
+					$parteipvlanfinal1= "$data2[0].$data2[1].$data2[2].254";
+					
+					if ($controldnsgw eq 1)
+					{
+						$ipdnsfinal="$ipvlan";	
+					}
+					else
+					{
+						$ipdnsfinal="$ipdns";
+					}
+					
+					if(/^#/)
+					{
+						$saltovlandhcp=1;					
+					}
+					else
+					{
+						$saltovlandhcp=0;					
+					}
+
+					if($saltovlandhcp eq 0)
+					{	
+					print NEW "subnet $subnetvlan netmask $maskvlan {}#{\n";
+					print NEW "	range $parteipvlanprimer1 $parteipvlanfinal1 ;\n";
+					if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0") { $almucero="#"; } else { $almucero="#"; }
+					#print NEW "	${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+					#$contadornextserver++;
+					#print NEW "	option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+					#$contadortftpservername++;
+					#print NEW "	option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+					#$contadorbootfilename++;
+					print NEW "	option routers $ipvlan ;\n";
+					##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+					#print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+					#$contadorpxe++;
+					print NEW "} ##DHCP${k}\n\n";
+					}		
+
+					$ifvlandhcp.=" $dispovlan";
+				}
+			}
+			close(OLD) or die "can't close $lanvlans6: $!";
+		}
+		
+		}
+		
+		#Si tiene Wifi 
+		if($CONEXION_WIFI_ACTIVADO eq 1 && $IMT_CONEXION_WIFI eq 1)
+		{
+			if ($controldnsgw eq 1)
+			{
+				$ipdnsfinal="$ipwifi";	
+			}
+			else
+			{
+				$ipdnsfinal="$ipdns";
+			}		
+			
+			$k=$k+1;
+			print NEW "subnet $subnetintwifi netmask $maskwifi {\n";
+			print NEW "	range $parteipprimerwifi $parteipfinalwifi ;\n";
+			if(${'imagennextserver'.$contadornextserver} eq "0.0.0.0") { $almucero="#"; } else { $almucero="#"; }
+			#print NEW "	${almucero}next-server ${'imagennextserver'.$contadornextserver} ;\n";
+			#$contadornextserver++;
+			#print NEW "	option tftp-server-name \"${'imagentftpservername'.$contadortftpservername}\";\n";
+			#$contadortftpservername++;
+			#print NEW "	option bootfile-name \"${'imagenbootfilename'.$contadorbootfilename}\";\n";
+			#$contadorbootfilename++;
+			print NEW "	option routers $ipwifi ;\n";
+			##print NEW "	option domain-name-servers $ipdnsfinal ;\n";
+			#print NEW "	filename \"${'imagenpxe'.$contadorpxe}\";\n";
+			#$contadorpxe++;
+			print NEW "} ##WIFI ##DHCP${k}\n\n";
+		
+			$ifwifi="ath0";
+		
+		}
+		else
+		{
+			$ifwifi="";
+		}
+
+
+		close(NEW) or die "can't close $dhcprange: $!";
+
+}
+
+if($q->param('enviar') eq 'agregamanualrango')
+{	
+$dhcp_inirangoagre=$q->param('dhcp_inirangoagre');
+$dhcp_finrangoagre=$q->param('dhcp_finrangoagre');
+$dhcp_maskagre=$q->param('dhcp_maskagre');
+$dhcp_gwagre=$q->param('dhcp_gwagre');
+
+$dhcp_dns1agre=$q->param('dhcp_dns1agre');
+$dhcp_dns2agre=$q->param('dhcp_dns2agre');
+$dhcp_dominioagre=$q->param('dhcp_dominioagre');
+$dhcp_winsagre=$q->param('dhcp_winsagre');
+
+$dhcp_wpadagre=$q->param('dhcp_wpadagre');
+$dhcp_pxeagre=$q->param('dhcp_pxeagre');
+$dhcp_bootfilenameagre=$q->param('dhcp_bootfilenameagre');
+$dhcp_tftpservernameagre=$q->param('dhcp_tftpservernameagre');
+$dhcp_nextserveragre=$q->param('dhcp_nextserveragre');
+
+
+$dhcp_dnsagre="";
+
+if($dhcp_dns1agre ne "")
+{
+		$dhcp_dnsagre="$dhcp_dns1agre";
+}
+
+if($dhcp_dns2agre ne "")
+{
+		$dhcp_dnsagre="$dhcp_dns2agre";
+}
+				
+if($dhcp_dns1agre ne "" && $dhcp_dns2agre ne "")
+{
+		$dhcp_dnsagre="$dhcp_dns1agre,$dhcp_dns2agre";
+}
+	
+@data = split (/\./,$dhcp_inirangoagre);
+			
+$ipdigi0 = $data[0];
+$ipdigi1 = $data[1];
+$ipdigi2 = $data[2];
+
+$ipdigi = "$data[0].$data[1].$data[2]";
+
+$subredrela=`/usr/bin/netmask ${dhcp_inirangoagre}/${dhcp_maskagre}`;
+$subredrela =~ s/(\r?\n)//g;
+	
+if($subredrela =~ /\s*(.+)\/[0-9]+$/)
+{
+	$nombreipred=$1;
+
+	#$cidr=$2;	
+	#$cidr=`$cidrnetmask $netmask`;
+	#$cidr =~ s/(\r?\n)//g;
+}	
+
+open(NEW, ">> $dhcprange")     or die "can't open $dhcprange: $!";
+		
+print NEW "subnet $nombreipred netmask $dhcp_maskagre {\n";
+print NEW "	range ${dhcp_inirangoagre} ${dhcp_finrangoagre} ;\n";
+
+if($dhcp_gwagre ne ""){
+print NEW "	option routers ${dhcp_gwagre} ;\n";
+}
+if($dhcp_dnsagre ne ""){
+print NEW "	option domain-name-servers ${dhcp_dnsagre};\n";
+}
+if($dhcp_dominioagre ne ""){
+print NEW "	option domain-name \"${dhcp_dominioagre}\";\n";
+}	
+if($dhcp_winsagre ne ""){	
+print NEW "	option netbios-name-servers ${dhcp_winsagre};\n";
+}
+if($dhcp_wpadagre ne ""){
+print NEW "	option local-proxy-config \"${dhcp_wpadagre}\";\n";
+}	
+if($dhcp_pxeagre ne ""){
+print NEW "	filename \"${dhcp_pxeagre}\";\n";	
+}	
+if($dhcp_bootfilenameagre ne ""){
+print NEW "	option bootfile-name \"${dhcp_bootfilenameagre}\";\n";	
+}
+if($dhcp_tftpservernameagre ne ""){
+print NEW "	option tftp-server-name \"${dhcp_tftpservernameagre}\";\n";
+}
+if($dhcp_nextserveragre ne ""){
+print NEW "	next-server ${dhcp_nextserveragre};\n";	
+}
+
+print NEW "} ##DHCP\n\n";
+		
+close(NEW) or die "can't close $dhcprange: $!";
+		
+system("$dhcpserver restart >/dev/null 2>&1");
+
+}
+
+# aplicar
+if($q->param('enviar') eq 'configeneral')
+{	
+
+$dominiored=$q->param('dominiored');
+$wins=$q->param('wins');
+$defaulttime=$q->param('defaulttime');
+$maxtime=$q->param('maxtime');
+
+$pacconfigeneral=$q->param('pacconfigeneral');
+$pxeconfigeneral=$q->param('pxeconfigeneral');
+$bootfilenameconfigeneral=$q->param('bootfilenameconfigeneral');
+$tftpservernameconfigeneral=$q->param('tftpservernameconfigeneral');
+$nextserverconfigeneral=$q->param('nextserverconfigeneral');
+
+if($wins eq "")
+{
+	$wins="none";
+}
+
+$dhcpdnsgen1 = $q->param("dhcpdnsgen1");
+$dhcpdnsgen2 = $q->param("dhcpdnsgen2");
+
+$dhcpdnsgen="";
+
+if($dhcpdnsgen1 ne "")
+{
+		$dhcpdnsgen="$dhcpdnsgen1";
+}
+
+if($dhcpdnsgen2 ne "")
+{
+		$dhcpdnsgen="$dhcpdnsgen2";
+}
+				
+if($dhcpdnsgen1 ne "" && $dhcpdnsgen2 ne "")
+{
+		$dhcpdnsgen="$dhcpdnsgen1,$dhcpdnsgen2";
+}
+
+		##Abria que añadir la variable para wifi 
+		open(NEW, "> $dhcpglobal")     or die "can't open $dhcpglobal: $!";
+		
+		print NEW "allow booting;\n";
+		print NEW "allow bootp;\n";
+		print NEW "default-lease-time ${defaulttime};\n";
+		print NEW "max-lease-time ${maxtime};\n";
+		if($dominiored ne ""){
+		print NEW "option domain-name \"${dominiored}\";\n";
+		}
+		if($dhcpdnsgen ne ""){
+		print NEW "option domain-name-servers ${dhcpdnsgen};\n";
+		}	
+		if($wins ne ""){	
+		print NEW "option netbios-name-servers ${wins};\n";
+		}
+		if($pacconfigeneral ne ""){
+		print NEW "option local-proxy-config \"${pacconfigeneral}\";\n";
+		}	
+		if($pxeconfigeneral ne ""){
+		print NEW "filename \"${pxeconfigeneral}\";\n";	
+		}	
+		if($bootfilenameconfigeneral ne ""){
+		print NEW "option bootfile-name \"${bootfilenameconfigeneral}\";\n";	
+		}
+		if($tftpservernameconfigeneral ne ""){
+		print NEW "option tftp-server-name \"${tftpservernameconfigeneral}\";\n";
+		}
+		if($nextserverconfigeneral ne ""){
+		print NEW "next-server ${nextserverconfigeneral};\n";	
+		}
+		
+		print NEW "option local-proxy-config code 252 = text;\n";
+		print NEW "ddns-update-style none;\n";
+		print NEW "authoritative;\n";
+		print NEW "log-facility local7;\n";
+		
+		close(NEW) or die "can't close $dhcpglobal: $!";
+		
+		system("$dhcpserver restart >/dev/null 2>&1");
+	
+}
+
+
+if($q->param('enviar') eq 'rangoips')
+{
+
+$reddhcpinterna=$q->param('reddhcpinterna');
+$reddhcp3=$q->param('reddhcp3');
+$reddhcp4=$q->param('reddhcp4');
+$reddhcp5=$q->param('reddhcp5');
+$reddhcp6=$q->param('reddhcp6');
+
+if($reddhcpinterna ne ""){$if1="$reddhcpinterna";}
+if($reddhcp3 ne ""){$if3="$reddhcp3";}
+if($reddhcp4 ne ""){$if4="$reddhcp4";}
+if($reddhcp5 ne ""){$if5="$reddhcp5";}
+if($reddhcp6 ne ""){$if6="$reddhcp6";}
+
+$iddhcpinternavlan=$q->param("iddhcpinternavlan");
+$iddhcp3vlan=$q->param("iddhcp3vlan");
+$iddhcp4vlan=$q->param("iddhcp4vlan");
+$iddhcp5vlan=$q->param("iddhcp5vlan");
+$iddhcp6vlan=$q->param("iddhcp6vlan");
+
+@iddhcpinternavlan = split (/\s*,\s*/,$iddhcpinternavlan);
+@iddhcp3vlan = split (/\s*,\s*/,$iddhcp3vlan);
+@iddhcp4vlan = split (/\s*,\s*/,$iddhcp4vlan);
+@iddhcp5vlan = split (/\s*,\s*/,$iddhcp5vlan);
+@iddhcp6vlan = split (/\s*,\s*/,$iddhcp6vlan);
+
+foreach (@iddhcpinternavlan) {
+	$idmarca=$_;
+	$valorvlanmarca=$q->param("reddhcpinternavlan${idmarca}");
+	$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+}
+
+foreach (@iddhcp3vlan) {
+	$idmarca=$_;
+	$valorvlanmarca=$q->param("reddhcp3vlan${idmarca}");
+	$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+}
+
+foreach (@iddhcp4vlan) {
+	$idmarca=$_;
+	$valorvlanmarca=$q->param("reddhcp4vlan${idmarca}");
+	$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+}
+
+foreach (@iddhcp5vlan) {
+	$idmarca=$_;
+	$valorvlanmarca=$q->param("reddhcp5vlan${idmarca}");
+	$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+}
+
+foreach (@iddhcp6vlan) {
+	$idmarca=$_;
+	$valorvlanmarca=$q->param("reddhcp6vlan${idmarca}");
+	$ifvlandhcp=$ifvlandhcp." $valorvlanmarca";
+}
+
+
+$lineaifdhcp="$if1 $if3 $if4 $if5 $if6 $ifvlandhcp";
+$lineaifdhcp =~ s/\s+/ /g;
+$lineaifdhcp =~ s/\s$//;
+
+open(NEW, "> $defaultdhcp3server")     or die "can't open $defaultdhcp3server: $!";
+print NEW "INTERFACES=\"$lineaifdhcp\""; 
+close(NEW) or die "can't close $defaultdhcp3server: $!";
+
+#		$numdhcp=1;
+#		 open(OLD, "< $dhcprange")    or die "can't open $dhcprange: $!";
+#		 open(NEW, "> $aux")    or die "can't open $aux: $!";
+#		
+#		 while (<OLD>) 
+#		 {
+#			chomp;
+#			$_ =~ /.*/;
+#			if(/^subnet\s/)
+#    		{
+#	    		$activado = $q->param("${numdhcp}xact");
+#				
+#				if($activado eq 1)
+#				{
+#					$comentado = "";
+#				}
+#				else
+#				{				
+#					$comentado = "#";
+#				}			
+#				
+#	    	}
+#		
+#			if(/^#*[\t\s]*range\s([0-9\.]+)\s([0-9\.]+)\s/)
+#    		{			
+#				$ipulti0 = $q->param("ipulti0_${numdhcp}");
+#				$ipulti1 = $q->param("ipulti1_${numdhcp}");
+#				$ipulti2a = $q->param("ipulti2a_${numdhcp}");
+#				$ipulti3a = $q->param("ipulti3a_${numdhcp}");
+#				
+#				$ipulti2b = $q->param("ipulti2b_${numdhcp}");
+#				$ipulti3b = $q->param("ipulti3b_${numdhcp}");				
+#				
+#				$activado = $q->param("${numdhcp}xact");
+#				$ipini = $1;
+#				$ipfin = $2;
+#								
+#				$rango = $1;
+#				@data0 = split (/\./,$rango);
+#				$ip0 = $data0[0];
+#				#$ip1 = $data0[1];
+#				#$ip2 = $data0[2];
+#				
+#				s/$ipini/$ip0.$ipulti2a.$ipulti3a.$ipulti0/;
+#				s/$ipfin/$ip0.$ipulti2b.$ipulti3b.$ipulti1/;
+#				s/^#*/$comentado/;
+#			}
+#			if(/^#*[\t\s]*option\sdomain-name-servers\s([0-9\.]+\s*,\s*[0-9\.]+)\s*\;/ || /^#*[\t\s]*option\sdomain-name-servers\s([0-9\.]+)\s*\;/)    		
+#    		{	
+#				$dhcpdns1susti = $q->param("dhcp_dns1${numdhcp}");
+#				$dhcpdns2susti = $q->param("dhcp_dns2${numdhcp}");
+#				
+#				if($dhcpdns2susti ne "")
+#				{
+#					$dhcpdnssusti="$dhcpdns1susti,$dhcpdns2susti";
+#				}
+#				else
+#				{
+#					$dhcpdnssusti="$dhcpdns1susti";
+#				}
+#				
+#				$dhcpdns = $1;				
+#																
+#				s/domain-name-servers\s${dhcpdns}/domain-name-servers $dhcpdnssusti/;
+#				##s/^.*$/	domain-name-servers $dhcpdnssusti;/;
+#				
+#				s/^#*/$comentado/;
+#			}
+#			if(/^#*[\t\s]*option\srouters\s([0-9\.]+)\s/)
+#    		{		
+#				$dhcpgwsusti = $q->param("dhcp_gw${numdhcp}");
+#		
+#				$dhcpgw = $1;
+#				s/option\s+routers\s${dhcpgw}/option routers $dhcpgwsusti/;
+#				s/^#*/$comentado/;
+#			}
+#						
+#			if(/^#*[\t\s]*#*next-server/)
+#    		{
+#				$dhcpnextserversusti = $q->param("dhcp_nextserver${numdhcp}");     		
+#     		
+#				if(/^#*[\t\s]*#*next-server\s([0-9\.]+)\s/)
+#     			{
+#		
+#					$dhcpnextserver = $1;
+#				
+#					s/next-server\s${dhcpnextserver}/next-server $dhcpnextserversusti/;
+#				}
+#				else
+#				{
+#					s/^.*$/	next-server $dhcpnextserversusti ;/;
+#				}
+#				
+#				s/^#*/$comentado/;
+#				
+#				if($dhcpnextserversusti eq "")
+#				{
+#					s/^.*$/	#next-server 0.0.0.0 ;/
+#				}
+#			}
+#			if(/^#*[\t\s]*filename\s\"(.*)\"\;/)
+#    		{
+#				$dhcppxesusti = $q->param("dhcp_pxe${numdhcp}");
+#		
+#				$dhcppxe = $1;
+#				
+#				s/filename\s\"${dhcppxe}\"\;/filename \"$dhcppxesusti\"\;/;    		
+#    				
+#				s/^#*/$comentado/;
+# 			}
+#			
+#			if(/^#*[\t\s]*option\stftp-server-name\s\"(.*)\"\s*\;/)
+#    		{
+#				$dhcptftpservernamesusti = $q->param("dhcp_tftpservername${numdhcp}");
+#		
+#				$dhcptftpservername = $1;
+#				
+#				s/option\stftp-server-name\s\"${dhcptftpservername}\"\;/option tftp-server-name \"$dhcptftpservernamesusti\"\;/;    		
+#    				
+#				s/^#*/$comentado/;
+#			}
+#			
+#			if(/^#*[\t\s]*option\sbootfile-name\s\"(.*)\"\s*\;/)
+#    		{
+#				$dhcpbootfilenamesusti = $q->param("dhcp_bootfilename${numdhcp}");
+#		
+#				$dhcpbootfilename = $1;
+#				
+#				s/option\sbootfile-name\s\"${dhcpbootfilename}\"\;/option bootfile-name \"$dhcpbootfilenamesusti\"\;/;    		
+#     				
+#				s/^#*/$comentado/;
+#			}
+#			
+#			if(/^#*[\t\s]*option\sdomain-name\s\"(.*)\"\s*\;/)
+#     		{
+#				$dhcpdominiosusti = $q->param("dhcp_dominio${numdhcp}");
+#		
+#				$dhcpdominio = $1;
+#				
+#				s/option\sdomain-name\s\"${dhcpdominio}\"\;/option domain-name \"$dhcpdominiosusti\"\;/;    		
+#     				
+#				s/^#*/$comentado/;
+#			}
+#			
+#			if(/^#*[\t\s]*option\snetbios-name-servers\s(.*)\s*\;/)
+#     		{
+#				$dhcpwinssusti = $q->param("dhcp_wins${numdhcp}");
+#		
+#				$dhcpwins = $1;
+#				
+#				s/option\snetbios-name-servers\s\"${dhcpwins}\"\;/option netbios-name-servers \"$dhcpwinssusti\"\;/;    		
+#     				
+#				s/^#*/$comentado/;
+#			}
+#			
+#			if(/^#*[\t\s]*option\slocal-proxy-config\s\"(.*)\"\s*\;/)
+#     		{
+#				$dhcpwpadsusti = $q->param("dhcp_wpad${numdhcp}");
+#		
+#				$dhcpwpad = $1;
+#				
+#				s/option\slocal-proxy-config\s\"${dhcpwpad}\"\;/option local-proxy-config \"$dhcpwpadsusti\"\;/;    		
+#     				
+#				s/^#*/$comentado/;
+#			}
+#			if(/\#\#DHCP/)
+#     	{
+#				$numdhcp++;
+#			}			
+#						
+#			print NEW $_."\n";							
+#		}
+#		close(OLD);
+#		close(NEW);
+#		
+#		system("/bin/cp $aux $dhcprange 2>&1");
+		
+		
+		#######################################
+		
+		open(OLD, "< $dhcprange")    or die "can't open $dhcprange: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+	   $recolect=0;
+		$acumulado="";
+	
+		while (<OLD>) 
+		{	
+			chomp;
+			if (/subnet\s/)
+     			{
+				$_ =~ /.*/;
+			   $recolect=1;	
+				print NEW $acumulado;
+				$acumulado=$_."\n";
+		 		
+				$activado = $q->param("${i}xact");				
+				
+				$ipredvalor0 = $q->param("ipredvalor_${i}");
+				$mascaravalor0 = $q->param("mascaravalor_${i}");				
+				
+				$ipulti0 = $q->param("ipulti0_${i}");
+				$ipulti1 = $q->param("ipulti1_${i}");
+
+				$ipulti1a = $q->param("ipulti1a_${i}");
+				$ipulti2a = $q->param("ipulti2a_${i}");
+				$ipulti3a = $q->param("ipulti3a_${i}");
+				$ipultia="${ipulti1a}.${ipulti2a}.${ipulti3a}.${ipulti0}";
+				
+				$ipulti1b = $q->param("ipulti1b_${i}");
+				$ipulti2b = $q->param("ipulti2b_${i}");
+				$ipulti3b = $q->param("ipulti3b_${i}");
+				$ipultib="${ipulti1b}.${ipulti2b}.${ipulti3b}.${ipulti1}";				
+				
+				$dhcpdns1susti = $q->param("dhcp_dns1${i}");
+				$dhcpdns2susti = $q->param("dhcp_dns2${i}");
+				
+				$dhcpgwsusti = $q->param("dhcp_gw${i}");
+				
+				$dhcpnextserversusti = $q->param("dhcp_nextserver${i}");
+							
+				$dhcppxesusti = $q->param("dhcp_pxe${i}");
+
+				$dhcptftpservernamesusti = $q->param("dhcp_tftpservername${i}");
+
+				$dhcpbootfilenamesusti = $q->param("dhcp_bootfilename${i}");				
+				
+				$dhcpdominiosusti = $q->param("dhcp_dominio${i}");
+				
+				$dhcpwinssusti = $q->param("dhcp_wins${i}");
+				
+				$dhcpwpadsusti = $q->param("dhcp_wpad${i}");	
+				
+								
+		 		
+		 		if($activado eq 1)
+				{
+					$comentado = "";
+				}
+				else
+				{				
+					$comentado = "#";
+				}
+				
+				$dhcpdnssusti="";
+
+				if($dhcpdns1susti ne "")
+				{
+					$dhcpdnssusti="$dhcpdns1susti";
+				}
+
+				if($dhcpdns2susti ne "")
+				{
+					$dhcpdnssusti="$dhcpdns2susti";
+				}
+				
+				if($dhcpdns1susti ne "" && $dhcpdns2susti ne "")
+				{
+					$dhcpdnssusti="$dhcpdns1susti,$dhcpdns2susti";
+		 		}
+						
+		 		$recolect=0;	
+		 		print NEW "subnet $ipredvalor0 netmask $mascaravalor0 {\n";
+		 		print NEW "${comentado}	range $ipultia $ipultib ;\n";
+		 		print NEW "${comentado}	option routers $dhcpgwsusti ;\n";
+		 		
+		 		if($dhcpdnssusti ne "") {
+		 		print NEW "${comentado}	option domain-name-servers $dhcpdnssusti;\n";
+		 		}
+		 				 		
+		 		if($dhcpdominiosusti ne "") {
+		 		print NEW "${comentado}	option domain-name \"${dhcpdominiosusti}\";\n";
+				}
+
+				if($dhcpwinssusti ne "") {
+		 		print NEW "${comentado}	option netbios-name-servers ${dhcpwinssusti};\n";
+		 		}
+		 		
+		 		if($dhcpwpadsusti ne "") {
+		 		print NEW "${comentado}	option local-proxy-config \"${dhcpwpadsusti}\";\n";
+				}		 		
+		 		
+		 		if($dhcppxesusti ne "") {
+		 		print NEW "${comentado}	filename \"${dhcppxesusti}\";\n";
+				}		 		
+		 		
+		 		if($dhcpbootfilenamesusti ne "") {
+		 		print NEW "${comentado}	option bootfile-name \"${dhcpbootfilenamesusti}\";\n";
+				}		 		
+		 		
+		 		if($dhcptftpservernamesusti ne "") {
+		 		print NEW "${comentado}	option tftp-server-name \"$dhcptftpservernamesusti\";\n";
+		 		}
+		 		
+		 		if($dhcpnextserversusti ne "") {
+		 		print NEW "${comentado}	next-server ${dhcpnextserversusti};\n";
+		 		}
+		 		
+		 		print NEW "} ##DHCP\n\n";
+
+        		$acumulado="";
+		 			
+		 		$i=$i+1;
+			}
+			else
+			{
+			    if( $recolect == 1)
+			    {
+				 		$acumulado=$acumulado.$_."\n";
+			    }
+			}
+		}			
+		
+		if($acumulado ne "")
+		{
+			print NEW $acumulado;
+		}
+		
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $dhcprange 1>&2");
+		
+				
+		
+		
+		#######################################		
+
+
+	#if($dhcp eq "1") 
+	#{
+		system("$dhcpserver restart >/dev/null 2>&1");
+	#}
+		
+
+	$dhcp3relayvalorip=$q->param('dhcp3relay');
+	
+	open(OLD, "< $dhcp3relay")    or die "can't open $dhcp3relay: $!";
+	open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{		
+		chomp;
+			
+		if(/^\s*SERVERS\s*=\s*.*$/)
+     	{
+			s/^.*$/SERVERS\="$dhcp3relayvalorip"/;		
+		}
+
+		print NEW $_."\n";	
+	}
+
+	close(OLD);
+	close(NEW);
+		
+	system("/bin/cp $aux $dhcp3relay 2>&1");
+		
+
+}
+
+
+
+
+
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+	
+	if($q->param('enviar') eq "Borrarrange")
+	{
+		$id=$q->param('id');
+		warn "borrar $id";
+		open(OLD, "< $dhcprange")    or die "can't open $dhcprange: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	   $recolect=0;
+		$acumulado="";
+	
+		while (<OLD>) 
+		{
+			chomp;
+			if (/subnet\s/)
+     		{				
+				$_ =~ /.*/;
+								
+			   $recolect=1;	
+				if($acumulado ne "")
+				{
+					print NEW $acumulado;
+				}
+				$acumulado=$_."\n";
+							
+					if($i == $id)
+		 			{
+		 				$recolect=0;	
+        				$acumulado="";
+		 			}
+		 			
+		 			$i=$i+1; 				
+			}
+			else
+			{
+			    if( $recolect == 1)
+			    {
+					$acumulado=$acumulado.$_."\n";
+				}
+			}
+		}
+		close(OLD);			
+		
+		if($acumulado ne "")
+		{
+				print NEW $acumulado;
+		}
+		close(NEW);
+		
+		system("/bin/cp $aux $dhcprange 1>&2");
+	}
+
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		warn "borrar $id";
+		open(OLD, "< $dhcpipasigmac")    or die "can't open $dhcpipasigmac: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	    $options=0;
+	    $recolect=0;
+		$acumulado="";
+	
+		while (<OLD>) 
+		{
+			chomp;
+			if (/^host\s/)
+     		{			
+				$_ =~ /.*/;
+								
+			    $recolect=1;	
+				if($acumulado ne "")
+				{
+					print NEW $acumulado;
+				}
+				$acumulado=$_."\n";
+						
+				if($i == $id)
+		 		{
+		 			$recolect=0;	
+        			$acumulado="";
+		 		}
+		 			
+		 		$i=$i+1;  				
+			}
+			else
+			{
+			    if( $recolect == 1)
+			    {
+					$acumulado=$acumulado.$_."\n";
+				}
+			}
+
+
+		}
+		close(OLD);			
+		
+		if($acumulado ne "")
+		{
+				print NEW $acumulado;
+		}
+		close(NEW);
+		
+		system("/bin/cp $aux $dhcpipasigmac 1>&2");
+	}
+	
+
+	if($q->param('enviar') eq "Insertar")
+	{
+		$id=$q->param('id');
+		warn "insertar $id";
+
+		$hostrandom = int(rand(10000));		
+		
+		open(OLD, "< $dhcpipasigmac")    or die "can't open $dhcpipasigmac: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+		$options=0;
+	    $recolect=0;
+		$acumulado="";
+	
+		if($id == 0)
+		{
+		 	print NEW "host nombre${hostrandom} {\n";
+			print NEW "	option host-name \"nombre${hostrandom}\" ;\n";
+			print NEW "	hardware ethernet 00:00:00:00:00:00 ;\n";
+			print NEW "	fixed-address 0.0.0.0 ;\n";
+			print NEW "	filename \"/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.0\";\n";
+			print NEW "}\n\n";
+		}
+	
+		while (<OLD>) 
+		{
+			chomp;
+			if (/^host\s/)
+     		{
+				
+				$_ =~ /.*/;
+						
+				print NEW $acumulado;
+				$acumulado=$_."\n";
+			
+				if($i == ($id+1))
+		 		{
+			 		print NEW "host nombre${hostrandom} {\n";
+					print NEW "	option host-name \"nombre${hostrandom}\" ;\n";
+					print NEW "	hardware ethernet 00:00:00:00:00:00 ;\n";
+					print NEW "	fixed-address 0.0.0.0 ;\n";
+					print NEW "	filename \"/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.0\";\n";
+					print NEW "}\n\n";
+		 		}
+		 		$i=$i+1;
+				    				
+			}
+			else
+			{
+				$acumulado=$acumulado.$_."\n";
+			}
+
+		}			
+		
+		if($acumulado ne "")
+		{
+			print NEW $acumulado;
+			if($i == ($id+1))
+		 	{		 			
+		 		print NEW "host nombre${hostrandom} {\n";
+				print NEW "	option host-name \"nombre${hostrandom}\" ;\n";
+				print NEW "	hardware ethernet 00:00:00:00:00:00 ;\n";
+				print NEW "	fixed-address 0.0.0.0 ;\n";
+				print NEW "	filename \"/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.0\";\n";
+				print NEW "}\n\n";
+		 	}
+		}
+		
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $dhcpipasigmac 1>&2");
+	}
+
+
+	
+	if($q->param('enviar') eq "ipmac")
+	{
+		open(OLD, "< $dhcpipasigmac")    or die "can't open $dhcpipasigmac: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+		$options=0;
+	    $recolect=0;
+		$acumulado="";
+	
+		while (<OLD>) 
+		{	
+			chomp;
+			if (/^host\s/)
+     		{			
+				$_ =~ /.*/;
+				
+				print NEW $acumulado;
+						
+		 		$nombre=$q->param("${i}x0");			
+				$mac=$q->param("${i}x1");			
+				$mac =~ s/\-/:/g;
+			
+				$ip=$q->param("${i}x2");
+						
+		 		$recolect=0;	
+				print NEW "host $nombre {\n";
+				print NEW "	option host-name \"${nombre}\" ;\n";
+				print NEW "	hardware ethernet $mac ;\n";
+				print NEW "	fixed-address $ip ;\n";
+				print NEW "	filename \"/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.0\";\n";
+				print NEW "}\n\n";
+        				
+        		$acumulado="";
+
+		 		$i=$i+1;   				
+			}
+			else
+			{
+			    if( $recolect == 1)
+			    {
+					$acumulado=$acumulado.$_."\n";
+				}
+			}
+		}			
+		
+		if($acumulado ne "")
+		{
+			print NEW $acumulado;
+		}
+		
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $dhcpipasigmac 1>&2");
+		
+		system("$dhcpserver restart >/dev/null 2>&1");
+
+	}
+}
+
+
+
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "2")
+{
+
+	$dhcp=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*DHCP\s*=\s*.*$/)
+     		{
+				s/^.*$/DHCP\=$dhcp/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+
+
+	if($dhcp eq "0") 
+	{
+		system("$dhcpserver stop >/dev/null 2>&1");
+	}
+	
+	if($dhcp eq "1")
+	{
+		system("$dhcpserver start  >/dev/null 2>&1");
+	}
+	
+}
+
+
+
+
+	
+
+
+
+#señal de estado de cada servicio
+#···············································································
+if($dhcp eq "1") 
+{
+	$estadodhcp = "activado.gif";
+	$pasardhcp = 0;
+}
+else
+{
+	$estadodhcp = "desactivado.gif";
+	$pasardhcp = 1;
+}
+
+
+
+#dhcpconf
+#···············································································	
+
+	open(OLD, "< $dhcpglobal")    or die "can't open $dhcpglobal: $!";
+	
+	$i=1;	
+	while (<OLD>) 
+	{
+			if(/^\s*option\sdomain-name\s/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\"/,$_);
+ 		
+				$dominiored = $data[1];
+			}
+			
+			if(/^\s*option\snetbios-name-servers/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\s+/,$_);
+ 		
+				$wins = $data[2];
+				
+				if($wins eq "none")
+				{
+					$wins = "";
+				}
+			}
+			
+			if(/^option\sdomain-name-servers\s([0-9\.]+)\s*,?\s*([0-9\.]*)/m)
+	    	{ 		
+			$dhcpdnsgen1 = $1;
+			$dhcpdnsgen2 = $2;
+			}
+			
+			if(/^\s*default-lease-time/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\s+/,$_);
+ 		
+				$defaulttime = $data[1];
+			}
+			
+			if(/^\s*max-lease-time/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\s+/,$_);
+ 		
+				$maxtime = $data[1];
+			}
+			
+			if(/^\s*option\slocal-proxy-config/)
+     		{
+     			unless(/code\s252/)
+     			{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/\"//g;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\s+/,$_);
+ 		
+				$pacconfigeneral = $data[2];
+				}
+			}
+			
+			if(/^\s*next-server/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/\"//g;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\s+/,$_);
+ 		
+				$nextserverconfigeneral = $data[1];
+			}
+			
+			if($_ =~ /^#*[\t\s]*filename\s\"(.*)\"\;/m)
+	  		{ 		
+				$pxeconfigeneral = $1;
+			}
+		
+			if($_ =~ /^#*[\t\s]*option\stftp-server-name\s\"(.*)\"\s*\;/m)
+	   	{ 		
+				$tftpservernameconfigeneral = $1;
+			}
+		
+			if($_ =~ /^#*[\t\s]*option\sbootfile-name\s\"(.*)\"\s*\;/m)
+	   	{ 		
+				$bootfilenameconfigeneral = $1;
+			}
+	
+		}
+
+	close(OLD)     or die "can't close $dhcpglobal: $!";
+
+
+
+	open(OLD, "< $dhcp3relay")    or die "can't open $dhcp3relay: $!";
+	
+	while (<OLD>) 
+	{
+			if(/^\s*SERVERS\s*=/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				$_ =~ s/;/ /g;
+
+				@data = split (/\"/,$_);
+ 		
+				$dhcp3relayipvalor = $data[1];
+			}	
+	}
+
+	close(OLD)     or die "can't close $dhcp3relay: $!";
+
+
+
+
+
+#lectura inicial de redsegmentada
+#···············································································	
+
+	open(OLD, "< $redsegmentada")    or die "can't open $redsegmentada: $!";
+		
+	while (<OLD>) 
+	{
+			if(/^\s*red3tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red3tipo = $data[1];
+			}
+
+			if(/^\s*red4tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red4tipo = $data[1];
+			}
+
+			if(/^\s*red5tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red5tipo = $data[1];
+			}
+
+			if(/^\s*red6tipo\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$red6tipo = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $redsegmentada: $!";
+
+
+
+#lectura de modulos
+#···············································································	
+
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*ROUTER_ADSL_ACTIVADO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$ROUTER_ADSL_ACTIVADO = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $modulos: $!";
+
+
+	if ($ROUTER_ADSL_ACTIVADO eq 1)
+	{
+	$i1="1";
+	$i2="2";
+	$i3="3";
+	$i4="4";
+	}
+	else
+	{
+	$i1="2";
+	$i2="3";
+	$i3="4";
+	$i4="5";
+	}
+
+	
+	if($red3tipo eq 1)
+	{
+		$if3="eth${i1}";
+					
+		$valif3=`/sbin/ifconfig -a | grep $if3`;
+		$valif3 =~ s/(\r?\n)//g;
+	}	
+
+	if($red4tipo eq 1)
+	{
+		$if4="eth${i2}";
+					
+		$valif4=`/sbin/ifconfig -a | grep $if4`;
+		$valif4 =~ s/(\r?\n)//g;
+	}	
+
+	if($red5tipo eq 1)
+	{
+		$if5="eth${i3}";
+					
+		$valif5=`/sbin/ifconfig -a | grep $if5`;
+		$valif5 =~ s/(\r?\n)//g;
+	}	
+
+	if($red6tipo eq 1)
+	{
+		$if6="eth${i4}";
+					
+		$valif6=`/sbin/ifconfig -a | grep $if6`;
+		$valif6 =~ s/(\r?\n)//g;
+	}	
+
+$interfacesgrabadas=`/bin/ip -o link show | grep -v gre | grep -v tun | cut -d: -f2 | grep \@`;
+$interfacesgrabadas=~ s/(\r?\n)//g;
+$interfacesgrabadas=~ s/\s+/ /g;
+
+@interfacesgrabadasfin=split (/\s+/,$interfacesgrabadas);
+
+
+	open(OLD, "< $defaultdhcp3server")    or die "can't open $defaultdhcp3server: $!";
+		
+	while (<OLD>) 
+	{
+			chomp;
+				
+			if (/^INTERFACES=\"(.*)\"/)
+     		{
+				$interfacesdhcp=$1;
+				
+				if($interfacesdhcp =~ /eth0[^\.]?/)
+				{
+					$reddhcpinternacheck="checked";
+				}
+
+				if($interfacesdhcp =~ /$if3[^\.]?/ && $if3 ne "")
+				{
+					$reddhcp3check="checked";
+				}
+
+				if($interfacesdhcp =~ /\b$if4[^\.]?/ && $if4 ne "")
+				{
+					$reddhcp4check="checked";
+				}
+
+				if($interfacesdhcp =~ /\b$if5[^\.]?/ && $if5 ne "")
+				{
+					$reddhcp5check="checked";
+				}
+
+				if($interfacesdhcp =~ /\b$if6[^\.]?/ && $if6 ne "")
+				{
+					$reddhcp6check="checked";
+				}
+
+				foreach (@interfacesgrabadasfin) {
+					$vlandhcp=$_;
+					if($vlandhcp =~ /\.([0-9]+)\@eth0/)
+					{
+						$numvlan=$1;
+						if($interfacesdhcp =~ /eth0\.${numvlan}/)
+						{
+							${'reddhcpinternavlan'.${numvlan}.'check'}="checked";
+						}
+					}
+				}
+
+				foreach (@interfacesgrabadasfin) {
+					$vlandhcp=$_;
+					if($vlandhcp =~ /\.([0-9]+)\@${if3}/)
+					{
+						$numvlan=$1;
+						if($interfacesdhcp =~ /${if3}\.${numvlan}/)
+						{
+							${'reddhcp3vlan'.${numvlan}.'check'}="checked";
+						}
+					}
+				}
+
+				foreach (@interfacesgrabadasfin) {
+					$vlandhcp=$_;
+					if($vlandhcp =~ /\.([0-9]+)\@${if4}/)
+					{
+						$numvlan=$1;
+						if($interfacesdhcp =~ /${if4}\.${numvlan}/)
+						{
+							${'reddhcp4vlan'.${numvlan}.'check'}="checked";
+						}
+					}
+				}
+
+				foreach (@interfacesgrabadasfin) {
+					$vlandhcp=$_;
+					if($vlandhcp =~ /\.([0-9]+)\@${if5}/)
+					{
+						$numvlan=$1;
+						if($interfacesdhcp =~ /${if5}\.${numvlan}/)
+						{
+							${'reddhcp5vlan'.${numvlan}.'check'}="checked";
+						}
+					}
+				}
+
+				foreach (@interfacesgrabadasfin) {
+					$vlandhcp=$_;
+					if($vlandhcp =~ /\.([0-9]+)\@${if6}/)
+					{
+						$numvlan=$1;
+						if($interfacesdhcp =~ /${if6}\.${numvlan}/)
+						{
+							${'reddhcp6vlan'.${numvlan}.'check'}="checked";
+						}
+					}
+				}
+
+
+			}
+	}
+
+	close(OLD)     or die "can't close $defaultdhcp3server: $!";
+
+
+$activado = "0";
+
+
+
+
+
+if($q->param('princi') ne "")
+{
+	$princi=$q->param('princi');
+}
+else
+{
+	$princi="configeneral";
+}
+
+$colorprinciconfigeneral="black";
+$colorprincirangoips="black";
+$colorprinciipmac="black";
+$colorprincileases="black";
+
+$fondoprinciconfigeneral="white";
+$fondoprincirangoips="white";
+$fondoprinciipmac="white";
+$fondoprincileases="white";
+
+if($princi eq "configeneral")
+{
+	$colorprinciconfigeneral="white";
+	$fondoprinciconfigeneral="#3e73a8";
+}
+elsif($princi eq "rangoips")
+{
+	$colorprincirangoips="white";
+	$fondoprincirangoips="#3e73a8";
+}
+elsif($princi eq "ipmac")
+{
+	$colorprinciipmac="white";
+	$fondoprinciipmac="#3e73a8";
+}
+elsif($princi eq "leases")
+{
+	$colorprincileases="white";
+	$fondoprincileases="#3e73a8";
+}
+
+
+
+
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<link href="/icheck/skins/flat/blue.css" rel="stylesheet">
+<script src="/icheck/icheck.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/images/jquery.dataTables.min.css">
+<script type="text/javascript" language="javascript" src="/images/jquery.dataTables.min.js"></script>
+
+<!--<script type="text/javascript" src="/images/jquery-1.2.2.pack.js"></script>-->
+<script type="text/javascript" src="/images/animatedcollapse.js"></script>
+
+<script type="text/javascript">
+
+	\$(document).ready(function(){
+    \$('#tabladhcpserver').DataTable( {
+        "paging":         false,
+        "info": true,
+        "ordering": false,
+        "scrollY":        "450px",
+        //"scrollCollapse": true,
+        //"order": [[ 4, "desc" ]],
+        "searching": false,
+        //'iDisplayLength': 25
+    } );
+    
+});
+
+</script>
+
+<script type="text/javascript">
+
+EOF
+
+
+#dhcpconf
+#···············································································	
+
+	open(OLD, "< $dhcprange")    or die "can't open $dhcprange: $!";
+	
+	$k=0;	
+	while (<OLD>) 
+	{
+		if ((/##DHCP/))
+     	{
+			$k++;
+			print "animatedcollapse.addDiv('dhcpavanza$k', 'fade=1')\n";
+			#print "alert(\"dhcpavanza$k\");";
+		}
+	}
+
+print<<EOF;
+
+animatedcollapse.init()
+
+</script>
+
+
+<script language="javascript">
+
+
+function isValidIP(tempIP,red){
+	/*if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}*/
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+
+function isValidMAC(tempIP){
+	if (tempIP == null || tempIP=="" || tempIP.search(/^([0-9A-Fa-f]{2}[\\-:]){5}[0-9A-Fa-f]{2}\$/) == -1)
+		return (false);
+
+	return (true);
+}
+
+
+
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha'+id);
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;
+		document.getElementById(id+'xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById(id+'xact').value=1;
+	}
+
+}
+
+
+
+function enviarapli(opc)
+{
+	if(!confirm('¿Desea aplicar los cambios?'))
+	return;
+
+
+if (opc == 'ipmac')
+{
+
+var i=1;
+	while(document.getElementById(i+'x0'))
+	{
+		if (document.getElementById(i+'x0').value!="")
+		{
+			if (document.getElementById(i+'x0').value.search(/^[a-zA-Z0-9\.\-]*\$/)==-1)
+			{
+				alert(document.getElementById(i+'x0').value+' se esperaba un nombre');
+				theform.reset()
+				return;
+			}
+		}
+		else
+		{
+			alert('Nombre campo vacio');
+			theform.reset()
+			return;
+		}
+		i++;
+	}
+			
+
+var i=1;
+	while(document.getElementById(i+'x1'))
+	{
+		if (document.getElementById(i+'x1').value!="")
+		{
+			if ((isValidMAC(document.getElementById(i+'x1').value)==false))
+			{
+				alert(document.getElementById(i+'x1').value+' se esperaba una MAC válida');
+				theform.reset()
+				return;
+			}
+		}
+		else
+		{
+			alert('MAC campo vacio');
+			theform.reset()
+			return;
+		}
+		i++;
+	}
+		
+		
+var i=1;
+	while(document.getElementById(i+'x2'))
+	{
+		if (document.getElementById(i+'x2').value!="")
+		{
+			if (isValidIP(document.getElementById(i+'x2').value)==false)
+			{
+				alert(document.getElementById(i+'x2').value+' se esperaba una IP válida');
+				theform.reset()
+				return;
+			}
+		}
+		else
+		{
+			alert('IP campo vacio');
+			theform.reset()
+			return;
+		}
+		i++;
+	}
+	
+	var regiscomple=" ";
+	var regis="";
+
+	var i=1;
+	while(document.getElementById(i+'x0'))
+	{	
+			entra=document.getElementById(i+'x0').value;
+			regisespa=" "+entra+" ";	
+	
+			if (regiscomple.value != "" && regiscomple.indexOf(regisespa)!=-1)
+			{
+				alert('Más de dos nombres de host repetidos ('+entra+').');
+				return;
+			}		
+		
+			regiscomple=regiscomple + entra +" ";
+	
+		i++;		
+	}
+
+}
+
+
+if (opc == 'rangoips')
+{	
+
+/*if (document.getElementById('defaulttime').value == '')
+{
+		alert('Tiempo Renovacion del servidor: campo vacio');
+		theform.reset()
+		return;
+}
+
+if (document.getElementById('maxtime').value == '')
+{
+		alert('Tiempo máximo cliente: campo vacio');
+		theform.reset()
+		return;
+}	*/		
+
+	var i=1;
+	while(document.getElementById('dhcp_dns1'+i))
+	{
+		if (document.getElementById('dhcp_dns1'+i).value!="")
+		{
+			if (isValidIP(document.getElementById('dhcp_dns1'+i).value)==false)
+			{
+				alert(document.getElementById('dhcp_dns1'+i).value+' se esperaba una IP DNS 1 válida');
+				theform.reset()
+				return;
+			}
+		}
+		else
+		{
+			alert('IP DNS 1 campo vacio');
+			theform.reset()
+			return;
+		}
+		i++;
+	}
+
+	var i=1;
+	while(document.getElementById('dhcp_gw'+i))
+	{
+		if (document.getElementById('dhcp_gw'+i).value!="")
+		{
+			if (isValidIP(document.getElementById('dhcp_gw'+i).value)==false)
+			{
+				alert(document.getElementById('dhcp_gw'+i).value+' se esperaba una IP gateway válida');
+				theform.reset()
+				return;
+			}
+		}
+		else
+		{
+			alert('IP gateway campo vacio');
+			theform.reset()
+			return;
+		}
+		i++;
+	}
+
+}  
+   
+
+if (opc == 'configeneral')
+{	
+
+if (document.getElementById('defaulttime').value == '')
+{
+		alert('Tiempo Renovacion del servidor: campo vacio');
+		theform.reset()
+		return;
+}
+
+if (document.getElementById('maxtime').value == '')
+{
+		alert('Tiempo máximo cliente: campo vacio');
+		theform.reset()
+		return;
+}
+
+}   
+    
+    oscuprocessform();
+	
+theform.enviar.value = opc;			    
+//theform.env.value = opc;
+document.theform.submit();
+
+}
+
+
+function enviar2(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el servidor DHCP?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 2;
+theform.estado.value = est;
+document.theform.submit();
+
+
+}
+
+</script>
+
+
+ <script>
+
+// Copyright (C) 2005 Ilya S. Lyubinskiy. All rights reserved.
+// Technical support: http://www.php-development.ru/
+//
+// YOU MAY NOT
+// (1) Remove or modify this copyright notice.
+// (2) Distribute this code, any part or any modified version of it.
+//     Instead, you can link to the homepage of this code:
+//     http://www.php-development.ru/javascripts/dropdown.php.
+//
+// YOU MAY
+// (1) Use this code on your website.
+// (2) Use this code as a part of another product provided that
+//     its main use is not creating javascript menus.
+//
+// NO WARRANTY
+// This code is provided "as is" without warranty of any kind, either
+// expressed or implied, including, but not limited to, the implied warranties
+// of merchantability and fitness for a particular purpose. You expressly
+// acknowledge and agree that use of this code is at your own risk.
+
+
+// ----- Popup Control ---------------------------------------------------------
+
+function at_display(x)
+{
+  var win = window.open();
+  for (var i in x) win.document.write(i+' = '+x[i]+'<br>');
+}
+
+// ----- Show Aux -----
+
+function at_show_aux(parent, child)
+{
+  var p = document.getElementById(parent);
+  var c = document.getElementById(child );
+
+  var top  = (c["at_position"] == "y") ? p.offsetHeight+2 : 0;
+  var left = (c["at_position"] == "x") ? p.offsetWidth +2 : 0;
+
+  for (; p; p = p.offsetParent)
+  {
+    top  += p.offsetTop;
+    left += p.offsetLeft;
+  }
+
+  c.style.position   = "absolute";
+  c.style.top        = top +'px';
+  c.style.left       = left+'px';
+  c.style.visibility = "visible";
+}
+
+// ----- Show -----
+
+function at_show()
+{
+  var p = document.getElementById(this["at_parent"]);
+  var c = document.getElementById(this["at_child" ]);
+
+  at_show_aux(p.id, c.id);
+
+  clearTimeout(c["at_timeout"]);
+}
+
+// ----- Hide -----
+
+function at_hide()
+{
+  var c = document.getElementById(this["at_child"]);
+
+  c["at_timeout"] = setTimeout("document.getElementById('"+c.id+"').style.visibility = 'hidden'", 333);
+}
+
+// ----- Click -----
+
+function at_click()
+{
+  var p = document.getElementById(this["at_parent"]);
+  var c = document.getElementById(this["at_child" ]);
+
+  if (c.style.visibility != "visible")
+       at_show_aux(p.id, c.id);
+  else c.style.visibility = "hidden";
+
+  return false;
+}
+
+// ----- Attach -----
+
+// PARAMETERS:
+// parent   - id of visible html element
+// child    - id of invisible html element that will be dropdowned
+// showtype - "click" = you should click the parent to show/hide the child
+//            "hover" = you should place the mouse over the parent to show
+//                      the child
+// position - "x" = the child is displayed to the right of the parent
+//            "y" = the child is displayed below the parent
+// cursor   - Omit to use default cursor or check any CSS manual for possible
+//            values of this field
+
+function at_attach(parent, child, showtype, position, cursor)
+{
+  var p = document.getElementById(parent);
+  var c = document.getElementById(child);
+
+  p["at_parent"]     = p.id;
+  c["at_parent"]     = p.id;
+  p["at_child"]      = c.id;
+  c["at_child"]      = c.id;
+  p["at_position"]   = position;
+  c["at_position"]   = position;
+
+  c.style.position   = "absolute";
+  c.style.visibility = "hidden";
+
+  if (cursor != undefined) p.style.cursor = cursor;
+
+  switch (showtype)
+  {
+    case "click":
+      p.onclick     = at_click;
+      p.onmouseout  = at_hide;
+      c.onmouseover = at_show;
+      c.onmouseout  = at_hide;
+      break;
+    case "hover":
+      p.onmouseover = at_show;
+      p.onmouseout  = at_hide;
+      c.onmouseover = at_show;
+      c.onmouseout  = at_hide;
+      break;
+  }
+}
+
+
+function borrardhcp()
+{
+
+if(!confirm('¿Desea borrar la tabla de asignación de IPs?'))
+	return false;
+	
+oscuprocessform();	
+	
+	document.theform.env.value="borrardhcp";
+	document.theform.action='dhcpserver.htm';
+	document.theform.submit();	
+}
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleReglaforward(id)
+{
+	var flecha = document.getElementById('flechaforward');
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+		document.getElementById('yact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById('yact').value=1;
+	}
+}	
+
+
+function rango(posicion)
+{
+var posicion;
+posicion=posicion-1;
+
+//document.theform.asigempresa.value = document.getElementById(posicion+'xempresa').value;
+
+//document.theform.posicion.value = posicion;
+
+imagenOn = new Image();
+
+for(i = 0; i < document.theform.actualselec.length;i++)
+	document.actualselec[i].src='../images/flechaselecno2.gif';
+
+imagenOn.src='../images/flechaselec2.gif';
+
+if(i > 0)
+{ 
+document.actualselec[posicion].src = imagenOn.src; 
+}
+else
+{
+document.actualselec.src = imagenOn.src; 
+}
+
+//document.theform.action="mamwempresas.htm";
+//document.theform.submit();
+
+return false;
+}
+
+
+function controlsubipmac(tituipmac,valredipmac)
+{
+
+ document.theform.titulored.value=tituipmac;
+ 
+ document.theform.redipmac.value=valredipmac;
+
+ var objContainer = eval('mostrarequiposcapa');
+
+		objContainer.style.top=180;
+		objContainer.style.left=180;
+		//objContainer.style.left=x-objContainer.offsetWidth ;
+      //objContainer.style.top=(y+ objContainer.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.offsetHeight+document.body.scrollTop:y);
+
+      objContainer.style.visibility='visible';
+
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();
+}
+
+
+function findPosY(obj)
+{
+        var curtop = 0;
+        if (obj.offsetParent)
+        {
+                while (obj.offsetParent)
+                {
+                        curtop += obj.offsetTop
+                        obj = obj.offsetParent;
+                }
+        }
+        else if (obj.y)
+                curtop += obj.y;
+        return curtop;
+}
+
+
+function closecapa(container)
+{
+		document.theform.redipmac.value='';
+      document.theform.target='mostrarequiposproceso';
+      document.theform.action="controlipmac.htm";
+      document.theform.submit();
+
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+}
+
+
+
+function exportar ()
+{
+
+var exportarips="0";
+//var exportarmacs="0";
+//var exportarnombres="0";
+
+/*if(document.theform.selecexportar[0].checked)
+{
+
+	if(confirm('¿Desea las IPs detectadas en la red exportarlas a OBJETOS?'))
+	{
+		var exportarips="1";
+	}
+	
+	if(confirm('¿Desea las MACs detectadas en la red exportarlas a OBJETOS?'))
+	{
+		var exportarmacs="1";
+	}
+	
+	var exportar="exportarobjetos";
+
+}
+
+
+if(document.theform.selecexportar[1].checked)
+{
+
+	if(confirm('¿Desea los \\"nombres de equipos\\" detectados en la red exportarlos a BACKUPPC?'))
+	{
+		var exportarnombres="1";
+	}
+	
+	var exportar="exportarbackuppc";
+
+}
+*/
+
+//if(document.theform.selecexportar[2].checked)
+//{
+
+	if(confirm('¿Desea los \\"nombres/IPs\\" de la sección de asignación de IP basada en MAC exportarlos a CHIVATO WEB?'))
+	{
+		var exportarips="1";
+		//var exportarnombres="1";
+	}
+	
+	var exportar="exportarchivatoweb";
+
+//}
+
+
+//if (exportarips == 0 && exportarmacs == 0 && exportarnombres == 0)
+if (exportarips == 0)
+{
+	return false;	
+}
+
+//alert('Iniciado proceso de captura y exportación a $nombremostrar');
+
+	document.theform.exportarips.value=exportarips;
+	//document.theform.exportarmacs.value=exportarmacs;
+	//document.theform.exportarnombres.value=exportarnombres;
+
+oscuprocessform();
+
+	document.theform.action = "dhcpserver.htm";
+	document.theform.env.value="exportar";
+	document.theform.submit();
+}	
+
+
+function upload ()
+{
+
+//alert('uploadipmac');
+
+file14=document.theform.file14.value;
+
+if(file14 == "")
+{
+alert('Seleccione previamente una lista.');
+return false;
+}
+
+if(!confirm('¿Desea cargar una lista?\\nSe sustituirán los datos previos.'))
+		return false;
+
+
+oscuprocessform();
+
+	document.theform.action = "dhcpserver.htm";
+	document.theform.env.value="uploadipmac";
+	document.theform.submit();
+}	
+
+function download ()
+{
+
+//alert('uploadipmac');
+
+//oscuprocessform();
+	
+	document.theform.action = "dhcpserver.htm";
+	document.theform.env.value="downloadipmac";
+	document.theform.oscucapano.value="1";
+	document.theform.submit();
+}	
+
+
+function modificarif()
+{
+if(!confirm('¿Desea volver a recrear automáticamente los bloques de configuración DHCP de\\n todas las interfaces para su configuración?\\n\\nAtención: Se eliminará toda la configuración de rangos previa.'))
+	return;
+	
+	oscuprocessform();	
+	
+	document.theform.action = "dhcpserver.htm";
+	document.theform.env.value="modificarif";
+	document.theform.submit();
+}	
+
+
+function veragrerangecapa(container)
+{
+//document.getElementById('titulocerti').value=nombre;
+//document.getElementById('contenidover').value=document.getElementById(valor+'xocul').value;
+var objContainer = eval(container);
+objContainer.style.visibility='visible';
+
+		/*oscuprocessform();
+
+      document.theform.target='mostrarplantillawebproceso';
+      document.theform.plantillawebforzado.value=nombre;
+      document.theform.action="resulwebfind.htm";
+      document.theform.submit();*/
+
+}
+
+function checkall()
+{
+	var total=document.theform.totalregis.value;
+
+	//alert(total);
+
+	if(document.theform.regisall.checked==true)
+	{
+	//document.theform.id_4.checked=true;
+		for(i = 1; i < total;i++)
+		{
+			document.getElementById(i+'elimiregis').checked = true;
+		}
+	}
+	else
+	{
+		for(i = 1; i < total;i++)
+		{
+			document.getElementById(i+'elimiregis').checked = false;
+		}
+	}
+	
+}
+
+
+</script>  
+   
+
+
+<style type="text/css">
+
+.clase_inputfile_js {
+background-color:#fff;
+width:30px;
+height:20px;
+position:relative;
+overflow:hidden;
+/*cursor:pointer;*/
+background-image: url('../images/clip20.jpg');
+background-repeat: no-repeat;
+background-position: center center;
+float: left;
+margin: 0px 8px 0px 8px;
+outline: 0px;
+}
+.cambia_input_file_js{
+font-size:10px;
+height:20px;
+position:absolute;
+top:0px;
+right:0px;
+z-index:2;
+border:0px;
+padding:0px;
+outline: 0px;
+cursor:pointer;
+margin: 0px 10px 0px 8px;
+}
+.cambia_input_file{
+outline: 0;
+}
+
+</style>
+
+
+<script type='text/javascript'> 
+
+function nombre_ar(id_archivo){
+var archivo = document.getElementById(id_archivo).value;
+
+if(navigator.userAgent.indexOf('Linux') != -1){
+var SO = "Linux"; }
+else if((navigator.userAgent.indexOf('Win') != -1) &&(navigator.userAgent.indexOf('95') != -1)){
+var SO = "Win"; }
+else if((navigator.userAgent.indexOf('Win') != -1) &&(navigator.userAgent.indexOf('NT') != -1)){
+var SO = "Win"; }
+else if(navigator.userAgent.indexOf('Win') != -1){
+var SO = "Win"; }
+else if(navigator.userAgent.indexOf('Mac') != -1){
+var SO = "Mac"; }
+else { var SO = "no definido";
+}
+
+if(SO = "Win"){
+var arr_ruta = archivo.split("\\\\");
+}else{
+var arr_ruta = archivo.split("\/");
+}
+
+
+var nombre_archivo = (arr_ruta[arr_ruta.length-1]);
+/*var ext_validas = /\.(pdf|gif|jpg|png)$/i.test(nombre_archivo);
+if (!ext_validas){
+borrar();
+alert("Archivo con extensión no válida\nSu archivo: " + nombre_archivo);
+return false;
+}*/
+
+document.getElementById(id_archivo+'valor').innerHTML = "Pulse para subir la lista: <b>" + nombre_archivo + "<\/b>";
+}
+
+window.onload =function personaliza(){
+// buscar la clase en los divs
+var personalizar = document.getElementsByTagName('div');
+for (var i = 0; i < personalizar.length; i++) {
+if (personalizar[i].className == 'clase_inputfile') {
+personalizar[i].className = 'clase_inputfile_js';
+}
+}
+ 
+var cambia_input_files = document.getElementsByTagName('input');
+for (var i = 0; i < cambia_input_files.length; i++) {
+if (cambia_input_files[i].className == 'cambia_input_file') {
+
+var cambiarclase = cambia_input_files[i].cloneNode(true);
+cambiarclase.className = 'cambia_input_file_js';
+cambiarclase.style.outline="none";
+cambiarclase.style.opacity = 0; 
+cambiarclase.style.MozOpacity = 0; 
+cambiarclase.style.filter = 'progid:DXImageTransform.Microsoft.Alpha(opacity:0)'; 
+
+var padre = cambia_input_files[i].parentNode;
+padre.removeChild(cambia_input_files[i]);
+padre.appendChild(cambiarclase);
+}
+}
+
+}
+
+
+
+
+function agregamanualrango()
+{
+
+oscuprocessform();
+
+theform.enviar.value = "agregamanualrango";
+document.theform.action = "dhcpserver.htm";			    
+document.theform.submit();
+}
+
+function elimiipmacregis(nombre)
+{
+
+		if(!confirm('¿Desea eliminar los registros seleccionados?'))
+		return false;
+
+      document.theform.elimiipmacregisvalor.value = "1";
+      document.theform.action="dhcpserver.htm";
+      document.theform.submit();
+
+}
+
+</script> 
+
+
+</head>
+
+	
+<body>
+
+<script>
+
+\$(document).ready(function(){
+  \$('input').iCheck({
+    checkboxClass: 'icheckbox_flat-blue',
+    radioClass: 'iradio_flat-blue'
+  });
+
+  \$('input:checkbox[name="regisall"]').on('ifChecked', function(event){
+        \$('input').iCheck('check');
+  });
+
+  \$('input:checkbox[name="regisall"]').on('ifUnchecked', function(event){
+        \$('input').iCheck('uncheck');
+  });
+
+});
+
+</script>
+
+<form name="theform" method="post" enctype="multipart/form-data" onsubmit="oscuprocessform()">
+<input name="volver" type="hidden" value="$volver">
+<input name="env" type="hidden"><input name="estado" type="hidden">
+<input name="enviar" type="hidden">
+<input name="redipmac" type="hidden">
+<input name="exportarips" type="hidden">
+<input name="princi" type="hidden" value="$princi">
+<input name="elimiipmacregisvalor" type="hidden">
+<input name="oscucapano" type="hidden">
+
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 COLOR=#3e73a8><B>$dhcpserver_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+<br><br>
+
+
+<br>
+
+<table border="0" width="740" height="80" style="$imagenvisiblebase"><tr><td>
+<center>
+<table border="0"><tr><td width="20"></td>
+<td align="center"><img src="../images/$estadodhcp" onClick="enviar2('$pasardhcp')" style="cursor:pointer"></td><td width="4"></td><td>$dhcpserver_estado</td>
+</tr></table>
+</center>
+</td>
+<td width="30"></td>
+<td valign="center">
+
+<table><tr>
+<td>
+
+<table align="center" border="0">
+<tr>
+<td colspan="4"><b>Agente DHCP relay</b></td>
+</tr>
+<tr>
+<td><input id='dhcp3relay' name='dhcp3relay' type='text'  class='campotxt' size='14' value='$dhcp3relayipvalor'></td><td width='1'></td>
+<td>
+<script language='javascript'>document.write('<img id=\"flechaforward\" src=\"'+($activado == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleReglaforward()\" >');</script>
+<input  type='hidden' id='yact' name='yact' value='$activado'/>
+</td>
+</tr>
+</table>
+
+</td>
+</tr></table>
+
+
+</td>
+</tr></table>
+
+
+
+<center>
+<table cellpadding="0" cellspacing="0"><tr><td>
+<table style="background:$fondoprinciconfigeneral" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="150"><tr><td width="5"></td><td align="center"><b><a href="dhcpserver.htm?princi=configeneral&volver=$volver"><font color="$colorprinciconfigeneral">Configuración general</font></a></b></td></tr></table>
+</td><td width="30"></td><td>
+<table style="background:$fondoprincirangoips" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="200"><tr><td width="5"></td><td align="center"><b><a href="dhcpserver.htm?princi=rangoips&volver=$volver"><font color="$colorprincirangoips">Rangos y control de interfaces</font></a></b></td></tr></table>
+</td><td width="30"></td><td>
+<table style="background:$fondoprinciipmac" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="130"><tr><td width="5"></td><td align="center"><b><a href="dhcpserver.htm?princi=ipmac&volver=$volver"><font color="$colorprinciipmac">Asignación IP-MAC</font></a></b></td></tr></table>
+</td><td width="30"></td><td>
+<table style="background:$fondoprincileases" class="bordenegrosombrasinredonbottom" height=30 cellpadding="0" cellspacing="0" width="100"><tr><td width="5"></td><td align="center"><b><a href="dhcpserver.htm?princi=leases&volver=$volver"><font color="$colorprincileases">Monitor</font></a></b></td></tr></table>
+</td>
+</tr></table>
+</center>
+
+<div style="background:#3e73a8; width:850; height:755;-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+<table><tr><td height="8"></td></table>
+<div style="background:white; width:810; height:730;-webkit-box-shadow: 0px 1px 5px black;
+  -moz-box-shadow: 0px 1px 5px black;
+  box-shadow: 0px 1px 5px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;">
+
+<br><br>
+
+EOF
+if($princi eq "rangoips")
+{
+print <<EOF;
+<br>
+<table cellpadding="0" cellspacing="0" border="0"><tr><td align='left'>
+<table style="background:#809e12" class="bordenegrosombra" height=30 cellpadding="0" cellspacing="0" width="160"><tr><td align="center"><b><div style="cursor:pointer" onclick="modificarif()"><font color="white">Agregar rangos · auto</font></b>&nbsp;&nbsp;<img src="/images/masazulpeque.gif" id="avanzadabutton"></div></td></tr></table>
+</td><td width="10"></td><td>
+<table style="background:#809e12" class="bordenegrosombra" height=30 cellpadding="0" cellspacing="0" width="190"><tr><td align="center"><b><div style="cursor:pointer" onclick=veragrerangecapa('mostraragrerangecapa')><font color="white">Agregar rangos · manual</font></b>&nbsp;&nbsp;<img src="/images/masazulpeque.gif" id="avanzadabutton"></div></td></tr></table>
+</td><td width="320"></td>
+</tr></table>
+
+EOF
+}
+print <<EOF;  
+  
+
+<table border="0">
+<tr><td valign="top" width="700">
+EOF
+
+
+if($princi eq "configeneral")
+{
+
+print <<EOF;
+
+<table><tr><td valign="top">
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="240">
+<tr><td width="240" height="23" class="barratituloazul2" colspan="4">&nbsp;&nbsp;&nbsp;<font color="white"><b>Servidores DNS asignados - general</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td width="10"></td><td>DNS1 <input class='campotxt' type='text' id='dhcpdnsgen1' name='dhcpdnsgen1' size=13 value='$dhcpdnsgen1'/></td><td>(Opcional)</td><td width="5"></td></tr>
+<tr><td height="5"></td></tr>
+<tr><td width="10"></td><td>DNS2 <input class='campotxt' type='text' id='dhcpdnsgen2' name='dhcpdnsgen2' size=13 value='$dhcpdnsgen2'/></td><td>(Opcional)</td><td width="5"></td></tr>
+<tr><td height="15"></td></tr>
+</table>
+<br>
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="240">
+<tr><td width="240" height="23" class="barratituloazul2" colspan="4">&nbsp;&nbsp;&nbsp;<font color="white"><b>$dhcpserver_nombre</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td width="10"></td><td><input class='campotxt' type='text' id='dominiored' name='dominiored' size=20 value='$dominiored'/></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>
+<tr><td height="15"></td></tr>
+</table>
+<br>
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="240">
+<tr><td width="240" height="23" class="barratituloazul2" colspan="4">&nbsp;&nbsp;&nbsp;<font color="white"><b>$dhcpserver_winsasignado</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td width="10"></td><td><input class='campotxt' type='text' id='wins' name='wins' size=20 value='$wins'/></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>
+<tr><td height="15"></td></tr>
+</table>
+<br>
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="240">
+<tr><td width="240" height="23" class="barratituloazul2" colspan="3">&nbsp;&nbsp;&nbsp;<font color="white"><b>$dhcpserver_tiempos</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td width="10"></td><td><input class='campotxt' type='text' id='defaulttime' name='defaulttime' size=6 value='$defaulttime'/></td><td>$dhcpserver_renovacion</td></tr>
+<tr><td height="3"></td></tr>
+<tr><td width="10"></td><td><input class='campotxt' type='text' id='maxtime' name='maxtime' size=6 value='$maxtime'/></td><td>$dhcpserver_tiempo</td></tr>
+<tr><td height="15"></td></tr>
+</table>
+
+</td><td width="40"></td><td valign="top">
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="420">
+<tr><td width="420" height="23" class="barratituloazul2" colspan="6">&nbsp;&nbsp;&nbsp;<font color="white"><b>Web Proxy Auto-Discovery Protocol (WPAD)</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td width="10"></td><td width="100">Fichero Pac</td><td colspan="2"><input type='text' name='pacconfigeneral' value='$pacconfigeneral' class='campotxt' size='32'></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>		
+<tr><td height="15"></td></tr>
+</table>
+<br>
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="420">
+<tr><td width="420" height="23" class="barratituloazul2" colspan="6">&nbsp;&nbsp;&nbsp;<font color="white"><b>Servicio TFTP</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td width="10"></td><td>PXE (image)</td><td colspan="2"><input type='text' name='pxeconfigeneral' value='$pxeconfigeneral' class='campotxt' size='32'></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>		
+<tr><td height="3"></td></tr>
+<tr><td width="10"></td><td>bootfile-name</td><td colspan="2"><input type='text' name='bootfilenameconfigeneral' value='$bootfilenameconfigeneral' class='campotxt' size='32'></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>		
+<tr><td height="3"></td></tr>
+<tr><td width="10"></td><td>tftp-server-name</td><td><input type='text' name='tftpservernameconfigeneral' value='$tftpservernameconfigeneral' class='campotxt' size='13'></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>	
+<tr><td height="3"></td></tr>
+<tr><td width="10"></td><td>Next-server</td><td><input type='text' name='nextserverconfigeneral' value='$nextserverconfigeneral' class='campotxt' size='13'></td><td>($dhcpserver_opcional)</td><td width="5"></td></tr>		
+<tr><td height="15"></td></tr>
+</table>
+
+</td></tr></table>
+
+<br>
+EOF
+
+}
+if($princi eq "rangoips")
+{
+
+print <<EOF;
+
+
+<br>
+<table border=0><tr><td width="380" valign="top">
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="100%">
+<tr><td width="100%" height="23" class="barratituloazul2" colspan="4">&nbsp;&nbsp;&nbsp;<font color="white"><b>$dhcpserver_rango</b></font></td></tr>
+<tr><td height="5"></td></tr>
+
+EOF
+
+
+#dhcpconf
+#···············································································	
+
+sub procesaAcumulado()
+{
+	    $i=$_[0];
+		$nombretitulo="";
+		
+		$dhcppxe="";
+		$dhcptftpservername="";
+		$dhcpbootfilename="";
+		$dhcpwpad="";
+		$dhcpdominio="";
+		$dhcpwins="";
+	
+		if($_[1] !~ /^subnet/)
+    	{
+	    	return;
+	    }
+		
+		if ($_[1]  =~ /^#[\t\s]*range/m)
+		{
+			$activado=0;
+		}
+		else
+		{
+			$activado=1;
+		}
+		
+		if($_[1] =~ /^#*[\t\s]*option\sdomain-name-servers\s([0-9\.]+)\s*,?\s*([0-9\.]*)/m)
+	    { 		
+			$dhcpdns1 = $1;
+			$dhcpdns2 = $2;
+		}
+
+		if($_[1] =~ /^#*[\t\s]*option\srouters\s([0-9\.]+)/m)
+	    { 		
+			$dhcpgw = $1;
+		}
+
+		if($_[1] =~ /^#*[\t\s]*range\s([0-9\.]+)\s/m)
+	    {
+			$rango = $1;
+			@data0 = split (/\./,$rango);
+			$ip0 = $data0[0];
+			$ip1 = $data0[1];
+			$ip2 = $data0[2];
+		}
+
+	    if($_[1] =~ /^#*[\t\s]*range\s([0-9\.]+)\s([0-9\.]+)\s/m)
+	    {
+			$ipentero0 = $1;
+			@data1 = split (/\./,$ipentero0);
+			$ipulti0 = $data1[3];
+			
+			$ipdig1a = $data1[0];
+			$ipdig2a = $data1[1];
+			$ipdig3a = $data1[2];
+				
+			$ipentero1 = $2;
+			@data2 = split (/\./,$ipentero1);
+			$ipulti1 = $data2[3];
+			
+			$ipdig1b = $data2[0];
+			$ipdig2b = $data2[1];
+			$ipdig3b = $data2[2];
+		}
+	
+		if($_[1] =~ /^subnet\s([0-9\.]+)\snetmask\s([0-9\.]+)/m)
+	   {	 					
+	   	$ipredvalor=$1;				
+	   	$mascaravalor=$2;
+	   	
+	   	@data8 = split (/\./,$mascaravalor);
+			$mask0 = $data8[0];
+			$mask1 = $data8[1];
+			$mask2 = $data8[2];
+			$mask3 = $data8[3];
+	   }
+	   
+	   if($_[1] =~ /^#*[\t\s]*filename\s\"(.*)\"\;/m)
+	   { 		
+			$dhcppxe = $1;
+		}
+		
+		if($_[1] =~ /^#*[\t\s]*#*next-server\s([0-9\.]*)/m)
+	    { 		
+			$dhcpnextserver = $1;
+		}
+		
+		if($_[1] =~ /^#*[\t\s]*option\stftp-server-name\s\"(.*)\"\s*\;/m)
+	   { 		
+			$dhcptftpservername = $1;
+		}
+		
+		if($_[1] =~ /^#*[\t\s]*option\sbootfile-name\s\"(.*)\"\s*\;/m)
+	   { 		
+			$dhcpbootfilename = $1;
+		}
+	
+		if($_[1] =~ /^#*[\t\s]*option\slocal-proxy-config\s\"(.*)\"\s*\;/m)
+	   { 		
+			$dhcpwpad = $1;
+		}
+		
+		if($_[1] =~ /^#*[\t\s]*option\sdomain-name\s\"(.*)\"\s*\;/m)
+	   { 		
+			$dhcpdominio = $1;
+		}
+		
+		if($_[1] =~ /^#*[\t\s]*option\snetbios-name-servers\s(.*)\s*\;/m)
+	   { 		
+			$dhcpwins = $1;
+		}
+	
+		print "<tr><td width=20></td><td align='left' width='20'>
+			
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 5px 3px 3px 3px;
+  height: 20px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=$i&enviar=Borrarrange&princi=$princi&volver=$volver\"'><b>-</b></div>				
+										
+		</td><td align='center'>\n";
+		print "<script language='javascript'>document.write('<img id=\"flecha${i}\" src=\"'+($activado == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(${i})\" >');</script></td>\n";
+		print "<input  type='hidden' id='${i}xact' name='${i}xact' value='$activado'/>\n";
+		
+		print "<input  type='hidden' id='ipredvalor_$i' name='ipredvalor_$i' value='$ipredvalor'/>\n";
+		print "<input  type='hidden' id='mascaravalor_$i' name='mascaravalor_$i' value='$mascaravalor'/>\n";
+
+		print "<td><table border=0><tr>";
+
+		print "<td><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><font size='2'><b>$ip0.</b></font></a><input type='hidden' name='ipulti1a_$i' value='$ipdig1a'></td>";
+		
+		if($mask0 eq 255 && $mask1 eq 255 && $mask2 eq 255 && ($mask3 >= 0))
+		{
+		print "<td valign='center'><b><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><font size=2>$ipdig2a</a><input type='hidden' name='ipulti2a_$i' value='$ipdig2a' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		print "<td valign='center'><b><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><font size=2>$ipdig3a</a><input type='hidden' name='ipulti3a_$i' value='$ipdig3a' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		}
+		
+		if($mask0 eq 255 && $mask1 eq 255 && ($mask2 < 255) && ($mask3 eq 0))
+		{
+		print "<td valign='center'><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><b><font size=2>$ipdig2a</a><input type='hidden' name='ipulti2a_$i' value='$ipdig2a' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti3a_$i' value='$ipdig3a' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		}
+		
+		if(($mask0 < 255 || $mask0 eq 255) && $mask1 eq 0 && $mask2 eq 0 && $mask3 eq 0)
+		{
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti2a_$i' value='$ipdig2a' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti3a_$i' value='$ipdig3a' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		}						
+		
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti0_$i' value='$ipulti0' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td>";
+		
+		
+		
+		print "</tr><tr>";
+
+		print "<td><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><font size='2'><b>$ip0.</b></font></a><input type='hidden' name='ipulti1b_$i' value='$ipdig1b'></td>";
+
+	
+		if($mask0 eq 255 && $mask1 eq 255 && $mask2 eq 255 && ($mask3 >= 0))
+		{
+		print "<td valign='center'><b><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><font size=2>$ipdig2b</a><input type='hidden' name='ipulti2b_$i' value='$ipdig2b' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		print "<td valign='center'><b><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><font size=2>$ipdig3b</a><input type='hidden' name='ipulti3b_$i' value='$ipdig3b' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		}
+		
+		if($mask0 eq 255 && $mask1 eq 255 && ($mask2 < 255) && ($mask3 eq 0))
+		{
+		print "<td valign='center'><a href=\"javascript:animatedcollapse.toggle('dhcpavanza$i')\"><b><font size=2>$ipdig2b</a><input type='hidden' name='ipulti2b_$i' value='$ipdig2b' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti3b_$i' value='$ipdig3b' class='campotxt' size='2' maxlength=3></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		}
+		
+		if(($mask0 < 255 || $mask0 eq 255) && $mask1 eq 0 && $mask2 eq 0 && $mask3 eq 0)
+		{
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti2b_$i' value='$ipdig2b' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		print "<td valign='center'><b><font size=4><input type='text' name='ipulti3b_$i' value='$ipdig3b' class='campotxt' size='2' maxlength=3 style='font-size:10px'></td><td><font size='2' color='#3e73a8'><b>.</b></font></td>";
+		}						
+		
+		print "<td valign='center'><input type='text' name='ipulti1_$i' value='$ipulti1' class='campotxt' size='2' maxlength=3 style='font-size:10px'></font></b></td>";
+		print "<td width=5><font color='#FFFFFF'>h</font></td><td valign='center' width=40><div style='cursor:pointer' onclick=\"controlsubipmac('$ip0.$ip1.$ip2.$ipulti0-$ipulti1','$ip0.$ip1.$ip2.')\"><u>IP-MAC</u></div></td>";
+		#print "<td width='15'></td><td><img src='/images/dhcprelaymini.gif'></td>";
+		
+		print" </tr></table></td></tr>";		
+		
+		#print "<td width='100%'></td></tr>";
+		print "<tr><td colspan=8><div id='dhcpavanza$i' style='display:none'><table>";
+	
+		print "<tr><td width=30></td><td>Gateway</td><td><input type='text' name='dhcp_gw$i' value='$dhcpgw' class='campotxt' size='13' style='font-size:10px'></td></tr>";
+		
+		print "<tr><td width=30></td><td>DNS 1</td><td><input type='text' name='dhcp_dns1$i' value='$dhcpdns1' class='campotxt' size='13' style='font-size:10px'></td></tr>";
+		print "<tr><td width=30></td><td>DNS 2</td><td><input type='text' name='dhcp_dns2$i' value='$dhcpdns2' class='campotxt' size='13' style='font-size:10px'></td></tr>";		
+	
+		print "<tr><td width=30></td><td>Dominio</td><td><input type='text' name='dhcp_dominio$i' value='$dhcpdominio' class='campotxt' size='13' style='font-size:10px'></td></tr>";		
+		print "<tr><td width=30></td><td>Wins</td><td><input type='text' name='dhcp_wins$i' value='$dhcpwins' class='campotxt' size='13' style='font-size:10px'></td></tr>";		
+			
+		print "<tr><td width=30></td><td>WPAD</td><td><input type='text' name='dhcp_wpad$i' value='$dhcpwpad' class='campotxt' size='32' style='font-size:10px'></td></tr>";		
+										
+		print "<tr><td width=30></td><td>PXE (imagen)</td><td><input type='text' name='dhcp_pxe$i' value='$dhcppxe' class='campotxt' size='32' style='font-size:10px'></td></tr>";		
+		print "<tr><td width=30></td><td>bootfile-name</td><td><input type='text' name='dhcp_bootfilename$i' value='$dhcpbootfilename' class='campotxt' size='32' style='font-size:10px'></td></tr>";		
+		print "<tr><td width=30></td><td>tftp-server-name</td><td><input type='text' name='dhcp_tftpservername$i' value='$dhcptftpservername' class='campotxt' size='13' style='font-size:10px'></td></tr>";		
+				
+		print "<tr><td width=30></td><td>Next-server</td><td><input type='text' name='dhcp_nextserver$i' value='$dhcpnextserver' class='campotxt' size='13' style='font-size:10px'></td></tr>";		
+							
+		print "<td></td></table></div></td></tr>";
+
+}
+
+		$acumulado="";
+		open(OLD, "< $dhcprange")    or die "can't open $dhcprange: $!";
+				
+		$i=0;
+	
+		while (<OLD>) 
+		{
+		  
+				if(/^subnet\s/)
+     			{
+					chomp;
+					$_ =~ /.*/;
+				
+					&procesaAcumulado($i,$acumulado);
+			
+		 			$acumulado=$_."\n";
+		 			$i=$i+1;
+ 				
+				}
+				else
+				{
+					$acumulado=$acumulado.$_."\n";
+				}
+
+		}
+		close(OLD);
+			
+			
+		if($acumulado ne "")
+		{
+			&procesaAcumulado($i,$acumulado);
+		}
+	
+
+print <<EOF;
+<tr><td height="10"></td></tr>
+</table>
+
+
+</td><td width="50"></td><td valign="top">
+
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="280">
+<tr><td width="280" height="23" class="barratituloazul2" colspan="10">&nbsp;&nbsp;&nbsp;<font color="white"><b>$dhcpserver_interfacesactivas</b></font></td></tr>
+<tr><td height="10"></td></tr>
+EOF
+#if($reddhcpinternacheck ne "checked")
+#{
+print <<EOF;
+<tr>
+<td width="10"></td><td width='20' height='25'><input type="checkbox" value="eth0" name="reddhcpinterna" id="reddhcpinterna" ${reddhcpinternacheck}><input type="hidden" value="eth0" name="reddhcpinternaocul" id="reddhcpinternaocul" ${reddhcpinternacheck}></td><td align='left'>&nbsp;<b>Interna</b></td>
+</tr>
+EOF
+#}
+print <<EOF;
+
+<tr>
+EOF
+
+$idvlan="";
+print "<td colspan=3 valign=top><table border=0 cellpadding=0 cellspacing=0>";
+foreach (@interfacesgrabadasfin) {
+	$vlandhcp=$_;
+	if($vlandhcp =~ /\.([0-9]+)\@eth0/)
+	{
+		$numvlan=$1;
+		$idvlan=$idvlan.$numvlan.",";
+		#if(${'reddhcpinternavlan'.${numvlan}.'check'} ne "checked")
+		#{
+		print "<tr><td width=10></td><td width='20' height='25'><input type='checkbox' value='eth0.$numvlan' name='reddhcpinternavlan${numvlan}' id='reddhcpinternavlan${numvlan}' ${'reddhcpinternavlan'.${numvlan}.'check'}><input type='hidden' value='eth0.$numvlan' name='reddhcpinternavlanocul${numvlan}' id='reddhcpinternavlanocul${numvlan}' ${'reddhcpinternavlan'.${numvlan}.'check'}></td><td>&nbsp;Interna Vlan($numvlan)</td></tr>";
+		#}	
+	}
+}
+$idvlan =~ s/,$//;
+print "</table><input type='hidden' value='$idvlan' name='iddhcpinternavlan' id='iddhcpinternavlan'></td>";
+
+print <<EOF;
+</tr>
+
+<tr>
+EOF
+#if($red3tipo eq 1 && $valif3 ne "" && $reddhcp3check ne "checked")
+if($red3tipo eq 1 && $valif3 ne "")
+{
+print <<EOF;
+<td width=10></td><td width='20' height='25'><input type="checkbox" value="$if3" name="reddhcp3" id="reddhcp3" $reddhcp3check><input type="hidden" value="$if3" name="reddhcp3ocul" id="reddhcp3ocul" $reddhcp3check></td><td align='left'><b>Red 3ª</b></td>
+EOF
+}
+#if($red4tipo eq 1 && $valif4 ne "" && $reddhcp4check ne "checked")
+if($red4tipo eq 1 && $valif4 ne "")
+{
+print <<EOF;
+<td width=10></td><td width='20' height='25'><input type="checkbox" value="$if4" name="reddhcp4" id="reddhcp4" $reddhcp4check><input type="hidden" value="$if4" name="reddhcp4ocul" id="reddhcp4ocul" $reddhcp4check></td><td align='left'><b>Red 4ª</b></td>
+EOF
+}
+print <<EOF;
+</tr>
+
+<tr>
+EOF
+
+if($red3tipo eq 1 && $valif3 ne "")
+{
+$idvlan="";
+print "<td colspan=3 valign=top><table border=0 cellpadding=0 cellspacing=0>";
+foreach (@interfacesgrabadasfin) {
+	$vlandhcp=$_;
+	if($vlandhcp =~ /\.([0-9]+)\@$if3/)
+	{
+		$numvlan=$1;
+		$idvlan=$idvlan.$numvlan.",";
+		#if(${'reddhcp3vlan'.${numvlan}.'check'} ne "checked")
+		#{
+		print "<tr><td width=10></td><td width='20' height='25'><input type='checkbox' value='$if3.$numvlan' name='reddhcp3vlan${numvlan}' id='reddhcp3vlan${numvlan}' ${'reddhcp3vlan'.${numvlan}.'check'}></td><td align='left'>&nbsp;Red 3ª Vlan($numvlan)</td></tr>";
+		#}
+	}
+}
+$idvlan =~ s/,$//;
+print "</table><input type='hidden' value='$idvlan' name='iddhcp3vlan' id='iddhcp3vlan'></td>";
+}
+
+if($red4tipo eq 1 && $valif4 ne "")
+{
+$idvlan="";
+print "<td colspan=3 valign=top><table border=0 cellpadding=0 cellspacing=0>";
+foreach (@interfacesgrabadasfin) {
+	$vlandhcp=$_;
+	if($vlandhcp =~ /\.([0-9]+)\@$if4/)
+	{
+		$numvlan=$1;
+		$idvlan=$idvlan.$numvlan.",";
+		print "<tr><td width=10></td><td width='20' height='25'><input type='checkbox' value='$if4.$numvlan' name='reddhcp4vlan${numvlan}' id='reddhcp4vlan${numvlan}' ${'reddhcp4vlan'.${numvlan}.'check'}><input type='hidden' value='$if4.$numvlan' name='reddhcp4vlanocul${numvlan}' id='reddhcp4vlanocul${numvlan}' ${'reddhcp4vlan'.${numvlan}.'check'}></td><td align='left'>&nbsp;Red 4ª Vlan($numvlan)</td></tr>";
+	}
+}
+$idvlan =~ s/,$//;
+print "</table><input type='hidden' value='$idvlan' name='iddhcp4vlan' id='iddhcp4vlan'></td>";
+}
+
+print <<EOF;
+</tr>
+
+<tr>
+EOF
+if($red5tipo eq 1 && $valif5 ne "")
+{
+print <<EOF;
+<td width=10></td><td width='20' height='25'><input type="checkbox" value="$if5" name="reddhcp5" id="reddhcp5" $reddhcp5check><input type="hidden" value="$if5" name="reddhcp5ocul" id="reddhcp5ocul" $reddhcp5check></td><td align='left'><b>Red 5ª</b></td>
+EOF
+}
+if($red6tipo eq 1 && $valif6 ne "")
+{
+print <<EOF;
+<td width=10></td><td width='20' height='25'><input type="checkbox" value="$if6" name="reddhcp6" id="reddhcp6" $reddhcp6check><input type="hidden" value="$if6" name="reddhcp6ocul" id="reddhcp6ocul" $reddhcp6check></td><td align='left'><b>Red 6ª</b></td>
+EOF
+}
+print <<EOF;
+</tr>
+
+<tr>
+EOF
+
+if($red5tipo eq 1 && $valif5 ne "")
+{
+$idvlan="";
+print "<td colspan=3 valign=top><table border=0 cellpadding=0 cellspacing=0>";
+foreach (@interfacesgrabadasfin) {
+	$vlandhcp=$_;
+	if($vlandhcp =~ /\.([0-9]+)\@$if5/)
+	{
+		$numvlan=$1;
+		$idvlan=$idvlan.$numvlan.",";
+		print "<td width=10></td><td width='20' height='25'><input type='checkbox' value='$if5.$numvlan' name='reddhcp5vlan${numvlan}' id='reddhcp5vlan${numvlan}' ${'reddhcp5vlan'.${numvlan}.'check'}><input type='hidden' value='$if5.$numvlan' name='reddhcp5vlan${numvlan}ocul' id='reddhcp5vlan${numvlan}ocul' ${'reddhcp5vlan'.${numvlan}.'check'}></td><td align='left'>&nbsp;Red 5ª Vlan($numvlan)</td>";
+	}
+}
+$idvlan =~ s/,$//;
+print "</table><input type='hidden' value='$idvlan' name='iddhcp5vlan' id='iddhcp5vlan'></td>";
+}
+
+if($red6tipo eq 1 && $valif6 ne "")
+{
+$idvlan="";
+print "<td colspan=3 valign=top><table border=0 cellpadding=0 cellspacing=0>";
+foreach (@interfacesgrabadasfin) {
+	$vlandhcp=$_;
+	if($vlandhcp =~ /\.([0-9]+)\@$if6/)
+	{
+		$numvlan=$1;
+		$idvlan=$idvlan.$numvlan.",";
+		print "<td width=10></td><td width='20' height='25'><input type='checkbox' value='$if6.$numvlan' name='reddhcp6vlan${numvlan}' id='reddhcp6vlan${numvlan}' ${'reddhcp6vlan'.${numvlan}.'check'}><input type='hidden' value='$if6.$numvlan' name='reddhcp6vlan${numvlan}ocul' id='reddhcp6vlan${numvlan}ocul' ${'reddhcp6vlan'.${numvlan}.'check'}></td><td align='left'>&nbsp;Red 6ª Vlan($numvlan)</td>";
+	}
+}
+$idvlan =~ s/,$//;
+print "</table><input type='hidden' value='$idvlan' name='iddhcp6vlan' id='iddhcp6vlan'></td>";
+}
+
+print <<EOF;
+</tr>
+<tr><td height="5"></td></tr>
+</table>
+<br><br>
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="280">
+<tr><td width="280" height="23" class="barratituloazul2" colspan="3">&nbsp;&nbsp;&nbsp;<font color="white"><b>Rangos · creación auto · predefinido</b></font></td></tr>
+<tr><td height="10"></td></tr>
+<tr><td align="center" colspan="3">
+
+<table cellpadding="0" cellspacing="0" border=0>
+<tr><td height="3"></td></tr>
+<tr><td colspan="3">Rango por defecto <input type="text" size="1" value="2" class="campotxt" name="crearangoini" style="font-size:10px" disabled>-<input type="text" size="2" value="254" class="campotxt" name="crearangofin" style="font-size:10px" disabled></td></tr>
+<tr><td height='25'><input type="checkbox" value="1" name="gwddnsserverimt" disabled></td><td colspan="2">&nbsp;DNS1 gateway Server(IMT)</td></tr>
+<tr><td height='25'><input type="checkbox" value="1" name="gwddnsserverimt" disabled></td><td>&nbsp;DNS1</td><td><input type="text" size="13" value="" class="campotxt" name="crearangofin" style="font-size:10px" disabled></td></tr>
+<tr><td height='25'><input type="checkbox" value="1" name="concrepxe" disabled></td><td>&nbsp;DNS2</td><td><input type="text" size="13" value="" class="campotxt" name="crearangofin" style="font-size:10px" disabled></td></tr>
+<tr><td height='25'><input type="checkbox" value="1" name="concrepxe" disabled></td><td>&nbsp;Dominio&nbsp;</td><td><input type="text" size="13" value="" class="campotxt" name="crearangofin" style="font-size:10px" disabled></td></tr>
+<tr><td height='25'><input type="checkbox" value="1" name="concrepxe" disabled></td><td>&nbsp;Wins</td><td><input type="text" size="13" value="" class="campotxt" name="crearangofin" style="font-size:10px" disabled></td></tr>
+<tr><td height='25'><input type="checkbox" value="1" name="concrepac" disabled></td><td colspan="2">&nbsp;WPAD gateway Server(IMT)</td></tr>
+</table>
+
+</td></tr>
+<tr><td height="8"></td></tr>
+</table>
+<br>
+
+
+</td></tr></table>
+
+EOF
+
+}
+if($princi eq "ipmac")
+{
+
+print <<EOF;
+
+<table border="0" width=750><tr><td valign=top>
+
+
+<table height=30 border="0"><tr><td width=20></td><td width="160">
+
+<div style="background: #e20010;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(to bottom, #e20010, #e20010);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: verdana;
+  color: #ffffff;
+  font-size: 11px;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer;width:150" align=center onclick="elimiipmacregis()" class="bordenegrosombra"><b>Eliminar seleccionados</b></div>
+
+</td></tr>
+</table>
+
+
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="550">
+<tr><td width="550" height="23" class="barratituloazul2" colspan="3" align="center"><font color="white"><b>$dhcpserver_asignacion (GLOBAL)</b></font></td></tr>
+<tr><td height="10" colspan=50></td></tr>
+<tr><td align="center">
+
+<div id="divtabladhcpserver" style="width:520;z-index:-10;">
+
+<table id="tabladhcpserver" class="display compact" cellpadding="0" cellspacing="0" style="font-size:12px;white-space: nowrap;">
+<thead>
+<tr>
+
+<th></th>
+<th></th>
+<th align='center'>&nbsp;&nbsp;&nbsp;<input type="checkbox" value="all" name="regisall" onclick="checkall()"></th>
+<th><b>Nombre</b></th>
+<th><b>MAC</b></th>
+<th><b>IP</b></th>
+</tr>
+</thead>
+
+<tbody>
+EOF
+
+
+sub procesaAcumulado2()
+{
+	    $i=$_[0];
+		$nombretitulo="";
+	
+		if($_[1] !~ /^host/)
+    	{
+	    	return;
+	    }
+						
+		if($_[1] =~ /^host\s(.*)\s{/m)
+	    { 		
+			$nombre = $1;
+		}
+
+		if($_[1] =~ /^[\t\s]*hardware\sethernet\s([a-zA-Z0-9\:]+)\s\;/m)
+	    { 		
+			$mac = $1;
+		}
+
+		if($_[1] =~ /^[\t\s]*fixed-address\s([0-9\.]+)\s\;/m)
+	    { 		
+			$ip = $1;
+		}
+		 									
+		print "<tr>\n";
+		
+		print "<input type='hidden' id='${i}commentid' name='${i}commentid' value='$commentid'><td align='left' width='25'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 8;
+  -moz-border-radius: 8;
+  border-radius: 8px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 1px 1px 1px 1px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Insertar&princi=ipmac&volver=$volver\"'><b>+</b></div>				
+				
+				</td>\n";
+				
+			print "<td align='left' width='25'>
+
+				<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #e20010, #e20010);
+  background-image: -moz-linear-gradient(top, #e20010, #e20010);
+  background-image: -ms-linear-gradient(top, #e20010, #e20010);
+  background-image: -o-linear-gradient(top, #e20010, #e20010);
+  background-image: linear-gradient(top bottom, #e20010, #e20010);
+  -webkit-border-radius: 8;
+  -moz-border-radius: 8;
+  border-radius: 8px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 1px 1px 1px 1px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=${i}&enviar=Borrar&princi=ipmac&volver=$volver\"'><b>-</b></div>				
+				
+				</td>\n";
+
+		print "<td align='center'><input type='hidden' name='${i}idcontrol' id='${i}idcontrol' value='1'><input type='checkbox' name='${i}elimiregis' id='${i}elimiregis' value='1'></td>\n";
+			
+		print "<td align='left'><input id='${i}x0' name='${i}x0' id='${i}x0' type='text' value='$nombre' class='campotxt' size=15></td>\n";
+					
+		print "<td align='left'><input id='${i}x1' name='${i}x1' id='${i}x1' type='text' value='$mac' class='campotxt' size=15></td>\n";
+					
+		print "<td><input class='campotxt' type='text' id='${i}x2' id='${i}x2' name='${i}x2' size=13 value='$ip'/></td>\n";
+		print "</tr>\n";
+				
+}
+
+		$acumulado="";
+		open(OLD, "< $dhcpipasigmac")    or die "can't open $dhcpipasigmac: $!";
+				
+		$i=0;
+	
+		while (<OLD>) 
+		{
+		  
+				if(/^host\s/)
+     			{
+					chomp;
+					$_ =~ /.*/;
+				
+					&procesaAcumulado2($i,$acumulado);
+			
+		 			$acumulado=$_."\n";
+		 			$i=$i+1;
+ 				
+				}
+				else
+				{
+					$acumulado=$acumulado.$_."\n";
+				}
+
+		}
+		close(OLD);
+			
+			
+		if($acumulado ne "")
+		{
+			&procesaAcumulado2($i,$acumulado);
+		}
+
+$total=$i+1;	
+	
+		if ($i == 0) 
+		{
+			print "<tr>\n";
+			print "<td align='left' width='25'>
+			<div style='background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(top bottom, #809e12, #809e12);
+  -webkit-border-radius: 10;
+  -moz-border-radius: 10;
+  border-radius: 10px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  width:20;
+  height:20;
+  padding: 3px 3px 3px 3px;
+  text-decoration: none;cursor:pointer' align=center class='bordenegrosombra' onclick='window.location.href=\"?id=0&enviar=Insertar&princi=ipmac&volver=$volver\"'><b>+</b></div>			
+			</td>\n";
+			print "<td></td><td></td><td></td><td></td><td></td>\n";
+			print "</tr>\n";
+		}
+		
+print "</tbody></table></div>\n";
+
+print <<EOF;
+
+</td></tr><tr><td height=20></td></tr></table>
+
+
+</td><td width="20"></td><td valign="top"> 
+
+<br><br>
+
+<table>
+<tr><td colspan="5">&nbsp;&nbsp;<FONT COLOR=black><b>Cargar backup DHCP<br>&nbsp;&nbsp;formato: IP MAC Nombre</b></font></td></tr>
+<tr><td colspan="5">&nbsp;&nbsp;<FONT COLOR=black>Se sustituirán los datos.</font></td></tr>
+<tr>
+<td>
+<div class='clase_inputfile' title="Adjuntar lista">
+<input type='file' name="file14" id="file14" class='cambia_input_file' onchange="nombre_ar(this.id);" title="Adjuntar lista">
+</div>
+</td>
+<td width='35' align='center'><img onclick='upload()' style='cursor:pointer' src='../images/cargar.gif' border='0' alt='cargar'></td><td width="5"></td>
+<td width='35' align='center'><img onclick='download()' style='cursor:pointer' src='../images/descargar.gif' border='0' alt='cargar'></td>
+<td width="100%"></td>
+</tr>
+<tr><td width="200" colspan="3"><div id="file14valor"></div></td></tr>
+</table>
+
+</td><tr></table>
+
+EOF
+
+}
+if($princi eq "leases")
+{
+
+print <<EOF;
+
+<iframe src="tabledhcpleases.htm"  frameborder="no" scrolling="no" width=750 height=620></iframe>
+
+EOF
+
+}
+
+print <<EOF;
+               
+</td> 
+</tr>
+</table>
+<br>
+<center>
+
+
+        <table border="0" align="center" cellpadding="0" cellspacing="0" width="620">
+             <tr><td height=10></td></tr>
+                <tr>
+                  <td align="center" valign="top"><input type="$controlbuttonmod" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="enviarapli('$princi')">
+					
+                  <input type="$controlbuttonmod" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+
+				</tr>
+              </table>
+<br>
+
+</center>
+
+
+<div  style="position:absolute; left:300; top:260; visibility:hidden;" onclick="void(0);event.cancelBubble=true;" id="mostraragrerangecapa">
+
+<table width="400" cellspacing="0" height="15"><tr><td class="barratituloazul2" align="center">
+<font color="white" size=1 face=verdana><b></font><font color="white">Agregar nuevo bloque</font></b>
+</td>
+<td align="center" width=30>
+
+<img src="../images/close.png" border="0" style="cursor:pointer" onClick="closecapa('mostraragrerangecapa')">
+</td>
+</tr></table>
+
+
+
+<table class="bordenegrosombrasinredontop" bgcolor="white" width="400" height="100%" cellpadding=0 cellspacing=0 style="border-left-color:#3e73a8;border-right-color:#3e73a8;border-top-color:white;border-bottom-color:#3e73a8; border-width: 1px;" border=0>
+<tr><td width="4"></td><td valign="top" style="border-color:white; border-width: 0px;">
+
+<TABLE CELLPADDING=0 border="0" width=400 style="background-image:url(../images/azulsombramini.gif); background-repeat:repeat-x;">
+<tr><td height="5"></td></tr>
+</table>
+
+<br>
+
+<table>		
+<tr><td width=30></td><td>Inicio rango</td><td><input type='text' name='dhcp_inirangoagre' value='' class='campotxt' size='13'></td><td><div style="background: #809e12;
+  background-image: -webkit-linear-gradient(top, #809e12, #809e12);
+  background-image: -moz-linear-gradient(top, #809e12, #809e12);
+  background-image: -ms-linear-gradient(top, #809e12, #809e12);
+  background-image: -o-linear-gradient(top, #809e12, #809e12);
+  background-image: linear-gradient(to bottom, #809e12, #809e12);
+  -webkit-border-radius: 28;
+  -moz-border-radius: 20;
+  border-radius: 20px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 5px 10px 5px 10px;
+  text-decoration: none;cursor:pointer" align=center onclick="agregamanualrango()" class="bordenegrosombra">Agregar</div></td></tr>	
+<tr><td width=30></td><td>Fin rango</td><td><input type='text' name='dhcp_finrangoagre' value='' class='campotxt' size='13'></td></tr>
+<tr><td width=30></td><td>Máscara</td><td><input type='text' name='dhcp_maskagre' value='' class='campotxt' size='13'></td></tr>
+<tr><td width=30></td><td>Gateway</td><td><input type='text' name='dhcp_gwagre' value='' class='campotxt' size='13'></td></tr>
+<tr><td height=5></td></tr>
+<tr><td width=30></td><td colspan="2"><u><b>Opciones adicionales</b></u>:</td></tr>
+	
+<tr><td width=30></td><td>DNS 1</td><td><input type='text' name='dhcp_dns1agre' value='' class='campotxt' size='13'></td></tr>
+<tr><td width=30></td><td>DNS 2</td><td><input type='text' name='dhcp_dns2agre' value='' class='campotxt' size='13'></td></tr>		
+
+<tr><td width=30></td><td>Dominio</td><td><input type='text' name='dhcp_dominioagre' value='' class='campotxt' size='13'></td></tr>
+<tr><td width=30></td><td>Wins</td><td><input type='text' name='dhcp_winsagre' value='' class='campotxt' size='13'></td></tr>	
+	
+<tr><td width=30></td><td>WPAD</td><td colspan="2"><input type='text' name='dhcp_wpadagre' value='' class='campotxt' size='32'></td></tr>		
+		
+<tr><td width=30></td><td>PXE (image)</td><td colspan="2"><input type='text' name='dhcp_pxeagre' value='' class='campotxt' size='32'></td></tr>		
+<tr><td width=30></td><td>bootfile-name</td><td colspan="2"><input type='text' name='dhcp_bootfilenameagre' value='' class='campotxt' size='32'></td></tr>		
+<tr><td width=30></td><td>tftp-server-name</td><td><input type='text' name='dhcp_tftpservernameagre' value='' class='campotxt' size='13'></td></tr>	
+				
+<tr><td width=30></td><td>Next-server</td><td><input type='text' name='dhcp_nextserveragre' value='' class='campotxt' size='13'></td></tr>		
+						
+</table>		
+
+
+<br><br>
+
+</td></tr></table>
+
+</div>
+
+
+
+<div style="position:absolute; left:0; top:250; visibility:hidden;" onclick="void(0);event.cancelBubble=true;" id="mostrarequiposcapa">
+
+<table width="490" cellspacing="0" height="15"><tr><td background="../images/barratitulo.gif" align="center">
+<font color="white" size=1 face=verdana><b>Asignación de IP basada en MAC &nbsp;<input type='text' class='campotxt' id='titulored' value='' size=15 readonly></font>
+</td>
+<td align="center" width=30>
+
+<img src="../images/close.png" border="0" style="cursor:pointer" onClick="closecapa('mostrarequiposcapa')">
+</td>
+</tr></table>
+
+<TABLE CELLPADDING=0 border="0" width=490 style="background-image:url(../images/azulsombramini.gif); background-repeat:repeat-x;">
+<tr><td height="5"></td></tr>
+</table>
+
+<table bgcolor="white" width="490" height="100%" cellpadding=0 cellspacing=0 style="border-left-color:#3e73a8;border-right-color:#3e73a8;border-top-color:white;border-bottom-color:#3e73a8; border-width: 1px;" border=0>
+<tr><td width="4"></td><td valign="top" style="border-color:white; border-width: 0px;">
+
+<iframe name="mostrarequiposproceso" frameborder="no" scrolling="no" width=480 height=340></iframe>
+
+<br>
+
+</td></tr></table>
+
+</div>
+
+<input type="hidden" name="totalregis" value="$total" size="15">
+
+</form>
+
+
+</div></div>
+
+EOF
+require "$imtlayers";
+print <<EOF;
+
+<br><br><br>	
+</body>
+</html>
+EOF
+
+
+
+

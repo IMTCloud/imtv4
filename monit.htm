@@ -1,0 +1,388 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+$auxvisu = "/tmp/aux".int(rand(10000));
+
+
+
+
+if($q->param('env') eq "2")
+{
+	$versiocul=$q->param('versiocul');
+	system("/bin/echo $versiocul > $selecmonit");
+}
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$monit=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*MONIT\s*=\s*.*$/)
+     		{
+				s/^.*$/MONIT\=$monit/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	system("$monitd restart >/dev/null 2>&1");
+		
+	
+}
+
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*MONIT\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$monit = $data[1];
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+#señal de estado de cada servicio
+#···············································································
+if($monit eq "1") 
+{
+	$estadomonit = "activado.gif";
+	$pasarmonit = 0;
+}
+else
+{	
+	$estadomonit = "desactivado.gif";
+	$pasarmonit = 1;
+}
+
+
+$versionmonit=`/bin/cat $selecmonit`;
+$versionmonit =~ s/(\r?\n)//g;
+
+if($versionmonit eq 1)
+{
+	$puertomonit="2812";
+	$versi1="checked";
+}
+	else
+{
+	$puertomonit="8040";
+	$versi2="checked";
+}
+
+
+
+#system("cd /opt/imt/conf-debian-$SYSTEM/monit/ && ./monit status > /tmp/$auxvisu 2>&1");#
+
+$result = `/usr/bin/monit -c /etc/monit/monitrc status 2>&1`;
+
+open(NEW, "> $auxvisu")     or die "can't open $auxvisu: $!";
+		
+		print NEW "$result\n\n"; 
+		
+close(NEW);
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script type="text/javascript" charset="utf8" src="/images/jquery-1.10.2.min.js"></script>
+
+<link rel="stylesheet" type="text/css" href="/images/jquery.dataTables.min.css">
+<script type="text/javascript" language="javascript" src="/images/jquery.dataTables.min.js"></script>
+
+<script type="text/javascript">
+
+        \$(document).ready(function(){
+    \$('#tablamonit').DataTable( {
+        "paging":         false,
+        "info": true,
+        "ordering": false,
+        //"order": [[ 2, "desc" ]],
+        "searching": false,
+        'iDisplayLength': 25
+    } );
+
+});
+
+</script>
+
+<script language="javascript">
+
+
+function enviar(est)
+{
+
+if (est == 1)
+{
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+	if(!confirm('¿Desea ' + estado +' Monitorización y Alertas?'))
+	return false;
+	
+	oscuprocessform();
+    
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function versi(opc)
+{
+oscuprocessform();
+
+theform.versiocul.value=opc;
+theform.env.value = 2;
+document.theform.submit();
+}
+
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<input name="versiocul" type="hidden">
+<input name="estado" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><FONT SIZE=+1 class="subtitulo"><B>$monit_titulo1</B></FONT></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<p><br><br><br>
+
+	<center>
+
+
+<table><tr>
+<td><img src="../images/$estadomonit" onClick="enviar('$pasarmonit')" style="cursor:pointer"></td><td width="4"></td><td>$monit_activar</td>
+<td width="40"></td>
+<td>
+
+<!--
+<table>
+<tr><td><input value="1" name="version" type="radio" onClick="versi(1)" $versi1> $monit_version1</td></tr>
+<tr><td><input value="2" name="version" type="radio" onClick="versi(2)" $versi2> $monit_version2</td></tr>
+</table>
+-->
+
+</td>
+<td width="40"></td>
+<td>
+
+
+</td>
+</tr></table>
+		<br><br>
+		
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="750" height="150">
+<tr><td height="5"></td></tr>
+<tr><td align="center">		
+EOF
+
+
+
+#$command="/opt/imt/conf-debian-$SYSTEM/monit/monit status";
+#$command="/usr/bin/free";
+#open(COMMAND,"| $command") or die (print "No se puede ejecutar el comando $command: $!");
+#while (<COMMAND>) {
+#Aqui es donde escribe la salida por consola
+#print "$_";
+#}
+#close COMMAND or die (print "No se puede cerra el comando $command: $!");
+
+
+print "<div id='divtablaopenvpnregis' style='width:650;z-index:-10;'>\n";
+print "<table id='tablamonit' class='display' cellpadding='0' cellspacing='0' style='font-size:12px;'>\n";
+
+	print "<thead>\n";
+	print "<tr>\n";
+	print "<td><b>Proceso</b></td><td width='10'></td>\n";
+	print "<td><b>Estado</b></td><td width='10'></td>\n";
+	print "<td><b>Uptime</b></td><td width='10'></td>\n";
+	print "<td><b>CPU</b></td><td width='10'></td>\n";
+	print "<td><b>Memoria</b></td>\n";
+	print "</tr>\n";
+	print "</thead>\n";
+
+print "<tbody>\n";
+
+if(1 eq 1) 
+{	
+
+
+
+sub procesaAcumulado()
+{
+    $i=$_[0];
+	$proceso="";
+	
+	
+	 if($_[1] !~ /^Process/)
+    {
+    	return;
+    }
+
+	 if($_[1] =~ /Process\s\'(.+)\'/m)
+    {
+    	$proceso=$1;
+	 }
+	 
+	 if($_[1] =~ /status\s+(.+)/m)
+    {
+    	$status=$1;
+	 }
+	 
+	 if($_[1] =~ /uptime\s(.+)/m)
+    {
+    	$uptime=$1;
+	 }		
+	 
+	 if($_[1] =~ /memory\spercent\s(.+)/m)
+    {
+    	$memory=$1;
+	 }
+	 
+	 if($_[1] =~ /cpu\spercent\s(.+)/m)
+    {
+    	$cpu=$1;
+	 }				
+	
+	print "<tr>\n";
+	print "<td>$proceso</td><td width='10'></td>\n";
+	print "<td>$status</td><td width='10'></td>\n";
+	print "<td>$uptime</td><td width='10'></td>\n";
+	print "<td>$cpu</td><td width='10'></td>\n";
+	print "<td>$memory</td>\n";
+	print "</tr>\n";
+}
+
+		$acumulado="";
+		open(OLD, "< $auxvisu")    or die "can't open $auxvisu: $!";
+				
+		$i=0;
+		$sacarzona=0;
+	
+		while (<OLD>) 
+		{
+		  
+				if(/^Process/)
+     			{
+					chomp;
+					$_ =~ /.*/;
+				
+					&procesaAcumulado($i,$acumulado);
+			
+		 			$acumulado=$_."\n";
+		 			$i=$i+1;
+ 				
+				}
+				else
+				{
+					$acumulado=$acumulado.$_."\n";
+				}
+
+		}
+		close(OLD);
+			
+			
+		if($acumulado ne "")
+		{
+			&procesaAcumulado($i,$acumulado);
+		}
+	
+			print "</tbody>\n";
+			print "</table>\n";
+			print "</div>\n";
+
+}
+
+
+print <<EOF;
+
+</td></tr>
+<tr><td height="5"></td></tr>
+</table>
+
+</center>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+system("/bin/rm $auxvisu >/dev/null 2>&1");
+
+

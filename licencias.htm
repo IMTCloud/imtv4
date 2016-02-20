@@ -1,0 +1,311 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+
+
+<script language="javascript">
+
+
+function enviar(opc)
+{
+
+var opcion = opc
+
+if(opcion==1)
+  {
+	if(!confirm('¿Desea APAGAR el dispositivo?'))
+	return false;
+  }
+
+if(opcion==2)
+  {
+	if(!confirm('¿Desea REINICIAR el dispositivo?'))
+	return false;
+  }
+  
+  oscuprocessform();
+		    
+theform.env.value = opcion;
+document.theform.submit();
+
+
+}
+
+
+
+</script>
+
+
+
+
+</head>
+
+	
+<body>
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="env" type="hidden">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/documento.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>$licencias_titulo1</B></FONT></td><td width="30"></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	<br>
+<center>
+
+<table border="0" cellpadding="2" cellspacing="0" width="780" style="background:white" class="bordenegrosombra">
+<tr><td height=15></td></tr>
+<tr><td width="15"></td><td valign="top">
+
+<table>
+<tr><td colspan="3" align="center"><img src="/images/gnulinux.gif"></td></tr>
+<tr><td colspan="3" align="center" height="5"></td></tr>
+<tr><td colspan="3" align="center"><a href="http://www.gnu.org/licenses/licenses.es.html" target="_blank">http://www.gnu.org/licenses/licenses.es.html</a></td></tr>
+<tr><td colspan="3" align="center" height="5"></td></tr>
+
+<tr><td valign="top">
+
+<table border="0">
+<tr><td>Debian Wheezy</td></tr>
+<tr><td>Netfilter</td></tr>
+<tr><td>Dansguardian</td></tr>
+<tr><td>P3scan</td></tr>
+<tr><td>Frox</td></tr>
+<tr><td>IPP2P</td></tr>
+<tr><td>NBTScan</td></tr>
+<tr><td>Squid</td></tr>
+<tr><td>Poptop</td></tr>
+<tr><td>OpenVPN</td></tr>
+<tr><td>Sarg</td></tr>
+<tr><td>Portknocking</td></tr>
+<tr><td>Samba</td></tr>
+<tr><td>Group-Office</td></tr>
+<tr><td>Syslinux</td></tr>
+<tr><td>Cacti</td></tr>
+<tr><td>MAMW</td></tr>
+<tr><td>Ntop NG</td></tr>
+<tr><td>OCS Inventory NG</td><tr/>
+<tr><td>Pandora FMS</td><tr/>
+<tr><td>VPN IPSEC</td></tr>
+<tr><td>VPN P2P</td></tr>
+<tr><td>Backuppc</td></tr>
+<tr><td>Owncloud</td></tr>
+<tr><td>Siremis</td></tr>
+<tr><td>Vtiger</td></tr>
+<tr><td>OpenERP</td></tr>
+<tr><td>Mantis</td></tr>
+<tr><td>OpenNOP</td></tr>
+</table>
+
+</td><td width="15"></td><td valign="top">
+
+<table border="0">
+<tr><td>Syslinux</td></tr>
+<tr><td>WOL</td></tr>
+<tr><td>Iproute2</td></tr>
+<tr><td>Snort</td></tr>
+<tr><td>Openvas</td></tr>
+<tr><td>Jabber</td></tr>
+<tr><td>Hylafax</td></tr>
+<tr><td>Asterisk</td></tr>
+<tr><td>l7-filter</td></tr>
+<tr><td>Amavisd</td></tr>
+<tr><td>Clamav</td></tr>
+<tr><td>StrongsWan</td></tr>
+<tr><td>SSL-Explorer</td></tr>
+<tr><td>Chillispot</td></tr>
+<tr><td>Rat</td></tr>
+<tr><td>Monit</td></tr>
+<tr><td>Coovachilli</td></tr>
+<tr><td>Zabbix</td></tr>
+<tr><td>Icinga</td></tr>
+<tr><td>VPN PPTP</td></tr>
+<tr><td>VPN Web SSL</td></tr>
+<tr><td>Gallery</td></tr>
+<tr><td>Elkarbackup</td></tr>
+<tr><td>Wakeonlan</td></tr>
+<tr><td>Papercut</td></tr>
+<tr><td>Dolibarr</td></tr>
+<tr><td>OTRS</td></tr>
+<tr><td>ITOP</td></tr>
+
+</table>
+
+</td></tr></table>
+
+
+
+</td><td width="15"></td><td valign="top">
+
+
+<table>
+<tr><td colspan="3" align="center"><img src="/images/licenciapache.gif"></td></tr>
+<tr><td colspan="3" align="center" height="1"></td></tr>
+<tr><td colspan="3" align="center"><a href="http://www.apache.org/licenses" target="_blank">http://www.apache.org/licenses</a></td></tr>
+<tr><td colspan="3" align="center" height="1"></td></tr>
+
+<tr><td valign="top">
+
+<table border="0">
+
+<tr><td>Apache</td></tr>
+<tr><td>Spamassassin</td></tr>
+</table>
+
+</td></tr></table>
+
+
+</td><td width="15"></td><td valign="top">
+
+
+<table>
+<tr><td colspan="3" align="center"><img src="/images/logoimtpeque.gif"></td></tr>
+<tr><td colspan="3" align="center" height="1"></td></tr>
+<tr><td colspan="3" align="center"><a href="menulicencias.htm">$licencias_uso</a></td></tr>
+<tr><td colspan="3" align="center" height="1"></td></tr>
+
+<tr><td valign="top">
+
+<table border="0">
+
+</table>
+
+</td></tr></table>
+
+
+</td></tr>
+<tr><td height=15></td></tr>
+</table>
+
+
+</center>
+ 
+<br><br><br>
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+</body>
+</html>
+EOF
+
+
+
+

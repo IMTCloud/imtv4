@@ -1,0 +1,2031 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "1")
+{
+
+	$logvalor=$q->param('estado');
+
+	open(OLD, "< $estado")    or die "can't open $estado: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*LOGDISK\s*=\s*.*$/)
+     		{
+				s/^.*$/LOGDISK\=$logvalor/;
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $estado: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $estado 1>&2");
+	
+	
+	open(OLD, "< $etcfstab")    or die "can't open $etcfstab: $!";
+	open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+	while (<OLD>) 
+	{
+		
+			if(/^\s*tmpfs\s+\/var\/log\s+tmpfs/)
+     		{
+				if ($logvalor eq 1)
+				{
+				   s/^#*/#/;
+				}
+				else
+     			{
+     				s/^#*//;
+     			}
+			}
+  		
+  	
+             print NEW $_            or die "can't write $aux: $!";
+	}
+
+	close(OLD)                  or die "can't close $etcfstab: $!";
+	close(NEW)                  or die "can't close $aux: $!";
+	
+	system("/bin/cp $aux $etcfstab 1>&2");
+	
+	if ($logvalor eq 1)
+	{
+		system("/bin/mkdir -p /opt/imt/conf-debian-$SYSTEM/hardware/discoalmacen/raizmontado/celda${DISCOLOG}/log");
+		system("/bin/rm -rf /var/log");
+		system("/bin/ln -s /opt/imt/conf-debian-$SYSTEM/hardware/discoalmacen/raizmontado/celda1/log /var/log");
+		system("$imtvarlog");
+	}
+	else
+   {
+     	system("/bin/rm -rf /var/log");
+     	system("/bin/mkdir -p /var/log");
+   }	
+	
+	system("/sbin/reboot 1>&2");
+	print "Location: controllogs.htm\r\n\r\n";
+	exit;
+	
+}
+
+
+
+if($q->param('env') eq "envcontroldisco")
+{
+		#$logdisconect=$q->param('xact');
+		$numcelda=$q->param('numcelda');
+			
+		$raizmontadoescape=$raizmontado;
+		$raizmontadoescape =~ s/\//\//g;
+		
+		open(OLD, "< $controllog")    or die "can't open $controllog: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			
+			if (/^\s*DISCOLOG=/)
+     		{
+				#if($logdisconect eq 1)
+				#{
+					s/^.*$/DISCOLOG=\"${numcelda}\"/;
+				#}	
+			}
+  		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $controllog: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+
+		system("/bin/cp $aux $controllog 1>&2");
+				
+}
+
+
+if($q->param('env') eq "borrarlog")
+{
+		$rutalog=$q->param('rutalog');
+		system("echo '' > $rutalog 1>&2");
+}
+  
+
+open(OLD, "< $estado")    or die "can't open $estado: $!";
+		
+while (<OLD>) 
+{
+		if (/^\s*LOGDISK\s*=.*$/)
+  		{
+			chomp;
+			$_ =~ s/^\s+//;
+			@data = split (/\s*=\s*/,$_);
+	 		$estadologdisk = $data[1];
+		}
+}
+
+close(OLD)     or die "can't close $estado: $!";
+
+if($estadologdisk eq 1)
+{
+	$estadocontrollogs = "activado.gif";
+	$pasarcontrollogs = 0;
+}
+else
+{	
+	$estadocontrollogs = "desactivado.gif";
+	$pasarcontrollogs = 1;
+}
+
+
+
+
+#señal de estado de cada servicio
+#···············································································
+
+
+
+
+$varlogdirinfo=`ls -l $varlogdir | grep celda`;
+$varlogdirinfo =~ s/(\r?\n)//g;
+
+if ($varlogdirinfo ne "")
+{
+	$logdiscochecked="checked";
+}
+
+$activado2 = "0";
+
+open(OLD, "< $controllog")    or die "can't open $controllog: $!";
+		
+	while (<OLD>) 
+	{			
+		chomp;
+		$_ =~ s/^\s+//;
+		
+			if (/^\s*DISCOLOG=\"([0-9]+)\"$/)
+     		{								
+					$numcelda=$1;
+					if ($varlogdirinfo ne "")
+					{
+					$activado2 = "1";
+					}
+			}
+
+	}
+
+	close(OLD)     or die "can't close $controllog: $!";	
+	
+	
+	
+	open(OLD3, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		
+					while (<OLD3>) 
+					{
+						chomp;
+						$_ =~ /.*/;
+						$_ =~ s/\s+/ /g;
+						
+						if ($_ =~ /^.*raizmontado\/celda(.*)\s\>.*$/m)
+     					{
+							$valoretiqueta=$1;
+						}
+						
+						if ($valoretiqueta eq $numcelda)
+						{
+
+							@data = split (/ /,$_);
+							$monta = $data[2];	
+							@data = split (/#{2}/,$_);
+							
+							$dispo = $data[4];
+							$disco = $data[5];
+
+						}
+					
+					}
+
+		close(OLD3)     or die "can't close $montadodisco: $!";
+
+		
+		if($numcelda eq "")
+		{
+			$disco="";
+		}
+
+
+
+if ($activado2 eq 1)
+{
+
+$bombiroja=0;
+
+$montainfo=`/bin/mount | grep $dispo | grep celda${numcelda}`;
+$montainfo =~ s/(\r?\n)//g;
+
+if ($montainfo ne "")
+{
+	$bombiroja=1;
+}
+
+}
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+
+<head>
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/bombillaactivado.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/bombilladesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha');
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;	
+		document.getElementById('xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById('xact').value=1;
+	}
+}	
+
+function send(paso)
+{
+	if(!confirm('¿Desea aplicar los cambios realizados? \\nInformación: El proxy HTTP está ${estadohttp}.'))
+	return false;
+
+	document.theform.paso.value = paso;
+	
+	procForm(document.theform);
+
+	oscuprocessform();	
+	
+	document.theform.submit();
+}
+
+
+function procForm(theForm)
+{
+	var lista=document.getElementById('select1').options;
+	
+	for(i=0;i < lista.length;i++)
+	{	
+	   if(lista[i].value.search(/[\\/\\\\]/)!=-1)
+		  theForm.listaurl.value+=lista[i].value+'^';
+	   else
+	      theForm.listadom.value+=lista[i].value+'^';
+	}
+	
+	lista=document.getElementById('select2').options;
+	
+	for(i=0;i < lista.length;i++)
+	{	
+		theForm.listaexpr.value+=lista[i].value+'^';
+	}
+	
+	lista=document.getElementById('select3').options;
+	
+	for(i=0;i < lista.length;i++)
+	{	
+		theForm.listaip.value+=lista[i].value+'^';
+	}
+}
+
+
+
+function del(lista)
+{
+	var lista=document.getElementById(lista);
+	if(lista.selectedIndex==-1)
+		return;
+	selind = lista.selectedIndex;
+	lista.options[lista.selectedIndex]=null;	
+	lista.selectedIndex = selind;
+	
+}
+
+function anadir(theForm,lista,nombre)
+{
+	//Validar
+	
+	switch(lista)
+	{	
+		case 'select1':
+		if(nombre.value.search(/^\\s*http:\\/*/)!=-1)
+			nombre.value=nombre.value.replace(/^\\s*http:\\/*/,'')
+		
+		if(nombre.value.search(/\\?/)!=-1)
+			nombre.value=nombre.value.replace(/\\?.*/,'')
+		break;
+		
+		case 'select2':
+		if( nombre.value.search(/^[\\/\\w\\s\\.]+\$/)==-1)
+		{
+			alert ('La entrada no parece una URL o dominio valido');
+			return false;
+		}
+		break;
+		
+		case 'select3':
+		if( nombre.value.search(/^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\$/)==-1)
+		{
+			alert ('La entrada no parece una IP válida');
+			return false;
+		}
+		break;
+	}
+	
+	
+	var lista=document.getElementById(lista);
+	
+	for(i=0;i<lista.length;i++)
+	{
+		if( nombre.value==lista.options[i].value)
+		{
+			alert ('La entrada esta repetida');
+			return false;
+		}
+	}
+	data=nombre.value;
+	lista.options[lista.options.length]=new Option(data,data);
+	nombre.value='';
+	return true;
+}
+
+function load(theForm,lista,nombre)
+{
+	var lista=document.getElementById(lista);
+	if(lista.selectedIndex==-1)
+		return;
+
+	nombre.value=lista.options[lista.selectedIndex].value;
+
+	lista.options[lista.selectedIndex]=null;	
+}
+
+function sendform(paso,tipo,download)
+{	
+ 		//debugger;
+ 		if( download==false  && document.getElementById("file"+paso).value=='')
+     	{
+     		alert("Primero debe seleccionar un archivo");
+     		return;
+     	}
+	
+		document.theform.paso.value = paso;
+     	
+		oscuprocessform();     	
+     	
+     	document.theform.submit();
+}
+
+function sendconf(paso)
+{	
+		if(!confirm('¿Desea aplicar los cambios realizados? \\nInformación: El proxy HTTP está ${estadohttp}.'))
+		return false;	
+
+		oscuprocessform();		
+		
+		document.theform.paso.value = paso;
+     	document.theform.submit();
+}
+
+
+
+function aplicar()
+{
+
+oscuprocessform();
+
+document.theform.env.value="aplicar";
+document.theform.action='controllogs.htm';
+document.theform.submit();
+}
+
+
+function enviarestado(est)
+{
+
+
+if (est == 1)
+{
+		if(!confirm('Al activar el control de logs en disco se reiniciará el sistema.\\n¿Desea continuar?.'))
+		return false;
+
+estado = "activar";
+}
+else
+{
+estado = "desactivar";
+}
+
+
+	if(!confirm('¿Desea ' + estado +' el control de LOGs?\\nSe realizará el reinicio del sistema.'))
+	return false;
+	
+	
+	//if (document.getElementById('xact').value ==1 && document.getElementById('disco').value=='')
+	if (document.getElementById('disco').value=='')
+	{
+	alert('Debe seleccionar una unidad de datos para el control de LOGs');
+	return false;
+	}
+//alert('continua');	   
+
+oscuprocessform();
+ 
+theform.env.value = 1;
+theform.estado.value = est;
+document.theform.submit();
+
+}
+
+
+function toggle(listener,container,x,y)
+{
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+			
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;		
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+document.theform.control.value=listener;
+}
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		//var id = curListener.split('x')[0];
+	    var tiempo="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.tiempo.elements.length;i++)
+		{
+			if(document.tiempo.elements[i].checked==true)
+			{
+				if (tiempo!="") tiempo += ",";
+				tiempo+=document.tiempo.elements[i].name;
+			}
+		}
+		
+		var control=document.getElementById('control').value;
+		
+ 		document.getElementById(control+'dias').value=tiempo;
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+function ConstructObject1(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:170;height:"+this.cnt.offsetHeight+"; overflow:hidden; top:0; left:0; clip:rect(0,170,"+this.cnt.offsetHeight+",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+function InitialiseScrollableArea1(name,data)
+{ 
+    var obj=new ConstructObject1(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function aplicarvalor2(infodisk,etiqueta,numero)
+{
+asignar=document.getElementById('control').value;
+
+document.getElementById(asignar).value=etiqueta;
+document.getElementById('numcelda').value=numero;
+	
+	clearLista();
+}
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	objContainer1=InitialiseScrollableArea1('divContainer1',null);
+	//initRules();
+} 
+
+function envcontroldisco()
+{
+
+//if (document.getElementById('xact').value ==1 && document.getElementById('disco').value=='')
+if (document.getElementById('disco').value=='')
+{
+	alert('Seleccione una unidad de datos al activar');	
+	return false;
+}
+
+//if (document.getElementById('xact').value == 0)
+//{
+//	document.getElementById('disco').value=='';
+//}
+
+oscuprocessform();
+
+document.theform.env.value="envcontroldisco";
+document.theform.action='controllogs.htm';
+document.theform.submit();
+}
+
+function closecapa(container)
+{
+var objContainer = eval(container);
+objContainer.style.visibility='hidden';
+
+		document.theform.target='mostrarlogproceso';
+      document.theform.varlogvivofiltro.value='';
+      document.theform.varlogvivofichero.value='';
+      document.theform.action="/imtmodperl/varlogvivo.htm";
+      document.theform.submit();
+}
+
+function verlogcapa(container,nombre,filtro)
+{
+document.getElementById('titulolog').value=nombre;
+//document.getElementById('contenidover').value=document.getElementById(valor+'xocul').value;
+var objContainer = eval(container);
+objContainer.style.visibility='visible';
+
+      document.theform.target='mostrarlogproceso';
+      document.theform.varlogvivofiltro.value=filtro;
+      document.theform.varlogvivofichero.value=nombre;
+      document.theform.action="/imtmodperl/varlogvivo.htm";
+      document.theform.submit();
+}
+
+
+function visulogcapa(container,nombre,filtro)
+{
+document.getElementById('titulologvisu').value=nombre;
+//document.getElementById('contenidover').value=document.getElementById(valor+'xocul').value;
+var objContainer = eval(container);
+objContainer.style.visibility='visible';
+
+      document.theform.target='mostrarlogvisu';
+      document.theform.varlogvivofiltro.value=filtro;
+      document.theform.varlogvivofichero.value=nombre;
+      document.theform.action="varlogvisu.htm";
+      document.theform.submit();
+}
+
+
+
+function verlogborrar(valorlog)
+{
+		if(!confirm('¿Desea borrar ' + valorlog +'?'))
+		return false;
+
+		document.theform.rutalog.value=valorlog;
+		document.theform.env.value="borrarlog";
+      document.theform.action="controllogs.htm";
+      document.theform.submit();
+}
+
+
+</script>	
+</head>
+
+<body onclick="clearLista()">
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer1" class="opaco1" style="visibility:hidden;">
+
+<!-- vvvvv flechitas vvvvv -->
+<!--
+  <div id="divUpControl2" class="divUp" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer1,+7)" onMouseOut="CeaseScroll(objContainer1)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer1,-7)" onMouseOut="CeaseScroll(objContainer1)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+-->
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="100%" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+
+<div width="100%" align="left" id="divContainer1cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="160">
+EOF
+		
+print "<tr><td height='4'></td></tr>";
+
+
+
+open(OLD, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+				
+			@data = split (/ /,$_);
+			
+				
+			$monta = $data[2];
+			
+			@data = split (/#{2}/,$_);
+			
+			
+			$etiqueta = $data[5];
+			
+			
+			print "<tr><td height='10' colspan='10'></td></tr>\n";
+			print "<tr><td align='right'><img src='../images/discomini.gif'>&nbsp;</td><td><font onclick='aplicarvalor2(\"$infodisk\",\"$etiqueta\",\"$i\")' size=1 style='cursor:pointer'>$etiqueta</font></td></tr>\n";
+			
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $montadodisco: $!";
+
+print "<tr><td height='10'></td></tr>";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+<form name="theform" method="post" enctype="multipart/form-data" onsubmit="oscuprocessform()" action="">
+<input name="enviar" type="hidden">
+<input name="env" type="hidden">
+
+<input name="rutalog" type="hidden">
+
+<input name="listaurl" type="hidden">
+<input name="listadom" type="hidden">
+<input name="listaexpr" type="hidden">
+<input name="listaip" type="hidden">
+
+<input type="hidden" name="paso">
+<input type="hidden" name="numgrupo" value="$numgrupo">
+
+<input type="hidden" name="control" id='control'>
+<input type="hidden" name="estado" id='estado'>
+
+<input type="hidden" name="varlogvivofichero" id='varlogvivofichero'>
+<input type="hidden" name="varlogvivofiltro" id='varlogvivofiltro'>
+
+<CENTER><table cellpadding=0 cellspacing=0><tr><!--<td><img src='../images/logcarpeta.gif'></td><td width="10"></td>--><td><FONT SIZE=+1 COLOR=#3e73a8><B>Control de LOGs</B></FONT></td></tr></table>
+
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+<P>
+
+<br>
+<!--		<table><tr>
+<td><img src="../images/$estadocontrollogs" onClick="enviarestado('$pasarcontrollogs')" style="cursor:pointer"></td><td width="4"></td><td>Activar/desactivar control de LOGs</td><td width="40"></td>
+</tr></table>-->
+		<br>
+		<br>
+
+<table border="0"><tr>
+<td width="300" valign="top">
+
+<table><tr><td>
+<b>Borrado automático de logs:</b>
+	<div style="z-index:auto ">
+	<select name="infopais" id="infopais" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="AF" $checkedAF>Nunca borrar ficheros de logs</option>
+<option value="AL" $checkedAL>Borrar logs despues de 1 día</option>
+<option value="DE" $checkedDE>Borrar logs despues de 3 días</option>
+<option value="AD" $checkedAD>Borrar logs despues de 7 días</option>
+<option value="AD" $checkedAD>Borrar logs despues de 10 días</option>
+<option value="AD" $checkedAD>Borrar logs despues de 20 días</option>
+<option value="AD" $checkedAD>Borrar logs despues de 30 días</option>
+<option value="AD" $checkedAD>Borrar logs despues de 90 días</option>
+</select>
+</div>
+</td></tr></table>
+
+<br>
+
+<table border="0"><tr>
+<td>
+
+<b>Ocupado disco:</b>
+	<div style="z-index:auto ">
+	<select name="infopais" id="infopais" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="AF" $checkedAF>5%</option>
+<option value="AL" $checkedAL>10%</option>
+<option value="AD" $checkedAD>15%</option>
+<option value="DE" $checkedDE>20%</option>
+<option value="AD" $checkedAD>25%</option>
+<option value="AD" $checkedAD>30%</option>
+<option value="AD" $checkedAD>35%</option>
+<option value="AD" $checkedAD>40%</option>
+<option value="AD" $checkedAD>45%</option>
+<option value="AD" $checkedAD>50%</option>
+<option value="AD" $checkedAD>55%</option>
+<option value="AD" $checkedAD>60%</option>
+<option value="AD" $checkedAD>65%</option>
+<option value="AD" $checkedAD>70%</option>
+<option value="AD" $checkedAD>75%</option>
+<option value="AD" $checkedAD>80%</option>
+<option value="AD" $checkedAD>85%</option>
+<option value="AD" $checkedAD>90%</option>
+<option value="AD" $checkedAD>95%</option>
+</select>
+</div>
+</td>
+<td width="30" align="center"><img src="/images/flecha0.gif"></td>
+<td>
+
+<b>Acción a realizar:</b>
+	<div style="z-index:auto ">
+	<select name="infopais" id="infopais" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="AF" $checkedAF>Ninguna</option>
+<option value="AF" $checkedAF>Envía notificación</option>
+<option value="AF" $checkedAF>Borra logs viejos</option>
+</select>
+</div>
+
+</td>
+</tr></table>
+
+
+<br>
+
+<table border="0"><tr>
+<td>
+
+<b>Ocupado disco:</b>
+	<div style="z-index:auto ">
+	<select name="infopais" id="infopais" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="AF" $checkedAF>5%</option>
+<option value="AL" $checkedAL>10%</option>
+<option value="AD" $checkedAD>15%</option>
+<option value="DE" $checkedDE>20%</option>
+<option value="AD" $checkedAD>25%</option>
+<option value="AD" $checkedAD>30%</option>
+<option value="AD" $checkedAD>35%</option>
+<option value="AD" $checkedAD>40%</option>
+<option value="AD" $checkedAD>45%</option>
+<option value="AD" $checkedAD>50%</option>
+<option value="AD" $checkedAD>55%</option>
+<option value="AD" $checkedAD>60%</option>
+<option value="AD" $checkedAD>65%</option>
+<option value="AD" $checkedAD>70%</option>
+<option value="AD" $checkedAD>75%</option>
+<option value="AD" $checkedAD>80%</option>
+<option value="AD" $checkedAD>85%</option>
+<option value="AD" $checkedAD>90%</option>
+<option value="AD" $checkedAD>95%</option>
+</select>
+</div>
+</td>
+<td width="30" align="center"><img src="/images/flecha0.gif"></td>
+<td>
+
+<b>Acción a realizar:</b>
+	<div style="z-index:auto ">
+	<select name="infopais" id="infopais" class="campotxt" style="font-weight:bold; color:#3e73a8">
+<option value="AF" $checkedAF>Ninguna</option>
+<option value="AF" $checkedAF>Envía notificación</option>
+<option value="AF" $checkedAF>Borra logs viejos</option>
+</select>
+</div>
+
+</td>
+</tr></table>
+
+
+
+
+</td>
+<td valign="top">
+
+EOF
+$disco="IMTDATOS/logs";
+$rutadiscohilo="/var/log/";
+print <<EOF;
+<table width="210" border="0">
+<tr>
+<!--<td width='50' align='center'><img src='../images/discoide.gif'></td>-->
+<td align='center' width=5></td>
+<td width='150'><b>$netbiosconfig_unidad:</b><br><input class='campotxt4' type='text' id='disco' name='disco' size=18 value='$disco' readonly><input class='campotxt4' type='hidden' id='numcelda' name='numcelda' value='$numcelda'>
+<input class='campotxt4' type='hidden' id='oculnumcelda' name='oculnumcelda' value='$numcelda'>
+</td>
+<!--<td valign="center" align="left"><font color="white">0</font><br><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"disco\",objContainer1,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>-->
+<!--<td>
+<script language='javascript'>document.write('<img id=\"flecha\" src=\"'+($activado2 == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla()\" >');</script>
+<input  type='hidden' id='xact' name='xact' value='$activado2'/><input  type='hidden' id='xacth' name='xacth' value='$activado2'/>
+</td>-->
+</tr>
+
+<tr><td align='center' width=5></td><td>
+
+<div style="cursor:pointer" onClick="myRef = window.open('/imt/hilomusical.htm?dir=$rutadiscohilo','mywin','left=330,top=150,width=900,height=600,toolbar=1,resizable=1,status=0,menubar=1,scrollbars=yes');myRef.focus()">
+<table><tr><td><img src="../images/miniverdeflecha.gif"></td><td><b>Explorar contenido</b></td></tr></table>
+</div>
+
+</td></tr>
+</table>
+
+
+
+</td>
+<!--<td valign="top"><br><br><img src='../images/ok.gif' style="cursor:pointer" onClick="envcontroldisco()"></td>
+<td width="5"></td>-->
+</tr></table>
+
+
+<br>
+
+		<center>
+  <table border="0" cellpadding="5" cellspacing="5">
+    <tr><td valign="top" colspan="3">
+
+		<!--<table cellspacing="0" cellpadding="0" border="0" width="540">
+            <tr> 
+   			  <td  height="23" background="../images/barratitulo.gif" width="33"></td>
+              <td  height="23" background="../images/barratitulo.gif" width="185">&nbsp;<b><font color=white>Nombre Log</b></td>
+			  <td  height="23" background="../images/barratitulo.gif" width="70" align="center">&nbsp;<b><font color=white>Actividad</b></td>
+			  <td  height="23" background="../images/barratitulo.gif" width="70" align="center">&nbsp;<b><font color=white>Tamaño</b></td>
+			  <td  height="23" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b><font color=white>Acciones</b></td>
+            </tr>
+          </table>-->
+          
+<table cellpadding=0 cellspacing=0 border="0" style="border: 0px #ccc solid;font-size:16px;font-family:arial;line-height:15px;font-weight:bold;" class="bordenegrosombra" width="610" height="150">
+<tr><td width="610" height="23" class="barratituloazul">&nbsp;&nbsp;&nbsp;<font color="white"><b>$fwmodo_menu:</b></font></td></tr>
+
+<tr><td align="center">
+
+<table width="560" border="0">
+<tr><td height="5"></td></tr>
+<!--<tr>
+<td>Agente de dispositivos</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8" width="70"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd" width="70">51.0 MB&nbsp;</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+<!--<tr>
+<td>Avisos en arranque de servicios</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogbackuplinea_modifi=`stat /var/log/dmesg | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogbackuplinea_tamano=`du -sh /var/log/linebackup | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Backup de linea</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8" width="70">$varlogbackuplinea_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd" width="70">$varlogbackuplinea_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/linebackup','none','') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/linebackup','none','') style='cursor:pointer'><b>Visualizar</b></div></td><td width="3"></td>
+<!--<td style="color:#669900"><div onclick=verlogborrar('/var/log/linebackup') style='cursor:pointer'><b>Limpiar</b></div></td>-->
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogmysql_modifi=`stat /var/log/mysql/mysql.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogmysql_tamano=`du -sh /var/log/mysql/mysql.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Base de datos <u>MySQL</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogmysql_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogmysql_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/mysql/mysql.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/mysql/mysql.log','none','') style='cursor:pointer'><b>Visualizar</b></div></td><td width="3"></td>
+<!--<td style="color:#669900"><div onclick=verlogborrar('/var/log/mysql/mysql.log') style='cursor:pointer'><b>Limpiar</b></div></td>-->
+</tr></table>
+
+</td>
+</tr>
+<!--<tr>
+<td>Filtrado de paquetes</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+<!--<tr>
+<td>Filtrado de tráfico HTTP/S</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">130.8 MB&nbsp;</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogssh_modifi=`stat /var/log/syslog | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogssh_tamano=`du -sh /var/log/syslog | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Login al sistema <u>SSH</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogssh_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogssh_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/auth.log','sshd') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/auth.log','sshd') style='cursor:pointer'><b>Visualizar</b></div></td><td width="3"></td>
+<!--<td style="color:#669900"><div onclick=verlogborrar('/var/log/auth.log') style='cursor:pointer'><b>Limpiar</b></div></td>-->
+</tr></table>
+
+</td>
+</tr>
+<!--<tr>
+<td>Mensajes de inicio</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">Hoy</td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogdmesg_modifi=`stat /var/log/dmesg | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogdmesg_tamano=`du -sh /var/log/dmesg | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Mensajes del kernel <u>dmesg</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogdmesg_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogdmesg_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/dmesg','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/dmesg','none') style='cursor:pointer'><b>Visualizar</b></div></td><td width="3"></td>
+<!--<td style="color:#669900"><div onclick=verlogborrar('/var/log/dmesg') style='cursor:pointer'><b>Limpiar</b></div></td>-->
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogkern_modifi=`stat /var/log/kern.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogkern_tamano=`du -sh /var/log/kern.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Mensajes del kernel <u>kern</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogkern_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogkern_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/kern.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/kern.log','none') style='cursor:pointer'><b>Visualizar</b></div></td><td width="3"></td>
+<!--<td style="color:#669900"><div onclick=verlogborrar('/var/log/kern.log') style='cursor:pointer'><b>Limpiar</b></div></td>-->
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogsyslog_modifi=`stat /var/log/syslog | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogsyslog_tamano=`du -sh /var/log/syslog | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Mensajes del sistema <u>syslog</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogsyslog_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogsyslog_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/syslog','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/syslog','none') style='cursor:pointer'><b>Visualizar</b></div></td><td width="3"></td>
+<!--<td style="color:#669900"><div onclick=verlogborrar('/var/log/syslog') style='cursor:pointer'><b>Limpiar</b></div></td>-->
+</tr></table>
+
+</td>
+</tr>
+<!--<tr>
+<td>Modem virtual</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+<!--<tr>
+<td>Notificaciones administrador</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">Ahora</td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogfrox_modifi=`stat /var/log/frox/frox-log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogfrox_tamano=`du -sh /var/log/frox/frox-log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Proxy FTP <u>Frox</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogfrox_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogfrox_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/frox/frox-log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/frox/frox-log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogdansguardian_modifi=`stat ${varlogdansdir}/access.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogdansguardian_tamano=`du -sh ${varlogdansdir}/access.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Proxy HTTP <u>Dansguardian</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogdansguardian_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogdansguardian_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','${varlogdansdir}/access.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','${varlogdansdir}/access.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogsquid_modifi=`stat /var/log/squid/access.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogsquid_tamano=`du -sh /var/log/squid/access.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Proxy HTTP <u>Squid</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogsquid_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogsquid_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/squid/access.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td><td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/squid/access.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+<!--<tr>
+<td>Proxy POP3</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+<!--<tr>
+<td>Proxy SOCKS</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogharaka_modifi=`stat /var/log/haraka.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogharaka_tamano=`du -sh /var/log/haraka.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Proxy SMTP <u>Haraka</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogharaka_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogharaka_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/haraka.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/haraka.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+<!--<tr>
+<td>Servicio PPP</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+<!--<tr>
+<td>Servicio PPPoA</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+<!--<tr>
+<td>Servicio PPPoE</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogspamassasin_modifi=`stat /var/log/mail.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogspamassasin_tamano=`du -sh /var/log/mail.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td width="210">Servicio antispam <u>Spamassasin</u></td>
+<td width="60" align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogspamassasin_modifi</td>
+<td width="60" align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogspamassasin_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/mail.log','spamd') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/mail.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogzabbix_modifi=`stat /var/log/zabbix-server/zabbix_server.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogzabbix_tamano=`du -sh /var/log/zabbix-server/zabbix_server.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servicio monitorización <u>Zabbix</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogzabbix_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogzabbix_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/zabbix-server/zabbix_server.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/zabbix-server/zabbix_server.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varloghylafax_modifi=`stat /var/log/zabbix-server/zabbix_server.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varloghylafax_tamano=`du -sh /var/log/zabbix-server/zabbix_server.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor de fax <u>Hylafax</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varloghylafax_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varloghylafax_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/hylafax/hylafax.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/hylafax/hylafax.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogdhcp_modifi=`stat /var/log/dhcp.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogdhcp_tamano=`du -sh /var/log/dhcp.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor DHCP</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogdhcp_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogdhcp_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/dhcp.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/dhcp.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+<tr>
+<td>Servidor DNS <u>Bind</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td><td style="color:#669900"><b>Visualizar</b></td>
+</tr></table>
+
+</td>
+</tr>
+
+<!--<tr>
+<td>Servicio Ident</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogejabberd_modifi=`stat /var/log/ejabberd/ejabberd.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogejabberd_tamano=`du -sh /var/log/ejabberd/ejabberd.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor Mensajería</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogejabberd_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogejabberd_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/ejabberd/ejabberd.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/ejabberd/ejabberd.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogopenvpn_modifi=`stat /var/log/openvpn.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogopenvpn_tamano=`du -sh /var/log/openvpn.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor VPN <u>OpenVPN</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogopenvpn_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogopenvpn_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/openvpn.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/openvpn.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+<!--<tr>
+<td>Servidor PPTP</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8"></td>
+<td align="right" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd"></td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><b>Log en vivo</b></td><td width="3"></td>
+<td style="color:#990033"><b>Visualizar</b></td><td width="3"></td>
+<td style="color:#669900"><b>Limpiar</b></td>
+</tr></table>
+
+</td>
+</tr>-->
+EOF
+$varlogradius_modifi=`stat /var/log/freeradius/radius.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogradius_tamano=`du -sh /var/log/freeradius/radius.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor Radius <u>Freeradius</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogradius_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogradius_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/freeradius/radius.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/freeradius/radius.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogasterisk_modifi=`stat /var/log/asterisk/messages | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogasterisk_tamano=`du -sh /var/log/asterisk/messages | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor VoIP <u>Asterisk</u></td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogasterisk_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogasterisk_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/asterisk/messages','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/asterisk/messages','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogapacheaccess_modifi=`stat /var/log/apache2/access.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogapacheaccess_tamano=`du -sh /var/log/apache2/access.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor Web <u>Apache</u> (accesos)</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogapacheaccess_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogapacheaccess_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/apache2/access.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/apache2/access.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+EOF
+$varlogapacheerror_modifi=`stat /var/log/apache2/access.log | grep Modify | awk '{split(\$0,a,"."); print a[1]}' | awk '{split(\$0,a," "); print a[2],a[3]}'`;
+$varlogapacheerror_tamano=`du -sh /var/log/apache2/access.log | awk '{split(\$0,a," "); print a[1]}'`;
+print <<EOF;
+<tr>
+<td>Servidor Web <u>Apache</u> (errores)</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#3e73a8">$varlogapacheerror_modifi</td>
+<td align="center" style="color:#FFFFFF; font-weight:bold; background-color:#77a2cd">$varlogapacheerror_tamano</td>
+<td align="center">
+
+<table border="0" style="border-style:dotted dashed; border-color: #3e73a8; border-width: 1px;"><tr>
+<td width="65" style="color:#009999; border-color:black"><div onclick=verlogcapa('mostrarlogcapa','/var/log/apache2/error.log','none') style='cursor:pointer'><b>Log en vivo</b></div></td><td width="3"></td>
+<td style="color:#669900"><div onclick=visulogcapa('mostrarvisulogcapa','/var/log/apache2/error.log','none') style='cursor:pointer'><b>Visualizar</b></div></td>
+</tr></table>
+
+</td>
+</tr>
+</table>
+
+</td></tr>
+<tr><td height="10"></td></tr>
+</table>
+
+<br>
+<table width="400"><tr><td align="center">
+<input type="image" src="../images/aplicar.gif" name="enviar" value="Aplicar" onclick="aplicar()" style="cursor:pointer">
+</td></tr></table>
+<br>
+
+
+
+</td>
+
+    </tr>
+    <!--<tr> 
+      <td valign="top">
+	  
+	      <table cellpadding="2" cellspacing="0" border="1" width="214" class="bordecuadrof">
+          <tr> 
+          <td class="bordecuadrof">
+			
+			    <table cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr> 
+                  <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$filtroweb_bloqueofrase</b></td>
+                </tr>
+                </table>
+			
+		  </td>
+          </tr>
+          <tr> 
+            <td class="bordecuadrof"> <div align="center"> 
+                <table cellspacing="2" cellpadding="2" align="center" border="0">
+                  <tr> 
+                    <td width="60"> <table cellpadding="0" cellspacing="0" border="0">
+                        <tr> 
+                          <td><b>$filtroweb_frase</b></td>
+                        </tr>
+                        <tr> 
+                          <td><input id="nombre2" size="25" class="campotxt" type="text" name="nombre2"></td>
+                        </tr>
+                      </table></td>
+                    <td valign="bottom"><img alt="editar" onClick="load(document.theform,'select2',document.theform.nombre2)" height="17" width="16" src="../images/flecharriba.gif" style="cursor:pointer"></td>
+                    <td valign="bottom"><img alt="a&ntilde;adir" onClick="anadir(document.theform,'select2',document.theform.nombre2)" height="17" width="16" src="../images/flechabajo.gif" style="cursor:pointer"></td>
+                    <td valign="bottom"><img alt="borrar" onClick="del('select2')" height="17" width="16" src="../images/flechax.gif" style="cursor:pointer"></td>
+                  </tr>
+                  <tr> 
+                    <td align="left" colspan="4"> <div align="left"> 
+                        <table cellpadding="0" cellspacing="0" border="0" width="200">
+                          <tr> 
+                            <td rowspan="5" width="87%"><select id="select2"  class="campotxt" size="8" name="select2" style="width:100%">
+                              </select></td>
+                          </tr>
+                        </table>						
+                      </div></td>
+                  </tr>
+                </table>
+              </div></td>
+          </tr>
+         <tr> 
+            <td class="bordecuadrof"> <table align="center" cellpadding="1" cellspacing="1" border="0">
+                <tr> 
+                  <td colspan="5" align="center"><br> 
+                    <input   name="file14" type="file"  class="campotxt" id="file14" size="20"></td>
+                </tr>
+                 <tr> 
+                  <td > 
+                      <input type="checkbox"  value="1" name="subst14" />
+                      $filtroweb_sustituir</div></td>
+                  <td width="2"></td><td><img onclick="sendform( 14,'expr',false )" src="../images/cargar.gif" border="0" alt="Subir una lista" style="cursor:pointer" /></td>
+                  <td width="3"></td>
+                  <td> <img  onclick="sendform( 15,'expr',true )"   src="../images/descargar.gif" border="0" alt="Descargar lista" style="cursor:pointer" /></td>
+                </tr>
+              </table></td>
+          </tr>
+        </table></td>
+		
+		<td></td>
+		
+      <td width="330"> <table cellpadding="2" cellspacing="0" border="1" width="214" class="bordecuadrof">
+          <tr> 
+            <td width="221" class="bordecuadrof"> <table cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr> 
+                  <td  height="23" background="../images/barratitulo.gif">&nbsp;<b><font color=white>$filtroweb_bloqueoip</b></td>
+                </tr>
+              </table></td>
+          </tr>
+          <tr> 
+            <td class="bordecuadrof"> <div align="center"> 
+                <table cellspacing="2" cellpadding="2" align="center" border="0">
+                  <tr> 
+                    <td width="60"> <table cellpadding="0" cellspacing="0" border="0">
+                        <tr> 
+                          <td><b>$filtroweb_ip</b></td>
+                        </tr>
+                        <tr> 
+                          <td><input id="nombre3" size="20" class="campotxt" type="text" name="nombre3"></td>
+                        </tr>
+                      </table></td>
+                    <td valign="bottom"><img alt="editar" onClick="load(document.theform,'select3',document.theform.nombre3)" height="17" width="16" src="../images/flecharriba.gif" style="cursor:pointer"></td>
+                    <td valign="bottom"><img alt="a&ntilde;adir" onClick="anadir(document.theform,'select3',document.theform.nombre3)" height="17" width="16" src="../images/flechabajo.gif" style="cursor:pointer"></td>
+                    <td valign="bottom"><img alt="borrar" onClick="del('select3')" height="17" width="16" src="../images/flechax.gif" style="cursor:pointer"></td>
+                  </tr>
+                  <tr> 
+                    <td align="left" colspan="4"> <div align="left"> 
+                        <table cellpadding="0" cellspacing="0" border="0" width="200">
+                          <tr> 
+                            <td rowspan="5" width="87%"><select id="select3"  class="campotxt" size="8" name="select3" style="width:100%">
+                              </select></td>
+                          </tr>
+                        </table>
+						
+						</div></td>
+                  </tr>
+                </table>
+              </div></td>
+          </tr>
+          <tr> 
+            <td class="bordecuadrof"> <table align="center" cellpadding="1" cellspacing="1" border="0">
+                <tr> 
+                  <td colspan="5" align="center"><br> 
+                    <input   name="file16" type="file"  class="campotxt" id="file16" size="20"></td>
+                </tr>
+                <tr> 
+                  <td width="160">
+                      <input type="checkbox"  value="1" name="subst16" />
+                      $filtroweb_sustituir</div></td>
+                  <td width="2"><td><img onclick="sendform( 16,'ip',false )" src="../images/cargar.gif" border="0" alt="Subir una lista" style="cursor:pointer" /></td>
+                  <td width="3"></td>
+                  <td> <img  onclick="sendform( 17,'ip',true )"   src="../images/descargar.gif" border="0" alt="Descargar lista" style="cursor:pointer" /></td>
+                </tr>
+              </table></td>
+          </tr>
+        </table></td>
+    </tr>
+    <tr> 
+      <td colspan="3"><div align="center">
+          <input type="image" src="../images/aplicar.gif" name="enviar" value="Aplicar" onclick="send(1)" style="cursor:pointer">
+        </div></td>
+    </tr>-->
+  </table>
+
+</form>
+
+<script language="javascript">
+	
+	/*
+	lista=document.getElementById('select2').options;
+	list = '$listexpr'.split('^');
+	list = list.sort();
+	for(i=0;i < list.length;i++)
+	{	
+		if(list[i]=='') continue;
+		lista[lista.length]=new Option(list[i],list[i]);
+	}
+	document.getElementById('select2').selectedIndex=0;
+	
+	
+	lista=document.getElementById('select3').options;
+	list = '$listip'.split('^');
+	list = list.sort();
+	for(i=0;i < list.length;i++)
+	{	
+		if(list[i]=='') continue;
+		lista[lista.length]=new Option(list[i],list[i]);
+	}
+	document.getElementById('select3').selectedIndex=0;
+*/
+</script>
+
+<div style="position:absolute; left:220; top:130; visibility:hidden;" onclick="void(0);event.cancelBubble=true;" id="mostrarlogcapa">
+<br>
+<table width="720" cellspacing="0" height="15"><tr><td background="../images/barratitulo5.gif" align="center">
+&nbsp;&nbsp;&nbsp;&nbsp;<font color=white><b>Fichero log:</b></font> <input type='text' class='campotxt' id='titulolog' value='' size=35 readonly><b></font>
+</td>
+<td align="center" width=30>
+
+<img src="../images/close.png" border="0" style="cursor:pointer" onClick="closecapa('mostrarlogcapa')">
+</td>
+</tr></table>
+
+<TABLE CELLPADDING=0 border="0" width=720 style="background-image:url(../images/naran2sombramini.gif); background-repeat:repeat-x;">
+<tr><td height="5"></td></tr>
+</table>
+
+<table bgcolor="white" width="720" height="250" cellpadding=0 cellspacing=0 style="border-left-color:#f7a118;border-right-color:#f7a118;border-top-color:white;border-bottom-color:#f7a118; border-width: 1px;" border=1>
+<tr><td width="4" style="border-color:white; border-width: 0px;"></td><td valign="top" style="border-color:white; border-width: 0px;">
+
+<br>
+
+<iframe name="mostrarlogproceso" frameborder="no" scrolling="no" width=700 height=400></iframe>
+
+</td></tr></table>
+
+</div>
+
+
+
+
+<div style="position:absolute; left:320; top:130; visibility:hidden;" onclick="void(0);event.cancelBubble=true;" id="mostrarvisulogcapa">
+<br>
+<table width="520" cellspacing="0" height="15"><tr><td background="../images/barratitulo2.gif" align="center">
+&nbsp;&nbsp;&nbsp;&nbsp;<font color=white><b>Fichero log:</b></font> <input type='text' class='campotxt' id='titulologvisu' value='' size=35 readonly><b></font>
+</td>
+<td align="center" width=30>
+
+<img src="../images/close.png" border="0" style="cursor:pointer" onClick="closecapa('mostrarvisulogcapa')">
+</td>
+</tr></table>
+
+<TABLE CELLPADDING=0 border="0" width=520 style="background-image:url(../images/verdesombramini.gif); background-repeat:repeat-x;">
+<tr><td height="5"></td></tr>
+</table>
+
+<table bgcolor="white" width="520" height="250" cellpadding=0 cellspacing=0 style="border-left-color:#4e8d2e;border-right-color:#4e8d2e;border-top-color:white;border-bottom-color:#4e8d2e; border-width: 1px;" border=1>
+<tr><td width="4" style="border-color:white; border-width: 0px;"></td><td valign="top" style="border-color:white; border-width: 0px;">
+
+<br>
+
+<iframe name="mostrarlogvisu" frameborder="no" scrolling="no" width=500 height=300></iframe>
+
+</td></tr></table>
+
+</div>
+
+
+
+<script language="javascript">InitialiseAreas(); </script>
+EOF
+require "$imtlayers";
+print <<EOF;
+</body>
+</html>
+EOF

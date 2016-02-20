@@ -1,0 +1,2814 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_CONTROLADOR_DE_PASO\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				
+				if ($data[1] ne "1") {
+				print qq~Location: nodisponible.htm\n\n~;
+				}
+				
+			}
+			if (/^\s*UNIDAD\s*=.*$/)
+	        	{
+                	chomp;
+                	$_ =~ s/^\s+//;
+                	@data = split (/\s*=\s*/,$_);
+                	$unidad = $data[1];
+    	        	}
+
+	}
+close(OLD);
+
+if (-e "/proc/ide/${dispo}/identify")
+{
+$numserietest2=`/bin/cat /proc/ide/${dispo}/identify | /usr/bin/perl -e \'<>;(\$tmp = substr(<>,10,29)\.substr(<>,0,20) ) =~ s/\\ //g;print chr(hex \$_) foreach (unpack("a2" x 20,\$tmp))\'`;
+$numserietest2 =~ s/\s*//g;
+}
+else
+{
+   $pasocontrol=1;
+}
+
+if($pasocontrol eq 1)
+{
+        for($i = 0; $i < 9; $i++) {
+
+                $usbid = "/proc/scsi/usb-storage/$i";
+
+                if (-e "$usbid")
+                {
+
+                open(OLD, "< $usbid")    or die "can't open $usbid: $!";
+                while (<OLD>)
+                {
+                        if (/^\s*Serial\sNumber\s*:.*$/)
+                        {
+                        chomp;
+                        $_ =~ s/^\s+//;
+                        @data = split (/\s*:\s*/,$_);
+
+                        $numserietest2 = $data[1];
+                                        if ($codigounidad =~ /$numserietest2/)
+                                        {
+                                                last;
+                                        }
+						$numserietest2="";				
+                        }
+                }
+                close(OLD);
+
+                }
+
+        }
+}
+
+if($numserietest2 eq "" || $numserietest2 eq "None"){$pasocontrol=2}
+
+if($pasocontrol eq 2)
+{
+        $infoidcf=`/sbin/hdparm -I /dev/$dispo`;
+
+        if ($infoidcf =~ /Serial\sNumber\s*:(.+)/m)
+        {
+                $numserietest2 = $1;
+                $numserietest2 =~ s/\s+//g;
+        }
+}
+
+if($codigounidad !~ /$numserietest2/){exit;}
+
+
+if($q->param('enviar') ne "Cancelar")
+{
+
+
+	if($q->param('enviar') eq "2")
+	{
+		$valorvista=$q->param('modovista');
+		system("/bin/echo $valorvista > $vistafw_estado");
+	}
+
+	if($q->param('enviar') eq "3")
+	{
+		system("/bin/echo '' > $fwlogs");
+	}
+
+
+	if($q->param('enviar') eq "posicion")
+	{
+	
+		$id=$q->param('id');
+		$pos=$q->param('pos');
+		
+		if($pos eq 1)
+		{
+		$valor1=$id-1;
+		$valor2=$id;
+		}
+		
+		if($pos eq 2)
+		{
+		$valor1=$id;
+		$valor2=$id+1;
+		}
+		
+		
+		open(OLD, "< $fwlogs")    or die "can't open $fwlogs: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			if (/.*\$IPTABLES.*$/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+			
+				if($valor1 eq $i)
+		 		{
+				
+					if($lastline =~ /^#.*/)
+		 			{
+		 				$comment2=$lastline;# quitar  #
+		 				$lastline="";
+		 				$subircoment2=$comment2;
+		 			}	
+		 			$subir=$_;	
+		 		}
+				
+				if($valor2 eq $i)
+		 		{
+				
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			
+    				print NEW $_."\n";	
+					
+					print NEW $subircoment2."\n";
+					print NEW $subir."\n";
+					
+		 		}
+				
+				if($valor1 ne $i && $valor2 ne $i)
+				{
+					if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			
+    				print NEW $_."\n";	
+				}
+				
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $fwlogs 1>&2");
+		
+	}
+
+
+	#warn $q->param('enviar');
+	
+	if($q->param('enviar') eq "Borrar")
+	{
+		$id=$q->param('id');
+		
+		#warn "borrar $id";
+		
+		open(OLD, "< $fwlogs")    or die "can't open $p2piptables: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		while (<OLD>) 
+		{
+			if (/.*\$IPTABLES.*$/)
+     		{
+				chomp;
+				$_ =~ /.*/;
+			
+		 		if(/##TCPUDP2/)
+				{
+					$i=$i-1;
+				}
+				
+											
+		 		if($i != $id)
+		 		{	
+					if($saltar ne 1)
+					{
+		 				if($lastline =~ /^#.*/)
+		 				{
+		 					$comment=$lastline;# quitar  #
+		 					$lastline="";
+		 					print NEW $comment."\n";
+		 				}	
+		 				#else
+		 				#{
+		 				#	$comment="#Comentario";	
+		 				#}	
+		 			
+    					print NEW $_."\n";	
+					}
+					else
+					{
+						$saltar=0;
+					}
+		 		}
+				else
+				{
+					if(/##TCPUDP1/)
+					{
+						$saltar=1;
+					}
+					$i=$i+1;
+				}
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $fwlogs 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Insertar")
+	{
+		$id=$q->param('id');
+		#warn "insertar $id";
+		open(OLD, "< $fwlogs")    or die "can't open $p2piptables: $!";
+		open(NEW, "> $aux")    or die "can't open $aux: $!";
+		
+		$i=1;
+		$lastline="";
+	
+		if($id == 0)
+		{
+		
+			print NEW "#Nueva regla\n";
+    		print NEW "#\$IPTABLES -I FORWARD -s 0.0.0.0/0 -d 0.0.0.0/0 -p all -j ULOG --ulog-prefix \"ACCEPT\" ## ##INTERNET ## ##INTERNET ##Todos\n\n";
+		
+
+		}
+	
+		while (<OLD>) 
+		{
+			if (/^[\s#]*\$IPTABLES.*$/)
+     		{
+		#$comment
+		#$IPTABLES -I FORWARD $ip -m ipp2p $targets -j ULOG
+				chomp;
+				$_ =~ /.*/;
+			
+		 	
+		 			if($lastline =~ /^#.*/)
+		 			{
+		 				$comment=$lastline;# quitar  #
+		 				$lastline="";
+		 				print NEW $comment."\n";
+		 			}	
+		 			#else
+		 			#{
+		 			#	$comment="#Comentario";	
+		 			#}	
+		 			
+		 			
+    				print NEW $_."\n";	
+    				
+					if(/##TCPUDP1$/)
+					{
+						$id=$id+1;
+					}
+    					
+    				if($i == $id)
+		 			{
+		 				print NEW "#Nueva regla\n";
+    					print NEW "#\$IPTABLES -I FORWARD -s 0.0.0.0/0 -d 0.0.0.0/0 -p all -j ULOG --ulog-prefix \"ACCEPT\" ## ##INTERNET ## ##INTERNET ##Todos\n\n";
+		
+		 			}
+		 			
+				$i=$i+1;
+			}
+
+			if($_=~ /^#.*/)
+			{
+				$lastline=$_;
+				#warn "[$lastline]";
+			}
+		}
+		close(OLD);
+		close(NEW);
+		
+		system("/bin/cp $aux $fwlogs 1>&2");
+		
+	}
+	
+	if($q->param('enviar') eq "Aplicar")
+	{
+
+		open(NEW, "> $fwlogs")    or die "cant open $fwlogs: $!";
+		
+		$i=1;	
+		
+		while( 1 ) 
+		{
+
+			$nombreorigen=$q->param("${i}x0");
+			$nombredestino=$q->param("${i}x1");
+			$nombreaplipuertos=$q->param("${i}x2");
+
+			$tipo1=$q->param("${i}x0th");
+			$tipo2=$q->param("${i}x1th");
+
+			$origenip=$q->param("${i}x0h");
+			$destinoip=$q->param("${i}x1h");
+			$puertos=$q->param("${i}x2h");
+
+			if( $origenip eq undef )
+			{
+				last;
+			}
+			
+			$xori=$q->param("${i}xorih");
+				
+			if($xori eq 0)
+			{
+				$orinega="! ";
+			}
+			else
+			{
+				$orinega="";
+			}
+			
+			$xdesti=$q->param("${i}xdestih");
+				
+			if($xdesti eq 0)
+			{
+				$destinega="! ";
+			}
+			else
+			{
+				$destinega="";
+			}
+			
+			#comment
+			$comment=$q->param("${i}xc");
+			if($comment eq "")
+		 	{
+		 		$comment="Comentario";
+		 	}	
+		 	
+		 	if($q->param("${i}xact") eq "1" )
+		 	{
+		 		$activar="";
+		 	}
+		 	else
+		 	{
+		 		$activar="#";
+		 	}
+			
+			
+			if($q->param("${i}xper") eq "0" )
+		 	{
+		 		$permitir=" --ulog-prefix \"DROP\"";
+		 	}
+		 	elsif($q->param("${i}xper") eq "1" )
+		 	{
+		 		$permitir=" --ulog-prefix \"ACCEPT\"";
+		 	}
+			
+			
+			$portinfo=" -m multiport --dports ".$puertos;
+			
+			if($q->param("${i}xpro") eq "0" )
+		 	{
+		 		$proto="all";
+				$portinfo="";
+		 	}
+		 	elsif($q->param("${i}xpro") eq "1" )
+		 	{
+		 		$proto="udp";
+				if($puertos eq "")
+				{
+					$portinfo="";
+				}
+		 	}
+		 	elsif($q->param("${i}xpro") eq "2" )
+		 	{
+		 		$proto="47";
+		 		$portinfo="";
+		 	}
+			elsif($q->param("${i}xpro") eq "3" )
+		 	{
+		 		$proto="icmp";
+		 		$portinfo="";
+		 	}
+			elsif($q->param("${i}xpro") eq "4" )
+		 	{
+		 		$proto="tcp";
+				if($puertos eq "")
+				{
+					$portinfo="";
+				}
+		 	}
+			elsif($q->param("${i}xpro") eq "5" )
+		 	{
+		 		$proto="tcpudp";
+				if($puertos eq "")
+				{
+					$portinfo="";
+				}
+		 	}
+
+			if($origenip =~ /^(([0-9]+\.){3}[0-9]+)-[0-9]+$/)
+			{
+				$origentipo="-m iprange ${orinega}--src-range";
+				@data = split (/-/,$origenip);
+		 		$valorfinal = $data[1];
+				
+				$ipinicial = $data[0];
+				@data = split (/\./,$ipinicial);
+				$ip0 = $data[0];
+				$ip1 = $data[1];
+				$ip2 = $data[2];
+
+				$finalip = "$ip0.$ip1.$ip2.$valorfinal"; 
+				$origenip = "$ipinicial-$finalip";
+
+			}
+			elsif($origenip =~ /^([0-9A-Fa-f]{2}[-:]){5}[0-9A-Fa-f]{2}$/)
+			{
+				$orinega =~ s/\s//;
+				$origentipo="-m mac --mac-source ${orinega}";
+			}
+			else
+			{
+				$origentipo="${orinega}-s";
+			}
+			
+			
+			if($destinoip =~ /^(([0-9]+\.){3}[0-9]+)-[0-9]+$/)
+			{
+				if ($origentipo =~ /--src-range/)
+				{
+					$destinotipo="${destinega}--dst-range";
+				}
+				else
+				{
+					$destinotipo="-m iprange ${destinega}--dst-range";
+				}
+				
+				@data = split (/-/,$destinoip);
+		 		$valorfinal = $data[1];
+				
+				$ipinicial = $data[0];
+				@data = split (/\./,$ipinicial);
+				$ip0 = $data[0];
+				$ip1 = $data[1];
+				$ip2 = $data[2];
+
+				$finalip = "$ip0.$ip1.$ip2.$valorfinal"; 
+				$destinoip = "$ipinicial-$finalip";
+			}
+			else
+			{
+				$destinotipo="${destinega}-d";
+			}
+
+			
+
+			$timedias=$q->param("${i}x3dias");
+			$timehoraini=$q->param("${i}x3horaini");
+			$timehorafin=$q->param("${i}x3horafin");
+			
+			if($timedias ne "")
+			{
+				$time="-m time\${KERNELTZ}${fechainicio}${fechafin} --timestart $timehoraini --timestop $timehorafin \${DAYS} $timedias ";
+			}
+			else
+			{
+				$time="";
+			}
+			
+			
+			$TIPOREGLA="-A FORWARD";
+			
+			if ($destinoip ne "")
+			{
+				$testip=`/sbin/ifconfig | grep -w ${destinoip}`;
+				
+				if($testip ne "")
+				{
+					$TIPOREGLA="-A INPUT";
+				}
+			}
+			
+			
+			@proto_lista=("$proto");
+			
+			if($proto eq "tcpudp")
+			{
+				@proto_lista=("tcp","udp");
+				$grupoproto="TCPUDP";
+			}
+			else
+			{
+				$grupoproto="";
+			}
+			
+			$n=1;
+			
+			foreach $proto ( @proto_lista ) {
+			print NEW "#".$comment."\n";
+    		print NEW "$activar\$IPTABLES ${TIPOREGLA} ${time}${origentipo} ".$origenip." ${destinotipo} ".$destinoip." -p $proto$portinfo -j ULOG$permitir&  ##".$nombreorigen." ##".$tipo1." ##".$nombredestino." ##".$tipo2." ##".$nombreaplipuertos." ##".${grupoproto}.${n}."\n\n";
+			$n++;
+			}
+			
+      		$i=$i+1;
+		}
+		
+		close(NEW)     or die "can't close $fwlogs: $!";
+
+
+
+
+		$logdisconect=$q->param('xactdisco');
+		$numcelda=$q->param('numcelda');
+		
+		$raizmontadoescape=$raizmontado;
+		$raizmontadoescape =~ s/\//\//g;
+		
+		open(OLD, "< $ulogdconf")    or die "can't open $ulogdconf: $!";
+		open(NEW, "> $aux")     or die "can't open $aux: $!";
+		
+		while (<OLD>) 
+		{
+			
+			if (/^\s*file.+syslogemu\.log\"$/)
+     		{
+				if($logdisconect eq 1)
+				{
+					s/^.*$/file=\"${raizmontadoescape}celda${numcelda}\/ulog\/syslogemu\.log\"/;
+				}
+				else
+				{
+					s/^.*$/file=\"\/var\/log\/ulog\/syslogemu\.log\"/;
+				}				
+			}
+  		
+             print NEW $_            or die "can't write $aux: $!";
+		}
+
+		close(OLD)                  or die "can't close $ulogdconf: $!";
+		close(NEW)                  or die "can't close $aux: $!";
+
+		system("/bin/cp $aux $ulogdconf 1>&2");
+		
+		
+		$testcelda=`/bin/mount | grep celda${numcelda}`;
+		
+		if($testcelda ne "")
+		{
+		
+		system("/bin/mkdir -p ${raizmontado}celda${numcelda}/ulog");		
+		system("/bin/touch -p ${raizmontado}celda${numcelda}/ulog/syslogemu.log");	
+		
+		}
+		
+		system("$ulogd restart >/dev/null 2>&1 &");
+
+
+	   
+	   
+		#system("$cleanall >/dev/null 2>&1");
+		#system("$firewall >/dev/null 2>&1");	
+		#system("$prerouting >/dev/null 2>&1");
+										
+	}
+
+
+
+
+}
+
+	
+	
+
+$vista=`/bin/cat $vistafw_estado`;
+$vista =~ s/(\r?\n)//g;
+
+if($vista eq "0") 
+	{
+		$estadovista1 = "text";
+		$estadovista2 = "hidden";
+		$vistachecks0 = "checked";
+	}
+if($vista eq "1")
+	{	
+		$estadovista1 = "hidden";
+		$estadovista2 = "text";
+		$vistachecks1 = "checked";
+	}
+if($vista eq "2")
+	{	
+		$estadovista1 = "text";
+		$estadovista2 = "text";
+		$vistachecks2 = "checked";
+	}
+
+
+
+
+	open(OLD, "< $ulogdconf")    or die "can't open $ulogdconf: $!";
+		
+	while (<OLD>) 
+	{			
+		chomp;
+		$_ =~ s/^\s+//;
+		
+			if (/^\s*file.+syslogemu\.log\"$/)
+     		{								
+			
+				if ($_ =~ /^\s*file\s*=\s*\"\/var\/log\/ulog\/syslogemu\.log\"$/)
+     			{
+					$activado2 = "0";
+				}
+				else
+				{
+					$activado2 = "1";
+					
+					if ($_ =~ /^\s*file\s*=\s*\".*raizmontado\/celda(.*)\/ulog\/syslogemu\.log\"$/m)
+     				{
+						$numcelda=$1;
+					}	
+					
+				}	
+
+			}
+
+	}
+
+	close(OLD)     or die "can't close $ulogdconf: $!";	
+	
+	
+	
+	open(OLD3, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		
+					while (<OLD3>) 
+					{
+						chomp;
+						$_ =~ /.*/;
+						$_ =~ s/\s+/ /g;
+						
+						if ($_ =~ /^.*raizmontado\/celda(.*)\s\>.*$/m)
+     					{
+							$valoretiqueta=$1;
+						}
+						
+						if ($valoretiqueta eq $numcelda)
+						{
+
+							@data = split (/ /,$_);
+							$monta = $data[2];	
+							@data = split (/#{2}/,$_);
+							
+							$dispo = $data[4];
+							$disco = $data[5];
+
+						}
+					
+					}
+
+		close(OLD3)     or die "can't close $montadodisco: $!";
+
+		
+		if($numcelda eq "")
+		{
+			$disco="";
+		}
+
+
+
+if ($activado2 eq 1)
+{
+
+$bombiroja=0;
+
+$montainfo=`/bin/mount | grep $dispo | grep celda${numcelda}`;
+$montainfo =~ s/(\r?\n)//g;
+
+if ($montainfo ne "")
+{
+	$bombiroja=1;
+}
+
+}
+
+
+
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print <<EOF;
+<html>
+<head>
+
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+		
+
+function isValidIP(tempIP,red){
+	if (tempIP.search(/^[255\./^]/)==-1 && tempIP.search(/\\.0\$/)!=-1 && red!=1)
+	{
+		alert('No está permitido introducir solo la\\ndirección de red: '+tempIP);
+		return (false);
+	}
+	if (tempIP == null || tempIP=="" || tempIP.search(/^[0-9\\.]+\$/)==-1)
+		return (false);
+	var arrIPs = tempIP.split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+}
+
+function isValidMAC(tempIP){
+	if (tempIP == null || tempIP=="" || tempIP.search(/^([0-9A-Fa-f]{2}[\\-:]){5}[0-9A-Fa-f]{2}\$/) == -1)
+		return (false);
+
+	return (true);
+}
+
+function rangoip(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('-');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,3}\$/)==-1)
+		return false;
+	
+	
+    var lrango = parseInt(tempIP[1],10);
+
+	
+	if (lrango<1 || lrango > 254 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+
+/**
+ * function isValidNetIp()
+ */
+function isValidNetIP(tempNetIP)
+{
+	
+	if (tempNetIP == null || tempNetIP=="")
+		return (false);
+	
+	var tempIP =  tempNetIP.split('/');
+	
+	if (tempIP.length!=2)
+		return (false);
+	
+	if( tempIP[1].search(/^[0-9]{1,2}\$/)==-1)
+		return false;
+	
+	
+    var lmask = parseInt(tempIP[1],10);
+
+	
+	if (lmask<0 || lmask > 32 )
+			return false;
+			
+	return  isValidIP(tempIP[0],1);
+	/*		
+	var arrIPs = tempIP[0].split('.');
+	if (arrIPs.length!=4)
+		return (false);
+	for(var i=0; i<arrIPs.length; i++){
+		var node = parseInt(arrIPs[i],10);
+		if (isNaN(node))
+			return (false);
+		if (node <0 || node>255)
+			return (false);
+	}
+	return (true);
+	*/
+} 
+
+
+function LTrim(str)
+/*
+   PURPOSE: Remove leading blanks from our string.
+   IN: str - the string we want to LTrim
+*/
+{
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(0)) != -1) {
+      // We have a string with leading blank(s)...
+
+      var j=0, i = s.length;
+
+      // Iterate from the far left of string until we
+      // don't have any more whitespace...
+      while (j < i && whitespace.indexOf(s.charAt(j)) != -1)
+         j++;
+
+      // Get the substring from the first non-whitespace
+      // character to the end of the string...
+      s = s.substring(j, i);
+   }
+   return s;
+}
+
+/*
+==================================================================
+RTrim(string) : Returns a copy of a string without trailing spaces.
+==================================================================
+*/
+function RTrim(str)
+/*
+   PURPOSE: Remove trailing blanks from our string.
+   IN: str - the string we want to RTrim
+
+*/
+{
+   // We don't want to trip JUST spaces, but also tabs,
+   // line feeds, etc.  Add anything else you want to
+   // "trim" here in Whitespace
+   var whitespace = new String(" \\t\\n\\r");
+
+   var s = new String(str);
+
+   if (whitespace.indexOf(s.charAt(s.length-1)) != -1) {
+      // We have a string with trailing blank(s)...
+
+      var i = s.length - 1;       // Get length of string
+
+      // Iterate from the far right of string until we
+      // don't have any more whitespace...
+      while (i >= 0 && whitespace.indexOf(s.charAt(i)) != -1)
+         i--;
+
+
+      // Get the substring from the front of the string to
+      // where the last non-whitespace character is...
+      s = s.substring(0, i+1);
+   }
+
+   return s;
+}
+
+/*
+=============================================================
+Trim(string) : Returns a copy of a string without leading or trailing spaces
+=============================================================
+*/
+
+function trim(str)
+{
+   return RTrim(LTrim(str));
+}
+
+
+
+ // gvid,s,d,pro,port,comm,tainted
+ruledata = new Array();
+
+ 
+var speed=30; 
+var loop, timer; 
+var curListener=null;
+var openedCombo=null;
+
+
+function findPosX(obj)
+{
+	var curleft = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curleft += obj.offsetLeft
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.x)
+		curleft += obj.x;
+	return curleft;
+}
+
+function findPosY(obj)
+{
+	var curtop = 0;
+	if (obj.offsetParent)
+	{
+		while (obj.offsetParent)
+		{
+			curtop += obj.offsetTop
+			obj = obj.offsetParent;
+		}
+	}
+	else if (obj.y)
+		curtop += obj.y;
+	return curtop;
+}
+
+
+function applyCheckbox(theform)
+{
+  //   var row_cells_cnt = theRow.cells.length;
+	/*
+ 	if(openedCombo!=null)
+ 		eval(openedCombo).el.style.visibility='hidden';
+ 	*/	
+ 	if(curListener!=null && openedCombo!=null)
+ 	{
+ 			
+ 		//560x0 -> id=560 , j=0 -> tainted=true
+ 		//var id = curListener.split('x')[0];
+	    var tiempo="";
+ 		var i = 0;
+ 		
+ 		for(i=0;i<document.tiempo.elements.length;i++)
+		{
+			if(document.tiempo.elements[i].checked==true)
+			{
+				if (tiempo!="") tiempo += ",";
+				tiempo+=document.tiempo.elements[i].name;
+			}
+		}
+		
+		var control=document.getElementById('control').value;
+		
+ 		document.getElementById(control+'dias').value=tiempo;
+ 	}
+ 	/*
+	openedCombo=null;
+	curListener=null;
+	*/
+    	return true;
+} 
+
+
+function findIndex(value)
+{
+	var k = 0;
+	for(k=0;k < this.data.length;k++)
+	{
+		if(this.data[k][2] == value)
+			return k;
+	}
+	return -1;
+}
+
+
+
+function ConstructObject1(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:170;height:"+this.cnt.offsetHeight+"; overflow:hidden; top:0; left:0; clip:rect(0,170,"+this.cnt.offsetHeight+",0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+
+function ConstructObject2(nombre,valores)
+{ 
+    	this.el=document.getElementById(nombre); 
+    	this.cnt=document.getElementById(nombre+'cnt'); 
+    	//this.data=getValores(valores);
+    	this.up=MoveAreaUp;
+    	this.down=MoveAreaDown; 
+    	this.MoveArea=MoveArea; 
+    	this.x=0; 
+    	this.y=0; 
+    	this.initialised=false;
+    	
+	this.cnt.style.cssText="position:relative;top:0; left:0;visibility:inherited";
+
+//this.el.style.cssText="position:absolute; width:150;height:"+this.cnt.offsetHeight
+//+"; overflow:hidden; top:0; left:0; clip:rect(0,150,"+this.cnt.offsetHeight
+//+",0); visibility:visible";
+
+	this.el.style.cssText="position:absolute; width:150; height:200; overflow:hidden; top:0; left:0; clip:rect(0,150,200,0); visibility:visible";
+ 
+    	this.obj = nombre + "Object" 
+    	eval(this.obj + "=this") 
+    	this.selectedIndex=0;
+    	//this.drawData=drawData;
+    	//this.drawData(this.data);
+    	this.findIndex=findIndex;
+    	this.scrollHeight=this.cnt.offsetHeight;
+    	this.clipHeight=this.el.offsetHeight; 
+    	
+    	
+//    	alert(this.data.toString());
+    	return this 
+} 
+
+
+var initialised; 
+
+function MoveArea(x,y){ 
+    this.x=x;
+    this.y=y 
+    this.cnt.style.left=this.x 
+    this.cnt.style.top=this.y 
+} 
+ 
+function MoveAreaDown(move)
+{ 
+	if(this.y<0)
+	{ 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".down("+move+")",speed) 
+	} 
+} 
+
+function MoveAreaUp(move){ 
+//alert(this.clipHeight+"..."+this.y+"..."+this.scrollHeight );
+    if(( this.clipHeight - this.y  ) < this.scrollHeight)
+    { 
+    		this.MoveArea(0,this.y+move) 
+    		if(loop) 
+    			setTimeout(this.obj+".up("+move+")",speed) 
+	} 
+} 
+
+function PerformScroll(objeto,speed){ 
+ if(objeto.initialised){ 
+  loop=true; 
+  if(speed>0) 
+   objeto.down(speed) 
+  else 
+   objeto.up(speed) 
+ } 
+} 
+ 
+function CeaseScroll(objeto){ 
+//alert(ruledata.toString());
+    loop=false 
+    if(timer) clearTimeout(timer) 
+}
+
+function InitialiseScrollableArea1(name,data)
+{ 
+    var obj=new ConstructObject1(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+function InitialiseScrollableArea2(name,data)
+{ 
+    var obj=new ConstructObject2(name,data); 
+    obj.MoveArea(0,0); 
+    obj.el.style.visibility='hidden';
+    obj.initialised=true; 
+    return obj;
+} 
+
+
+function controlamulti()
+{
+		horaini=document.getElementById('horaini').value;
+		var parte = horaini.split(':');
+
+		if (document.getElementById('horaini').value.search(/^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}\$/)==-1 || document.getElementById('horaini').value=="" || parte[0]>23)
+		{
+			alert(document.getElementById('horaini').value+' formato de hora incorrecto\\nLos cambios no se guardarán');
+			return;
+			//document.theform.submit();
+		}
+
+		horafin=document.getElementById('horafin').value;
+		var parte = horaini.split(':');
+
+		if (document.getElementById('horafin').value.search(/^[0-2]{1}[0-9]{1}:[0-5]{1}[0-9]{1}\$/)==-1 || document.getElementById('horafin').value=="" || parte[0]>23)
+		{
+			alert(document.getElementById('horafin').value+' formato de hora incorrecto\\nLos cambios no se guardarán');
+			return;
+			//document.theform.submit();
+		}
+
+var control=document.getElementById('control').value;
+
+document.getElementById(control+'horaini').value=document.getElementById('horaini').value;
+document.getElementById(control+'horafin').value=document.getElementById('horafin').value;
+
+}
+
+
+function toggleCB(listener,container,x,y)
+{
+	//debugger;
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-	objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		//debugger;
+		//rellenar los checkbox
+		var id = curListener.split('x')[0];
+		var i=0;	
+		for(i = 0; i<ruledata.length;i++)
+ 			if( ruledata[i][0] == id)
+ 				break;
+ 				
+		var targets = ruledata[i][2].split(",");
+		for(i=0;i<document.targets.elements.length;i++)
+		{
+			document.targets.elements[i].checked=false;
+		}
+	
+		for(i=0;i<targets.length ;i++)
+		{
+			if(targets[i]!="" && eval("document.targets."+targets[i]))
+				eval("document.targets."+targets[i]+".checked=true");
+		}
+		objContainer.el.style.visibility='visible'; 
+	}	
+}
+
+
+function toggle(listener,container,x,y)
+{
+
+	var objContainer = eval(container); 
+	objContainer.el.style.left=x-objContainer.el.offsetWidth ;
+	objContainer.el.style.top=(y+ objContainer.el.offsetHeight > document.body.scrollTop+parseInt(document.body.clientHeight) ? parseInt(document.body.clientHeight)-objContainer.el.offsetHeight+document.body.scrollTop:y);
+	
+	if(openedCombo!=null)
+				eval(openedCombo).el.style.visibility='hidden';
+				
+	if(objContainer.el.style.visibility=='visible') //esconder
+	{
+		objContainer.el.style.visibility='hidden';
+		curListener=null;
+		openedCombo=null;
+	}
+	else//mostrar
+	{
+		curListener=listener;
+		openedCombo=container;
+		objContainer.el.style.visibility='visible'; 
+	}	
+
+var valorlistener =  listener.split('x');
+	
+		
+if(valorlistener[1]=='3') //esconder
+	{
+		document.getElementById('horaini').value=document.getElementById(listener+'horaini').value;
+		document.getElementById('horafin').value=document.getElementById(listener+'horafin').value;
+		valordias=document.getElementById(listener+'dias').value;
+		
+		var tiempo = valordias.split(",");
+		
+		for(i=0;i<document.tiempo.elements.length;i++)
+		{
+			document.tiempo.elements[i].checked=false;
+		}
+	
+		for(i=0;i<tiempo.length ;i++)
+		{
+			if(tiempo[i]!="" && eval("document.tiempo."+tiempo[i]))
+				eval("document.tiempo."+tiempo[i]+".checked=true");
+		}
+		
+	}
+document.theform.control.value=listener;
+}
+
+
+
+pcimg =  new Image(18,19);
+pcimg.src = "../images/pc.gif"
+
+redimg =  new Image(23,19);
+redimg.src = "../images/redmini.gif"
+
+inetimg =  new Image(16,19);
+inetimg.src = "../images/minimundo.gif"
+
+routerimg =  new Image(20,20);
+routerimg.src = "../images/dispomini.gif"
+
+serviimg =  new Image(20,20);
+serviimg.src = "../images/servimini.gif"
+
+vpnimg =  new Image(20,20);
+vpnimg.src = "../images/miniredvpn.gif"
+
+todosimg =  new Image(20,20);
+todosimg.src = "../images/todos.gif"
+tcpimg =  new Image(20,20);
+tcpimg.src = "../images/tcp.gif"
+udpimg =  new Image(20,20);
+udpimg.src = "../images/udp.gif"
+greimg =  new Image(20,20);
+greimg.src = "../images/gre.gif"
+icmpimg =  new Image(20,20);
+icmpimg.src = "../images/icmp.gif"
+tcpudpimg =  new Image(20,20);
+tcpudpimg.src = "../images/tcpyudp.gif"
+
+
+function aplicarvalor(nombre,valor,tipo)
+{
+
+	asignar=document.getElementById('control').value;
+	document.getElementById(asignar).value=nombre;
+	document.getElementById(asignar+'h').value=valor;
+	document.getElementById(asignar+'h').title=valor;
+	
+	
+	
+	if(tipo != undefined)
+	{
+		
+		if(curListener)
+		{
+		
+		//debugger;
+		
+			var prefijo = curListener.split("x")[0];
+			var sufijo = curListener.split("x")[1];
+			var imagen = document.getElementById(prefijo+"xt"+sufijo);
+			
+			var x=0;
+			switch(tipo)
+			{
+				case "ESTACION":
+					imagen.src = pcimg.src;
+					imagen.alt = tipo;	
+					x=1;
+				break;
+				case "SERVIDOR":
+					imagen.src = serviimg.src;
+					imagen.alt = tipo;
+					x=1;	
+				break;
+				case "ROUTER":
+					imagen.src = routerimg.src;
+					imagen.alt = tipo;	
+					x=1;
+				break;
+				case "RED":
+					imagen.src = redimg.src;
+					imagen.alt = tipo;	
+					x=1;
+				break;
+				case "INTERNET":
+					imagen.src = inetimg.src;
+					imagen.alt = tipo;	
+					x=1;
+				break;
+				case "REDVPN":
+					imagen.src = vpnimg.src;
+					imagen.alt = tipo;
+					x=1;	
+				break;
+				case "all":
+					imagen.src = todosimg.src;
+					imagen.alt = tipo;	
+					document.getElementById(prefijo+'xpro').value=0;
+				break;
+				case "UDP":
+					imagen.src = udpimg.src;
+					imagen.alt = tipo;	
+					document.getElementById(prefijo+'xpro').value=1;
+				break;
+				case "GRE":
+					imagen.src = greimg.src;
+					imagen.alt = tipo;	
+					document.getElementById(prefijo+'xpro').value=2;
+				break;
+				case "ICMP":
+					imagen.src = icmpimg.src;
+					imagen.alt = tipo;	
+					document.getElementById(prefijo+'xpro').value=3;
+				break;
+				case "TCP":
+					imagen.src = tcpimg.src;
+					imagen.alt = tipo;	
+					document.getElementById(prefijo+'xpro').value=4;
+				break;
+				case "TCPUDP":
+					imagen.src = tcpudpimg.src;
+					imagen.alt = tipo;	
+					document.getElementById(prefijo+'xpro').value=5;
+				break;
+
+			}
+			
+			if(x == 1)
+			{
+				document.getElementById(prefijo+"x"+sufijo+"th").value=tipo;
+			}
+		}	
+	
+	}
+	
+	
+	clearLista();
+}
+
+
+function aplicarvalor2(infodisk,etiqueta,numero)
+{
+asignar=document.getElementById('control').value;
+
+document.getElementById(asignar).value=etiqueta;
+document.getElementById('numcelda').value=numero;
+	
+	clearLista();
+}
+
+
+function clearLista()
+{
+	if(openedCombo!=null)
+		eval(openedCombo).el.style.visibility='hidden';
+	
+	curListener=null;
+	openedCombo=null;
+}
+
+
+function InitialiseAreas()
+{ 
+	//alert(ruledata.toString());
+	objContainer1=InitialiseScrollableArea2('divContainer1',null);
+	objContainer2=InitialiseScrollableArea2('divContainer2',null);
+	objContainer3=InitialiseScrollableArea2('divContainer3',null);
+	objContainer4=InitialiseScrollableArea1('divContainer4',null);
+	//initRules();
+} 
+
+</script>
+
+<script type="text/javascript" >
+
+
+function validarForm()
+{
+		var i=1;
+	while(document.getElementById(i+'x0h'))
+	{
+		if (document.getElementById(i+'x0h').value!="")
+		{
+			if (isValidIP(document.getElementById(i+'x0h').value)==false && isValidNetIP(document.getElementById(i+'x0h').value)==false && rangoip(document.getElementById(i+'x0h').value)==false && isValidMAC(document.getElementById(i+'x0h').value)==false && document.getElementById(i+'x0h').value.search(/^[a-zA-Z0-9\-]+\$/)==-1 && document.getElementById(i+'x0h').value.search(/^[a-zA-Z0-9\-]+\.[a-zA-Z]+\$/)==-1)
+			{
+				alert(document.getElementById(i+'x0h').value+' se esperaba una IP, MAC o nombre de máquina correcto');
+				return;
+			}
+		}
+		else
+		{
+			alert('Campo origen o destino vacio');
+			return;
+		}
+		i++;
+	}
+
+	var i=1;
+	while(document.getElementById(i+'x1h'))
+	{
+		if (document.getElementById(i+'x1h').value!="")
+		{
+			if (isValidIP(document.getElementById(i+'x1h').value)==false && isValidNetIP(document.getElementById(i+'x1h').value)==false && rangoip(document.getElementById(i+'x1h').value)==false && document.getElementById(i+'x1h').value.search(/^[a-zA-Z0-9\-]+\$/)==-1 && document.getElementById(i+'x1h').value.search(/^[a-zA-Z0-9\-]+\.[a-zA-Z]+\$/)==-1)
+			{
+				alert(document.getElementById(i+'x1h').value+' se esperaba una IP, MAC o nombre de máquina correcto');
+				return;
+			}
+		}
+		else
+		{
+			alert('Campo origen o destino vacio');
+			return;
+		}
+		i++;
+	}
+	
+	i=1;
+	while(document.getElementById(i+'x2h'))
+	{
+		if (document.getElementById(i+'x2h').value!="")
+		{
+			if (document.getElementById(i+'xpro').value!=2 && document.getElementById(i+'xpro').value!=3 && document.getElementById(i+'xpro').value!=0 && document.getElementById(i+'x2h').value.search(/^([0-9]+[\\,\\:])*[0-9]+\$/)==-1)
+			{
+				alert(document.getElementById(i+'x2h').value+' se esperaban uno o mas puertos separados por comas');
+				return;
+			}
+		}
+		i++;
+	}
+
+	if (document.getElementById('xactdisco').value == 1 && document.getElementById('disco').value=='')
+	{
+		alert('Seleccione una unidad de datos al activar');	
+		return false;
+	}
+	
+	if (document.getElementById('xactdisco').value == 0)
+	{
+		document.getElementById('disco').value=='';
+	}
+	
+	oscuprocessform();
+
+	document.theform.action="fwlogs.htm";
+	document.theform.enviar.value="Aplicar";
+	document.theform.submit();
+	
+}
+
+</script>
+
+<script type="text/javascript" >
+
+flechaact =  new Image(27,25);
+flechaact.src = "../images/logsmini.gif"
+flechades =  new Image(27,25);
+flechades.src = "../images/logsminidesactivado.gif"
+
+function toggleRegla(id)
+{
+	var flecha = document.getElementById('flecha'+id);
+	
+	if(flecha.src == flechaact.src)
+	{
+		flecha.src = flechades.src;
+		document.getElementById(id+'xact').value=0;
+	}
+	else
+	{
+		flecha.src = flechaact.src;	
+		document.getElementById(id+'xact').value=1;
+	}
+
+}
+
+
+aceptado =  new Image(27,25);
+aceptado.src = "../images/aceptado.gif"
+negado =  new Image(27,25);
+negado.src = "../images/negado.gif"
+
+function toggleaceptanega(id)
+{
+
+	var aceptanega = document.getElementById(id);
+	
+	if(aceptanega.src == aceptado.src)
+	{
+		aceptanega.src = negado.src;
+		document.getElementById(id+'h').value=0;
+	}
+	else
+	{
+		aceptanega.src = aceptado.src;	
+		document.getElementById(id+'h').value=1;
+	}
+
+}
+
+
+permitirsi =  new Image(27,25);
+permitirsi.src = "../images/fwflecha.gif"
+permitirno =  new Image(27,25);
+permitirno.src = "../images/fwprohibido.gif"
+
+function togglePermitir(id)
+{
+	var imgpermitir = document.getElementById('permitir'+id);
+	
+	if(imgpermitir.src == permitirsi.src)
+	{
+		imgpermitir.src = permitirno.src;
+		document.getElementById(id+'xper').value=0;
+	}
+	else
+	{
+		imgpermitir.src = permitirsi.src;	
+		document.getElementById(id+'xper').value=1;
+	}
+
+}
+
+
+flechaact2 =  new Image(27,25);
+flechaact2.src = "../images/bombillaactivado.gif"
+flechades2 =  new Image(27,25);
+flechades2.src = "../images/bombilladesactivado.gif"
+
+flechaactR =  new Image(27,25);
+flechaactR.src = "../images/bombillaactivadoroja.gif"
+
+function toggleRegla2()
+{
+
+	var flecha2 = document.getElementById('flechadisco');
+	
+	if(flecha2.src == flechaact2.src)
+	{
+		flecha2.src = flechades2.src;
+		document.getElementById('xactdisco').value=0;
+	}
+	else
+	{
+		flecha2.src = flechaact2.src;	
+		document.getElementById('xactdisco').value=1;
+	}
+
+}
+
+
+
+function toggleProtocol(id)
+{
+	var proto = document.getElementById(id+'xt2');
+	var protoval = document.getElementById(id+'xpro');
+	
+
+	
+	switch(parseInt(protoval.value))
+	{
+		case 0:
+			protoval.value=1;
+			proto.src = udpimg.src;
+			proto.alt = "UDP";
+			document.getElementById(id+'x2').value="Todos";
+			document.getElementById(id+'x2h').value="";	
+			break;
+		case 1:
+			protoval.value=2;
+			proto.src = greimg.src;
+			proto.alt = "GRE";
+			document.getElementById(id+'x2').value="N/A";
+			document.getElementById(id+'x2h').value="";
+			break;
+		case 2:
+			protoval.value=3;
+			proto.src = icmpimg.src;
+			proto.alt = "ICMP";
+			document.getElementById(id+'x2').value="N/A";
+			document.getElementById(id+'x2h').value="";
+			break;
+		case 3:
+			protoval.value=4;
+			proto.src = tcpimg.src;
+			proto.alt = "TCP";
+			document.getElementById(id+'x2').value="Todos";
+			document.getElementById(id+'x2h').value="";
+			break;
+		case 4:
+			protoval.value=5;
+			proto.src = tcpudpimg.src;
+			proto.alt = "TCP y UDP";
+			document.getElementById(id+'x2').value="Todos";
+			document.getElementById(id+'x2h').value="";
+			break;	
+		case 5:
+			protoval.value=0;
+			proto.src = todosimg.src;
+			proto.alt = "Todos";
+			document.getElementById(id+'x2').value="Todos";
+			break;
+		
+	}
+
+}
+
+function vista(opc)
+{
+oscuprocessform();
+
+theform.enviar.value = 2;
+theform.modovista.value = opc;
+document.theform.submit();
+
+}
+
+
+function borrar(opc)
+{
+
+
+	if(!confirm('¿Desea borrar todas las reglas?'))
+	return false;
+
+oscuprocessform();
+		    
+theform.enviar.value = opc;
+document.theform.submit();
+
+}
+
+   </script>
+</head><body onclick="clearLista()" marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer1" class="opaco1" style="visibility:hidden">
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="310" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+<div width="100%" align="left" id="divContainer1cnt">
+<form name="tiempo"  method="post">
+
+<table><tr>
+<td width="100" align="left">
+<img src="../images/timecontroller.gif">&nbsp;&nbsp;
+</td>
+<td width="130">
+
+<table>
+<tr><td>Hora inicio:</td><td><input class='campotxt' type='text' id='horaini' name='horaini' size=4 onChange='controlamulti(horaini.value)'></td></tr>
+
+<tr><td>Hora Fin:</td><td><input class='campotxt' type='text' id='horafin' name='horafin' size=4 onChange='controlamulti(horafin.value)'></td></tr>
+</table>
+
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="220">
+<tr>
+<td><input value="Mon" name="Mon" id="Mon" onclick="applyCheckbox(this.form)" type="checkbox"></td><td width="90%">Lunes</td>
+</tr>
+<tr>
+<td><input value="Tue" name="Tue" id="Tue" onclick="applyCheckbox(this.form)" type="checkbox"></td><td>Martes</td>
+</tr>
+<tr>
+<td><input value="Wed" name="Wed" id="Wed" onclick="applyCheckbox(this.form)" type="checkbox"></td><td width="90%">Miercoles</td>
+</tr>
+<tr>
+<td><input value="Thu" name="Thu" id="Thu" onclick="applyCheckbox(this.form)" type="checkbox"></td><td>Jueves</td>
+</tr>
+<tr>
+<td><input value="Fri" name="Fri" id="Fri" onclick="applyCheckbox(this.form)" type="checkbox"></td><td>Viernes</td>
+</tr>
+<tr>
+<td><input value="Sat" name="Sat" id="Sat" onclick="applyCheckbox(this.form)" type="checkbox"></td><td>Sabado</td>
+</tr>
+<tr>
+<td><input value="Sun" name="Sun" id="Sun" onclick="applyCheckbox(this.form)" type="checkbox"></td><td>Domingo</td>
+</tr>
+</table>
+
+</td>
+
+</tr></table>
+
+</form>
+</div>
+</td>
+</tr>
+</table>
+</div>
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer2" class="opaco1" style="visibility:hidden">
+
+<!-- vvvvv flechitas vvvvv -->
+  <div id="divUpControl2" class="divUp" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer2,+7)" onMouseOut="CeaseScroll(objContainer2)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer2,-7)" onMouseOut="CeaseScroll(objContainer2)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="310" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+
+<div width="100%" align="left" id="divContainer2cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="220">
+EOF
+		
+
+system("$variables intsubnet > $aux");
+open(OLD, "< $aux")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+	chomp;
+	$subnetint = $_;
+	}
+close(OLD);
+
+system("$variables extsubnet > $aux");
+open(OLD, "< $aux")    or die "can't open $variables: $!";
+		
+	while (<OLD>) 
+	{
+	chomp;
+	$subnetext = $_;
+	}
+close(OLD);
+
+open(OLD, "< $pptpdconf")    or die "can't open $estado: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^localip\s+.*/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s/,$_);
+		 		$ip = $data[1];
+				@data = split (/\./,$ip);
+				$subnetvpnpptp = $data[0].".".$data[1].".".$data[2].".0/24"
+			}
+	}
+
+	close(OLD)     or die "can't close $estado: $!";
+
+
+	open(OLD, "< $openvpncnf")    or die "can't open $openvpncnf: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^ifconfig\s/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s/,$_);
+				$ip1 = $data[1];
+				$mask1 = $data[2];
+			}
+			
+	}
+
+	close(OLD)     or die "can't close $openvpncnf: $!";
+
+$subnetopenvpn=`$net_address2 $ip1 $mask1`;
+
+
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='0.0.0.0/0'><img src='../images/minimundo.gif' ></td><td title='0.0.0.0/0'><font onclick='aplicarvalor(\"Internet\",\"0.0.0.0/0\",\"INTERNET\")' size=1 style='cursor:pointer'>Internet</font></td></tr>\n";
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$subnetint'><img src='../images/redmini.gif' ></td><td title='$subnetint'><font onclick='aplicarvalor(\"Red Interna\",\"$subnetint\",\"RED\")' size=1 style='cursor:pointer'>Red Interna</font></td></tr>\n";
+		if ($subnetext ne "")
+		{
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$subnetext'><img src='../images/redmini.gif' ></td><td title='$subnetext'><font onclick='aplicarvalor(\"Red Externa\",\"$subnetext\",\"RED\")' size=1 style='cursor:pointer'>Red Externa</font></td></tr>\n";
+		}	
+		print "<tr><td height='4'></td></tr>";
+		
+	open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_VPN_PPTP\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				$vpnpptp=$data[1];
+				
+			}
+	}
+close(OLD);
+		
+		
+		
+		
+		
+if($vpnpptp eq 1)
+{		
+		
+print "<tr><td width='30' align='center' title='$subnetvpnpptp'><img src='../images/miniredvpn.gif' ></td><td title='$subnetvpnpptp'><font onclick='aplicarvalor(\"Red Externa\",\"$subnetvpnpptp\",\"REDVPN\")' size=1 style='cursor:pointer'>Red VPN PPTP</font></td></tr>\n";
+		
+		
+
+open(OLD, "< $pptpduser")    or die "can't open $pptpduser: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+		unless (/^#/)
+     	{
+			chomp;
+			$_ =~ /.*/;
+			@data = split (/\s/,$_);
+		
+			$nombre = $data[0];
+			$ip = $data[3];
+
+			print "<tr><td height='4'></td></tr>";
+			print "<tr><td width='30' align='center' title='$ip'><img src='../images/miniredvpn.gif'></td><td title='$ip'><font onclick='aplicarvalor(\"$nombre\",\"$ip\",\"\REDVPN\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+			$i=$i+1;
+		}
+	}
+close(OLD) or die "can't close $pptpduser: $!";
+
+
+}
+
+
+
+
+open(OLD, "< $modulos")    or die "can't open $modulos: $!";
+		
+	while (<OLD>) 
+	{
+			if (/^\s*IMT_OPENVPN\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+				
+				$openvpn=$data[1];
+				
+			}
+	}
+close(OLD);
+
+
+if($openvpn eq 1)
+{
+
+print "<tr><td height='4'></td></tr>";
+print "<tr><td width='30' align='center' title='$subnetopenvpn'><img src='../images/miniredopenvpn.gif' ></td><td title='$subnetopenvpn'><font onclick='aplicarvalor(\"Red Externa\",\"$subnetopenvpn\",\"REDOPENVPN\")' size=1 style='cursor:pointer'>Red OpenVPN</font></td></tr>\n";
+
+
+open(OLD, "< $ipptxt")    or die "can't open $ipptxt: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+		if (/^.*$/)
+     	{
+				chomp;
+				$_ =~ /.*/;
+				$_ =~ s/\s+/ /g;
+				@data = split (/,/,$_);
+				
+				$certificado=$data[0];
+				
+				$ip=$data[1];
+								
+				print "<tr><td height='4'></td></tr>";
+				print "<tr><td width='30' align='center' title='$certificado $ip'><img src='../images/miniredopenvpn.gif' ></td><td title='$certificado $ip'><font onclick='aplicarvalor(\"${certificado}\",\"$ip\",\"REDOPENVPN\")' size=1 style='cursor:pointer'>$certificado</font></td></tr>\n";
+				
+				$i=$i+1;
+			}
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $ipptxt: $!";
+
+}
+
+
+
+open(OLD, "< $fwipred")    or die "can't open $fwipred: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+
+		chomp;
+		$_ =~ /.*/;
+		@data = split (/\|/,$_);
+		
+		$nombre = $data[0];
+		$tipo = $data[1];
+		$ip = $data[2];
+		$comentario = $data[3];
+
+
+		if ($tipo eq "ESTACION")
+		{
+			$imagen="../images/pc.gif";
+		}
+		elsif ($tipo eq "SERVIDOR")
+		{
+			$imagen="../images/servimini.gif";
+		}
+		elsif ($tipo eq "ROUTER")
+		{
+			$imagen="../images/dispomini.gif";
+		}
+		elsif ($tipo eq "RED")
+		{
+			$imagen="../images/redmini.gif";
+		}
+		elsif ($tipo eq "INTERNET")
+		{
+			$imagen="../images/minimundo.gif";
+		}
+
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$ip'><img src='$imagen'></td><td title='$ip'><font onclick='aplicarvalor(\"$nombre\",\"$ip\",\"$tipo\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $fwipred: $!";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer3" class="opaco1" style="visibility:hidden">
+
+<!-- vvvvv flechitas vvvvv -->
+  <div id="divUpControl2" class="divUp" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer3,+7)" onMouseOut="CeaseScroll(objContainer3)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer3,-7)" onMouseOut="CeaseScroll(objContainer3)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="310" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+
+<div width="100%" align="left" id="divContainer3cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="220">
+EOF
+
+		
+
+open(OLD, "< $portservice")    or die "can't open $fwipred: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+
+		chomp;
+		$_ =~ /.*/;
+		@data = split (/\|/,$_);
+		$nombre = $data[0];
+		$tipo = $data[1];
+		$valor = $data[2];
+
+		
+		if ($tipo eq "TCP")
+		{
+			$imagen="../images/minibolaazul.gif";
+		}
+		elsif ($tipo eq "UDP")
+		{
+			$imagen="../images/minibolanaranja.gif";
+		}
+		elsif ($tipo eq "GRE")
+		{
+			$imagen="../images/minibolaverde.gif";
+		}
+		elsif ($tipo eq "ICMP")
+		{
+			$imagen="../images/icmp.gif";
+		}
+		elsif ($tipo eq "TCPUDP")
+		{
+			$imagen="../images/tcpyudp.gif";
+		}
+		elsif ($tipo eq "all")
+		{
+			$imagen="../images/todos.gif";
+		}
+
+		print "<tr><td height='4'></td></tr>";
+		print "<tr><td width='30' align='center' title='$valor'><img src='$imagen'></td><td title='$valor'><font id='${i}a0' onclick='aplicarvalor(\"$nombre\",\"$valor\",\"$tipo\")' size=1 style='cursor:pointer'>$nombre</font></td></tr>\n";
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $fwipred: $!";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+
+<div align="left" onclick="void(0);event.cancelBubble=true;" id="divContainer4" class="opaco1" style="visibility:hidden;">
+
+<!-- vvvvv flechitas vvvvv -->
+<!--
+  <div id="divUpControl2" class="divUp" >
+ <a href="javascript:;" onMouseOver="PerformScroll(objContainer1,+7)" onMouseOut="CeaseScroll(objContainer1)"> 
+<img src="../images/up.gif" border="0"/></a></div>
+<div id="divDownControl3" class='divDown'> 
+<a href="javascript:;" onMouseOver="PerformScroll(objContainer1,-7)" onMouseOut="CeaseScroll(objContainer1)"> 
+<img src="../images/down.gif" border="0"/></a></div>
+-->
+<!-- ^^^^^  flechitas ^^^^^ -->
+
+<table bgcolor="#FFFFFF" cellspacing="0" cellpadding="0" width="100%" height="100%" class="bordecuadrof">
+<tr>
+<td valign="top" width="100%">
+
+<div width="100%" align="left" id="divContainer4cnt">
+<table class="lista" cellpadding="0" cellspacing="0" border="0" width="160">
+EOF
+		
+print "<tr><td height='4'></td></tr>";
+
+
+
+open(OLD, "< $montadodisco")    or die "can't open $montadodisco: $!";
+		
+	$i=1;
+	
+	while (<OLD>) 
+	{
+			chomp;
+			$_ =~ /.*/;
+			$_ =~ s/\s+/ /g;
+				
+			@data = split (/ /,$_);
+			
+				
+			$monta = $data[2];
+			
+			@data = split (/#{2}/,$_);
+			
+			
+			$etiqueta = $data[5];
+			
+			
+			print "<tr><td height='10' colspan='10'></td></tr>\n";
+			print "<tr><td align='right'><img src='../images/discomini.gif'>&nbsp;</td><td><font onclick='aplicarvalor2(\"$infodisk\",\"$etiqueta\",\"$i\")' size=1 style='cursor:pointer'>$etiqueta</font></td></tr>\n";
+			
+
+	$i=$i+1;
+	}
+close(OLD) or die "can't close $montadodisco: $!";
+
+print "<tr><td height='10'></td></tr>";
+
+print <<EOF;
+<tr><td height='5'></td></tr>
+</table>
+
+</div>
+
+</td>
+</tr>
+</table>
+</div>
+
+
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="post" onsubmit="oscuprocessform()">
+<input name="volver" type="hidden" value="$volver">
+<input name="enviar" type="hidden"><input type="hidden" name="control" id='control'><input name="modovista" type="hidden">
+
+<CENTER><table cellpadding=0 cellspacing=0><tr><td><img src='../images/paso.gif'></td><td width="10"></td><td><FONT SIZE=+1 COLOR=#3e73a8><B>$fwlogs_titulo1</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+/*if (navigator.appVersion.indexOf("MSIE")!=-1){
+	document.write("<HR NOSHADE class='barracolor'>");
+}
+else
+{
+	document.write("<div width='100%' style='background-color: #3e73a8; height:2px; max-height:2px'></div>");
+}*/
+
+</script>
+
+<P>
+	
+<table width="650" border="0"><tr><td align="left">
+<A HREF=$volver target=main><img src="../images/volver.gif" border="0"><br>$fw_volver</a> 
+</td>
+<td align="right">
+<table>
+<tr>
+<td><img src='../images/todos.gif'></td><td><b>$fw_todos</b></td><td width="6"></td>
+<td><img src='../images/tcpyudp.gif'></td><td><b>TCP y UDP</b></td>
+</tr>
+<tr>
+<td><img src='../images/tcp.gif'></td><td><b>TCP</b></td><td width="6"></td>
+<td><img src='../images/gre.gif'></td><td><b>GRE</b></td>
+</tr>
+<tr>
+<td><img src='../images/udp.gif'></td><td><b>UDP</b></td><td width="6"></td>
+<td><img src='../images/icmp.gif'></td><td><b>ICMP</b></td>
+</tr>
+</table>
+</td>
+</tr></table>
+
+
+<br>
+
+<table><tr>
+<td>
+
+<table width="210" border="0">
+<tr>
+<td width='50' align='center'><img src='../images/discoide.gif'></td>
+<td align='center' width=5></td>
+<td width='150'><b>$netbiosconfig_unidad:</b><br><input class='campotxt4' type='text' id='disco' name='disco' size=18 value='$disco' readonly><input class='campotxt4' type='hidden' id='numcelda' name='numcelda' value='$numcelda'></td>
+<td valign="center" align="left"><font color="white">0</font><br><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"disco\",objContainer4,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>
+<td>
+<script language='javascript'>document.write('<img id=\"flechadisco\" src=\"'+($activado2 == 1?flechaact2.src:flechades2.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla2()\" >');</script>
+<input  type='hidden' id='xactdisco' name='xactdisco' value='$activado2'/>
+</td>
+</tr>
+</table>
+
+</td>
+<td width="50"></td>
+<td>
+
+<table>
+<tr><td><input value="0" onClick="vista(0)" name="opcvista" type="radio" $vistachecks0>$fw_vistanombres</td>
+<td width="5"></td><td><input value="1" onClick="vista(1)" name="opcvista" type="radio" $vistachecks1>$fw_vistareglas</td>
+<td width="5"></td><td><input value="2" onClick="vista(2)" name="opcvista" type="radio" $vistachecks2>$fw_vistacompleta</td></tr>	
+</table>		
+</td></tr></table>
+
+
+		<br>
+<table cellspacing="0" cellpadding="0" width=890 border="0">
+
+<tr><td  height="23"  width="100%" background="../images/barratitulo.gif">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="white"><b>$fw_origen
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$fw_destino&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$fw_puertos
+		&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;$fw_comentario</b></font></td></tr>
+
+</table>
+	
+		
+
+
+<table cellspacing="3" cellpadding="0" width=890 class="linea"  border=0>
+EOF
+
+	open(OLD, "< $fwlogs")    or die "can't open $fwlogs: $!";
+		
+	$p=0;
+	
+	while (<OLD>) 
+	{
+		if (/^[\s#]*\$IPTABLES.*$/)
+     	{
+			$p++
+		}
+	}
+	close(OLD) or die "can't close $fwlogs: $!";
+	$total=$p;
+
+
+	open(OLD, "< $fwlogs")    or die "can't open $p2piptables: $!";
+		
+	$i=1;
+	$lastline="";
+	
+	while (<OLD>) 
+	{
+			if (/^[\s#]*\$IPTABLES.*$/)
+     		{
+			
+			unless(/##TCPUDP2$/)
+			{
+		
+				chomp;
+				$_ =~ /.*/;
+				$_ =~ s/\s+/ /g;
+				
+				if($_ =~ /!\s-s/)
+				{
+					$aceptanegaori="negado.gif";
+					$aceptanegaoriocul="0";
+					
+					$_ =~ s/!\s-s/-s/g;
+				}
+				else
+				{
+					$aceptanegaori="aceptado.gif";
+					$aceptanegaoriocul="1";
+				}
+				
+				if($_ =~ /!\s-d/)
+				{
+					$aceptanegadesti="negado.gif";
+					$aceptanegadestiocul="0";
+					
+					$_ =~ s/!\s-d/-d/g;
+				}
+				else
+				{
+					$aceptanegadesti="aceptado.gif";
+					$aceptanegadestiocul="1";
+				}
+				
+				if($_ =~ /!\s--src-range/)
+				{
+					$aceptanegaoriocul="0";
+					$aceptanegaori="negado.gif";
+					$_ =~ s/!\s--src-range/--src-range/g;
+				}
+				
+				if($_ =~ /!\s--dst-range/)
+				{
+					$aceptanegadestiocul="0";
+					$aceptanegadesti="negado.gif";
+					$_ =~ s/!\s--dst-range/--dst-range/g;
+				}
+				
+				if($_ =~ /--mac-source\s!/)
+				{
+					$aceptanegaoriocul="0";
+					$aceptanegaori="negado.gif";
+					$_ =~ s/--mac-source\s!/--mac-source/g;
+				}
+				
+				$_ =~ s/-t\snat\s-A\sPREROUTING/-A FORWARD/g;
+				
+				@data = split (/ /,$_);
+				
+				if($_ =~ /-m time/)
+				{
+					$t=8;
+					$horaini=$data[6];
+					$horafin=$data[8];
+					$dias=$data[10];
+				}
+				else
+				{
+					$t=0;
+					$horaini="";
+					$horafin="";
+					$dias="";
+				}
+
+				if(($_ =~ /-m iprange --src-range/) || ($_ =~ /-m mac --mac-source/))
+				{
+					$m=2;
+				}
+				else
+				{
+					$m=0;
+				}
+				
+				if(($_ =~ /--dst-range/) && (($_ !~ /-m iprange --src-range/) || ($_ !~ /-m mac --mac-source/)))
+				{
+					$n=2;
+				}
+				else
+				{
+					$n=0;
+				}
+				
+				if(($_ =~ /--dst-range/) && ($_ =~ /-m iprange --src-range/))
+				{
+					$n=0;
+				}
+
+				$origenip = $data[4 + $m + $t];
+				$destinoip = $data[6 + $m + $t + $n];
+
+				if($_ =~ /-m iprange --src-range/)
+				{
+				$origenip = $data[4 + $m + $t];
+
+				@datarange = split (/-/,$origenip);
+		 		$ipinicial = $datarange[0];
+				$ipfinal = $datarange[1];
+				
+				@datarange = split (/\./,$ipfinal);
+				$valorfinal = $datarange[3];
+
+				$origenip = "$ipinicial-$valorfinal";
+				}
+				
+				
+				if($_ =~ /--dst-range/)
+				{
+				$destinoip = $data[6 + $m + $t + $n];
+
+				@datarange = split (/-/,$destinoip);
+		 		$ipinicial = $datarange[0];
+				$ipfinal = $datarange[1];
+				
+				@datarange = split (/\./,$ipfinal);
+				$valorfinal = $datarange[3];
+
+				$destinoip = "$ipinicial-$valorfinal";
+				}
+				
+
+				$probarport = /^[#]*\$IPTABLES.*-m multiport --dports/;				
+				if($probarport eq 1)
+				{
+					$k=2;
+				}
+				else
+				{
+					$k=0;
+				}
+
+
+				if ($data[0] =~ /^\s*#.*/)
+				{
+					$activado=0;
+				}
+				else
+				{
+					$activado=1;
+				}
+				
+				if ($data[8 + $m + $t + $n] eq "all")
+				{
+					$protoval=0;
+					$puertos ="";
+				}
+				elsif ($data[8 + $m + $t + $n] eq "udp")
+				{
+					$protoval=1;
+					if($k eq 0)
+					{
+						$puertos = "";
+					}
+					else
+					{
+						$puertos = $data[10 + $m + $k + $t + $n];
+					}
+				}
+				elsif ($data[8 + $m + $t + $n] eq "47")
+				{
+					$protoval=2;
+					$puertos ="";
+				}
+				elsif ($data[8 + $m + $t + $n] eq "icmp")
+				{
+					$protoval=3;
+					$puertos ="";
+				}
+				elsif ($data[8 + $m + $t + $n] eq "tcp")
+				{
+					$protoval=4;
+					if($k eq 0)
+					{
+						$puertos = "";
+					}
+					else
+					{
+						$puertos = $data[10 + $m + $k + $t + $n];
+					}
+				}
+
+				if(/\-j\s+ULOG\s--ulog-prefix\s"ACCEPT"/)
+				{
+					$permitir=1;
+				}
+				elsif(/\-j\s+ULOG\s--ulog-prefix\s"DROP"/)
+				{	
+					$permitir=0;
+				}	
+					
+				@data = split (/#{2}/,$_);
+				$nombreorigen = $data[1];
+				$nombreorigen =~ s/\s$//g;
+
+				$tipo1 = $data[2];
+				$tipo1 =~ s/\s$//g;
+				
+				$nombredestino = $data[3];
+				$nombredestino =~ s/\s$//g;
+
+				$tipo2 = $data[4];
+				$tipo2 =~ s/\s$//g;
+
+				$nombreaplipuertos = $data[5];
+				$nombreaplipuertos =~ s/\s$//g;
+				
+				$tipogrupo = $data[6];
+				$tipogrupo =~ s/\s$//g;
+				
+				if($tipogrupo eq "TCPUDP1")
+				{
+					$protoval=5;
+				}
+				
+				
+		 		#warn $_."\n";
+		 		
+		 		if($lastline =~ /^\s*#.*/)
+		 		{
+		 			$lastline=~s/^\s*#//;
+		 			$comment=$lastline;# quitar  #
+		 			$lastline="";
+		 		}	
+		 		else
+		 		{
+		 			$comment="";	
+		 		}	
+			
+				print "<tr>\n";
+				if($i eq 1 && $total>1)
+				{
+				print "<td align='left' width='24'><table cellpadding='0' cellspacing='0'><tr><td></td></tr><tr><td height='2'></td></tr><tr><td><img  onclick='window.location.href=\"?id=${i}&pos=2&enviar=posicion&volver=$volver\"' style='cursor:pointer;$imagenvisiblemod' src='../images/bajar.gif' border='0' alt='bajar'></td></tr></table></td>\n";
+				}
+				elsif($i eq 1 && $i eq $total)
+				{
+				print "<td align='left' width='24'><table cellpadding='0' cellspacing='0'><tr><td></td></tr><tr><td height='2'></td></tr><tr><td></td></tr></table></td>\n";
+				}
+				elsif($i eq $total)
+				{
+				print "<td align='left' width='24'><table cellpadding='0' cellspacing='0'><tr><td></td></tr><tr><td height='2'></td></tr><tr><td><img  onclick='window.location.href=\"?id=${i}&pos=1&enviar=posicion&volver=$volver\"' style='cursor:pointer;$imagenvisiblemod' src='../images/subir.gif' border='0' alt='subir'></td></tr></table></td>\n";
+				}
+				else
+				{
+				print "<td align='left' width='24'><table cellpadding='0' cellspacing='0'><tr><td><img  onclick='window.location.href=\"?id=${i}&pos=1&enviar=posicion&volver=$volver\"' style='cursor:pointer;$imagenvisiblemod' src='../images/subir.gif' border='0' alt='subir'></td></tr><tr><td height='2'></td></tr><tr><td><img  onclick='window.location.href=\"?id=${i}&pos=2&enviar=posicion\"' style='cursor:pointer;$imagenvisiblemod' src='../images/bajar.gif' border='0' alt='bajar'></td></tr></table></td>\n";
+				}
+				
+				print "<td align='left' width='24'><img  onclick='window.location.href=\"?id=${i}&enviar=Insertar&volver=$volver\"' style='cursor:pointer;$imagenvisiblemod' src='../images/mas.jpg' border='0' alt='insertar' ></td>\n";
+				print "<td align='left' width='24'><img  onclick='window.location.href=\"?id=${i}&enviar=Borrar&volver=$volver\"' style='cursor:pointer;$imagenvisiblemod' src='../images/no.jpg' border='0' alt='borrar' ></td>\n";
+	
+	
+				if($tipo1 eq "ESTACION" )
+					{
+						print "<td align='center' width=26><img src='../images/pc.gif' id='${i}xt0' alt='Estación' style='cursor:pointer'></td>";
+					}
+					if($tipo1 eq "SERVIDOR" )
+					{
+						print "<td align='center' width=26><img src='../images/servimini.gif' id='${i}xt0' alt='Servidor' style='cursor:pointer'></td>";
+					}
+					if($tipo1 eq "ROUTER" )
+					{
+						print "<td align='center' width=26><img src='../images/dispomini.gif' id='${i}xt0' alt='Router' style='cursor:pointer'></td>";
+					}
+					if($tipo1 eq "RED" )
+					{
+						print "<td align='center' width=26><img src='../images/redmini.gif' id='${i}xt0' alt='Red' style='cursor:pointer'></td>";
+					}
+					if($tipo1 eq "INTERNET" )
+					{
+						print "<td align='center' width=26><img src='../images/minimundo.gif' id='${i}xt0' alt='Internet' style='cursor:pointer'></td>";
+					}
+					if($tipo1 eq "REDVPN" )
+					{
+						print "<td align='center' width=26><img src='../images/miniredvpn.gif' id='${i}xt0' alt='Red VPN' style='cursor:pointer'></td>";
+					}
+
+				
+				print "<input id='${i}x0th' name='${i}x0th' type='hidden' value='$tipo1' class='campotxt' size=15>";
+
+				print "<td width='110' align='left'><input id='${i}x0' name='${i}x0' type='$estadovista1' value='$nombreorigen' class='campotxt4' size=15><input id='${i}x0h' name='${i}x0h' type='$estadovista2' value='$origenip' class='campotxt' size=15></td>\n";
+				print "<td align='center' width=19><img style='cursor:pointer' id='${i}xori' src='../images/$aceptanegaori' onclick='toggleaceptanega(\"${i}xori\")'><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"${i}x0\",objContainer2,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+				print "<input id='${i}xorih' name='${i}xorih' type='hidden' value='$aceptanegaoriocul' class='campotxt'>";
+				print "<td align='center' width='2'></td>\n";
+				
+					if($tipo2 eq "ESTACION" )
+					{
+						print "<td align='center' width=26><img src='../images/pc.gif' id='${i}xt1' alt='Estación' style='cursor:pointer'></td>";
+					}
+					if($tipo2 eq "SERVIDOR" )
+					{
+						print "<td align='center' width=26><img src='../images/servimini.gif' id='${i}xt1' alt='Servidor' style='cursor:pointer'></td>";
+					}
+					if($tipo2 eq "ROUTER" )
+					{
+						print "<td align='center' width=26><img src='../images/dispomini.gif' id='${i}xt1' alt='Router' style='cursor:pointer'></td>";
+					}
+					if($tipo2 eq "RED" )
+					{
+						print "<td align='center' width=26><img src='../images/redmini.gif' id='${i}xt1' alt='Red' style='cursor:pointer'></td>";
+					}
+					if($tipo2 eq "INTERNET" )
+					{
+						print "<td align='center' width=26><img src='../images/minimundo.gif' id='${i}xt1' alt='Internet' style='cursor:pointer'></td>";
+					}
+					if($tipo2 eq "REDVPN" )
+					{
+						print "<td align='center' width=26><img src='../images/miniredvpn.gif' id='${i}xt1' alt='Red VPN' style='cursor:pointer'></td>";
+					}
+				
+				print "<input id='${i}x1th' name='${i}x1th' type='hidden' value='$tipo2' class='campotxt' size=15>";
+				
+				print "<td width='110' align='left'><input id='${i}x1' name='${i}x1' type='$estadovista1' value='$nombredestino' class='campotxt4' size=15><input id='${i}x1h' name='${i}x1h' type='$estadovista2' value='$destinoip' class='campotxt' size=15></td>\n";
+				print "<td align='center' width=19><img style='cursor:pointer' id='${i}xdesti' src='../images/${aceptanegadesti}' onclick='toggleaceptanega(\"${i}xdesti\")'><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"${i}x1\",objContainer2,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+				print "<input id='${i}xdestih' name='${i}xdestih' type='hidden' value='$aceptanegadestiocul' class='campotxt'>";
+				print "<td align='center' width='2'></td>\n";
+				
+				#print "<td align='center' width=22><img src='../images/tcp.gif' alt='TCP' style='cursor:pointer'></td>";
+				
+								print <<EOF3;
+				<td align='center' width=22>
+				<script language='javascript'>
+				
+				protoval = $protoval;
+				
+					switch(protoval)
+					{
+						case 0:
+							imagensrc = todosimg.src;
+							imagenalt = "Todos";
+						break;
+						case 1:
+							imagensrc = udpimg.src;
+							imagenalt = "UDP";
+						break;
+						case 2:
+							imagensrc = greimg.src;
+							imagenalt = "GRE";
+						break;
+						case 3:
+							imagensrc = icmpimg.src;
+							imagenalt = "ICMP";
+						break;
+						case 4:
+							imagensrc = tcpimg.src;
+							imagenalt = "TCP";
+						break;
+						case 5:
+							imagensrc = tcpudpimg.src;
+							imagenalt = "TCP y UDP";
+						break;
+					}
+				
+				
+				document.write('<img id=\"${i}xt2\"  alt=\"'+imagenalt+'\" src=\"'+imagensrc+'\" style=\"cursor:pointer\" onclick=\"toggleProtocol(${i})\" >');
+				
+				</script><input  type='hidden' id='${i}xpro' name='${i}xpro' value='$protoval'/></td>
+	
+			
+EOF3
+				
+				
+				print "<td width='115' align='left'><input id='${i}x2' name='${i}x2' type='$estadovista1' value='$nombreaplipuertos' class='campotxt4' size=16><input id='${i}x2h' name='${i}x2h' type='$estadovista2' value='$puertos' class='campotxt' size=16></td>\n";
+				print "<td align='center' width=18><img style='cursor:pointer' src='../images/flechabajo.gif' onclick='toggle(\"${i}x2\",objContainer3,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+				
+				
+				if($dias eq "")
+				{
+				$estadoreloj="relojno.gif";
+				$horaini="00:00";
+				$horafin="23:59";
+				}
+				else
+				{
+				$estadoreloj="reloj.gif";
+				}
+								
+				print "<td align='center' width=30 valign='bottom'><img style='cursor:pointer' id='${i}x3' src='../images/$estadoreloj' onclick='toggle(\"${i}x3\",objContainer1,findPosX(this)+20,findPosY(this)+20);event.cancelBubble=true;'/></td>\n";
+				print "<input type='hidden' id='${i}x3horaini' name='${i}x3horaini' value='$horaini'>\n";
+				print "<input type='hidden' id='${i}x3horafin' name='${i}x3horafin' value='$horafin'>\n";
+				print "<input type='hidden' id='${i}x3dias' name='${i}x3dias' value='$dias'>\n";
+								
+				print "<td align='center' width='2'></td>\n";
+
+				print "<td width='115' align='left'><input  style='font-style:italic'  class='campotxt' type='text' id='${i}xc' name='${i}xc' size=16 value='$comment'/></td>\n";
+				print "<td align='center' width='25'>\n";
+				
+				
+				print "\n";
+				print "<script language='javascript'>document.write('<img id=\"permitir${i}\" src=\"'+($permitir == 1?permitirsi.src:permitirno.src\)+'\" style=\"cursor:pointer\" onclick=\"togglePermitir(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xper' name='${i}xper' value='$permitir'/>\n";
+			
+				print "<td align='center' width='36'>\n";
+				print "\n";
+				print "<script language='javascript'>document.write('<img id=\"flecha${i}\" src=\"'+($activado == 1?flechaact.src:flechades.src\)+'\" style=\"cursor:pointer\" onclick=\"toggleRegla(${i})\" >');</script></td>\n";
+				print "<input  type='hidden' id='${i}xact' name='${i}xact' value='$activado'/>\n";
+				
+				print "</tr>\n";
+				$i=$i+1;
+		}
+		}
+		
+		
+		if($_=~ /^#.*/)
+		{
+			$lastline=$_;
+			#warn "[$lastline]";
+		}
+}
+close(OLD) or die "can't close $p2piptables: $!";	
+
+if ($i == 1) 
+{
+			print "<tr>\n";
+			print "<td align='left' width='28'><img  onclick='window.location.href=\"?id=0&enviar=Insertar\"' style='cursor:pointer;$imagenvisiblemod' src='../images/mas.jpg' border='0' alt='insertar' ></td>\n";
+			print "<td align='left' width='99%' colspan='5'></td>\n";
+			print "</tr>\n";
+}
+
+
+print <<EOF;
+</table>
+
+ <br>
+              <table border="0" align="center" cellpadding="0" cellspacing="0" width="650">
+                <tr>
+				<td width="80"></td>
+                  <td align="center" valign="top"><input type="$controlbuttonmod" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="$controlbuttonmod" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                <td align="right"><img src="../images/papelera.gif" onClick="borrar(3)" style='cursor:pointer;$imagenvisiblemod'></td>
+				</tr>
+              </table>
+
+<br><br>
+</form>
+		</td>
+	</tr>
+	</table>
+	<!-- fin tabla central -->
+	</td>
+</tr>
+</table>
+<script language="javascript">InitialiseAreas(); </script>
+
+<script type="text/javascript" language="javascript1.2">
+
+var flecha2 = document.getElementById('flecha2');
+			
+var bombiroja=0;
+
+if (bombiroja == $bombiroja)
+{
+	flecha2.src = flechaactR.src;
+}
+
+</script>
+
+EOF
+require "$imtlayers";
+print <<EOF;		
+ </body>
+</html>
+EOF
+
+if($q->param('enviar') eq "Aplicar")
+	{
+		system("$cleanall >/dev/null 2>&1");
+		system("$firewall >/dev/null 2>&1");	
+		system("$prerouting >/dev/null 2>&1");
+	}
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");

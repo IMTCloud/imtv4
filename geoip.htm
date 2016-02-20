@@ -1,0 +1,419 @@
+#! /usr/bin/perl -wX
+
+
+use CGI;
+$q = new CGI;
+
+$ENV{'SHELL'} = '/bin/sh';		
+$ENV{'PATH'} = '/usr/lib/jvm/java-1.5.0-sun-1.5.0.10/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/X11R6/bin';
+
+require "/opt/imt/web/modulos/imthwd.htm";
+require "/opt/imt/web/modulos/rutaidioma";
+require "/opt/imt/web/modulos/rutaficheros";
+$aux = "/tmp/aux".int(rand(10000));
+
+
+               	  		 
+						 
+
+
+
+#estado final de los servicios
+#···············································································	
+
+if($q->param('env') eq "aplicar")
+{
+
+	if($q->param('DE') eq 1) { $acumu=$acumu."DE,"; }
+	if($q->param('AD') eq 1) { $acumu=$acumu."AD,"; }
+	if($q->param('SA') eq 1) { $acumu=$acumu."SA,"; }
+	if($q->param('AR') eq 1) { $acumu=$acumu."AR,"; }
+	if($q->param('AU') eq 1) { $acumu=$acumu."AU,"; }
+	if($q->param('AT') eq 1) { $acumu=$acumu."AT,"; }
+	if($q->param('BE') eq 1) { $acumu=$acumu."BE,"; }
+	if($q->param('BO') eq 1) { $acumu=$acumu."BO,"; }
+	if($q->param('BR') eq 1) { $acumu=$acumu."BR,"; }
+	if($q->param('BG') eq 1) { $acumu=$acumu."BG,"; }
+	if($q->param('CM') eq 1) { $acumu=$acumu."CM,"; }
+	if($q->param('CA') eq 1) { $acumu=$acumu."CA,"; }
+	if($q->param('CL') eq 1) { $acumu=$acumu."CL,"; }
+	if($q->param('CN') eq 1) { $acumu=$acumu."CN,"; }
+	if($q->param('CY') eq 1) { $acumu=$acumu."CY,"; }
+	if($q->param('CO') eq 1) { $acumu=$acumu."CO,"; }
+	if($q->param('KR') eq 1) { $acumu=$acumu."KR,"; }
+	if($q->param('CR') eq 1) { $acumu=$acumu."CR,"; }
+	if($q->param('HR') eq 1) { $acumu=$acumu."HR,"; }
+	if($q->param('CU') eq 1) { $acumu=$acumu."CU,"; }
+	if($q->param('DK') eq 1) { $acumu=$acumu."DK,"; }
+	if($q->param('EC') eq 1) { $acumu=$acumu."EC,"; }
+	if($q->param('EG') eq 1) { $acumu=$acumu."EG,"; }
+	if($q->param('SV') eq 1) { $acumu=$acumu."SV,"; }
+	if($q->param('AE') eq 1) { $acumu=$acumu."AE,"; }
+	if($q->param('SK') eq 1) { $acumu=$acumu."SK,"; }
+	if($q->param('SI') eq 1) { $acumu=$acumu."SI,"; }
+	
+	if($q->param('ES') eq 1) { $acumu=$acumu."ES,"; }
+	if($q->param('US') eq 1) { $acumu=$acumu."US,"; }
+	if($q->param('EE') eq 1) { $acumu=$acumu."EE,"; }
+	if($q->param('PH') eq 1) { $acumu=$acumu."PH,"; }
+	if($q->param('FI') eq 1) { $acumu=$acumu."FI,"; }
+	if($q->param('FR') eq 1) { $acumu=$acumu."FR,"; }
+	if($q->param('GR') eq 1) { $acumu=$acumu."GR,"; }
+	if($q->param('GT') eq 1) { $acumu=$acumu."GT,"; }
+	if($q->param('HN') eq 1) { $acumu=$acumu."HN,"; }
+	if($q->param('HK') eq 1) { $acumu=$acumu."HK,"; }
+	if($q->param('HU') eq 1) { $acumu=$acumu."HU,"; }
+	if($q->param('IN') eq 1) { $acumu=$acumu."IN,"; }
+	if($q->param('ID') eq 1) { $acumu=$acumu."ID,"; }
+	if($q->param('IE') eq 1) { $acumu=$acumu."IE,"; }
+	if($q->param('IS') eq 1) { $acumu=$acumu."IS,"; }
+	if($q->param('IL') eq 1) { $acumu=$acumu."IL,"; }
+	if($q->param('IT') eq 1) { $acumu=$acumu."IT,"; }
+	if($q->param('JP') eq 1) { $acumu=$acumu."JP,"; }
+	if($q->param('LV') eq 1) { $acumu=$acumu."LV,"; }
+	if($q->param('LI') eq 1) { $acumu=$acumu."LI,"; }
+	if($q->param('LT') eq 1) { $acumu=$acumu."LT,"; }
+	if($q->param('LU') eq 1) { $acumu=$acumu."LU,"; }
+	if($q->param('MK') eq 1) { $acumu=$acumu."MK,"; }
+	if($q->param('MT') eq 1) { $acumu=$acumu."MT,"; }
+	if($q->param('MA') eq 1) { $acumu=$acumu."MA,"; }
+	if($q->param('MX') eq 1) { $acumu=$acumu."MX,"; }
+	if($q->param('MC') eq 1) { $acumu=$acumu."MC,"; }
+	
+	if($q->param('NI') eq 1) { $acumu=$acumu."NI,"; }
+	if($q->param('NO') eq 1) { $acumu=$acumu."NO,"; }
+	if($q->param('NZ') eq 1) { $acumu=$acumu."NZ,"; }
+	if($q->param('NL') eq 1) { $acumu=$acumu."NL,"; }
+	if($q->param('PK') eq 1) { $acumu=$acumu."PK,"; }
+	if($q->param('PA') eq 1) { $acumu=$acumu."PA,"; }
+	if($q->param('PY') eq 1) { $acumu=$acumu."PY,"; }
+	if($q->param('PE') eq 1) { $acumu=$acumu."PE,"; }
+	if($q->param('PL') eq 1) { $acumu=$acumu."PL,"; }
+	if($q->param('PT') eq 1) { $acumu=$acumu."PT,"; }
+	if($q->param('PR') eq 1) { $acumu=$acumu."PR,"; }
+	if($q->param('QA') eq 1) { $acumu=$acumu."QA,"; }
+	if($q->param('GB') eq 1) { $acumu=$acumu."GB,"; }
+	if($q->param('CZ') eq 1) { $acumu=$acumu."CZ,"; }
+	if($q->param('DO') eq 1) { $acumu=$acumu."DO,"; }
+	if($q->param('RO') eq 1) { $acumu=$acumu."RO,"; }
+	if($q->param('RU') eq 1) { $acumu=$acumu."RU,"; }
+	if($q->param('ZA') eq 1) { $acumu=$acumu."ZA,"; }
+	if($q->param('SE') eq 1) { $acumu=$acumu."SE,"; }
+	if($q->param('CH') eq 1) { $acumu=$acumu."CH,"; }
+	if($q->param('TR') eq 1) { $acumu=$acumu."TR,"; }
+	if($q->param('UA') eq 1) { $acumu=$acumu."UA,"; }
+	if($q->param('UY') eq 1) { $acumu=$acumu."UY,"; }
+	if($q->param('VE') eq 1) { $acumu=$acumu."VE,"; }
+
+	$acumu =~ s/,$//;
+   @data = split (/\s*,\s*/,$acumu);
+
+	$i=0;
+
+	open(NEW, "> $fwgeoiplist")     or die "can't open $fwgeoiplist: $!";
+
+	foreach (@data)
+	{
+   	$linea = $linea.$_.",";
+		$i++;   	
+   	
+   	if($i eq 15 || $i eq 30 || $i eq 45 || $i eq 60 || $i eq 75 || $i eq 90)
+   	{
+   	$linea =~ s/,$//;
+   	print NEW "$linea\n";
+   	$linea="";
+   	$i=0; 
+		}   	
+   	
+	}  
+	
+	if($i ne 0)
+   {
+   	$linea =~ s/,$//;
+   	print NEW "$linea\n"; 
+	} 
+	
+	close(NEW) or die "can't close $fwgeoiplist: $!";  
+	
+	system("$cleanall >/dev/null 2>&1");
+	system("$firewall >/dev/null 2>&1");	
+	system("$prerouting >/dev/null 2>&1");
+   
+}
+
+
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $fwgeoiplist")    or die "can't open $fwgeoiplist: $!";
+		
+	while (<OLD>) 
+	{
+		chomp;
+		$acumu=$acumu.$_.",";
+	}
+
+	close(OLD)     or die "can't close $fwgeoiplist: $!";
+
+	$acumu =~ s/,$//;
+
+	@data = split (/\s*,\s*/,$acumu);
+
+	$i=0;
+
+	foreach (@data)
+	{	   	 	
+   	${'checked'.$_}="checked";
+	}  
+	
+
+
+#Comienzo HTML
+if($CONTENTHTML ne 1)
+{
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+}
+print<<EOF;
+<html>
+<head>
+
+<meta http-equiv="Cache-Control" content="no-cache">
+<link href="/images/${vistaestilo}.css" rel="stylesheet" type="text/css">
+
+<script language="javascript">
+
+
+function validarForm()
+{
+	oscuprocessform();
+
+	document.theform.action="geoip.htm";
+	document.theform.env.value="aplicar"
+	document.theform.submit();
+	
+}
+
+
+</script>
+   
+</head><body marginwidth="0" topmargin="0" leftmargin="0">
+
+	<!-- inicio tabla contenedor -->
+<table width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+    
+	 <td width="100%" class="azulfdosc" valign="top">
+
+
+
+
+
+
+
+<table cellspacing="5" cellpadding="5" width="100%" border="0">
+<tr>
+<td>
+
+<form name="theform" method="POST" onsubmit="oscuprocessform()">
+<input name="env" type="hidden"><input name="valoraplica" type="hidden">
+<input name="volver" type="hidden" value="$volver">
+<br>
+<CENTER><table cellpadding=0 cellspacing=0><tr><td width="10"></td><td><FONT SIZE=+1 COLOR=#3e73a8><B>Sistema GeoIP: Control por pais</B></FONT></td></tr></table>
+
+<script language="JavaScript1.2">
+
+function oscuprocessform()
+{
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';           
+}
+
+</script>
+
+<P>
+	<br><br>
+<table width="650" border="0"><tr><td align="left">
+
+<table border="0" cellpadding="2" cellspacing="0" width="160" style="background:white;
+  -webkit-border-top-left-radius: 0;
+  -webkit-border-bottom-left-radius: 0;
+  -moz-border-top-left-radius: 0;
+  -moz-border-bottom-left-radius: 0;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  
+  -webkit-border-top-right-radius: 10;
+  -webkit-border-bottom-right-radius: 10;
+  -moz-border-top-right-radius: 10;
+  -moz-border-bottom-right-radius: 10;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;" class="bordenegrosombra2">
+<tr><td height=25 align=center>
+<A HREF=$volver target=main><b>$fw_volver</b></a> 
+</td></tr>
+</table>
+
+</td>
+</tr></table>
+<br><br>
+		<center>
+		
+
+
+<table border=0><tr>
+<td>
+
+<table  border="0" class="bordenegrosombra" width="420" cellpadding="0" cellspacing="0">
+<tr><td width="710" height="23" class="barratituloazul" align="center" colspan="2"><font color="white"><b>Paises permitidos para acceso remoto por GeoIP:</b></font></td></tr>
+<tr><td height="5"></td></tr>
+
+<tr><td width="5"></td><td bordercolor="white" align="left"> 
+
+
+
+<br>
+<table width="690" border="0">
+<tr><td align="center">
+
+
+<table border="0"><tr>
+<td valign="top">
+
+<table>
+<tr><td><input type="checkbox" name="DE" id="DE" value="1" $checkedDE></td><td><img src="/images/de.png"></td><td>Alemania</td></tr>
+<tr><td><input type="checkbox" name="AD" id="AD" value="1" $checkedAD></td><td><img src="/images/ad.png"></td><td>Andorra</td></tr>
+<tr><td><input type="checkbox" name="SA" id="SA" value="1" $checkedSA></td><td><img src="/images/sa.png"></td><td>Arabia Saudí</td></tr>
+<tr><td><input type="checkbox" name="AR" id="AR" value="1" $checkedAR></td><td><img src="/images/ar.png"></td><td>Argentina</td></tr>
+<tr><td><input type="checkbox" name="AU" id="AU" value="1" $checkedAU></td><td><img src="/images/au.png"></td><td>Australia</td></tr>
+<tr><td><input type="checkbox" name="AT" id="AT" value="1" $checkedAT></td><td><img src="/images/at.png"></td><td>Austria</td></tr>
+<tr><td><input type="checkbox" name="BE" id="BE" value="1" $checkedBE></td><td><img src="/images/be.png"></td><td>Bélgica</td></tr>
+<tr><td><input type="checkbox" name="BO" id="BO" value="1" $checkedBO></td><td><img src="/images/bo.png"></td><td>Bolivia</td></tr>
+<tr><td><input type="checkbox" name="BR" id="BR" value="1" $checkedBR></td><td><img src="/images/br.png"></td><td>Brasil</td></tr>
+<tr><td><input type="checkbox" name="BG" id="BG" value="1" $checkedBG></td><td><img src="/images/bg.png"></td><td>Bulgaria</td></tr>
+<tr><td><input type="checkbox" name="CM" id="CM" value="1" $checkedCM></td><td><img src="/images/cm.png"></td><td>Camerún</td></tr>
+<tr><td><input type="checkbox" name="CA" id="CA" value="1" $checkedCA></td><td><img src="/images/ca.png"></td><td>Canadá</td></tr>
+<tr><td><input type="checkbox" name="CL" id="CL" value="1" $checkedCL></td><td><img src="/images/cl.png"></td><td>Chile</td></tr>
+<tr><td><input type="checkbox" name="CN" id="CN" value="1" $checkedCN></td><td><img src="/images/cn.png"></td><td>China</td></tr>
+<tr><td><input type="checkbox" name="CY" id="CY" value="1" $checkedCY></td><td><img src="/images/cy.png"></td><td>Chipre</td></tr>
+<tr><td><input type="checkbox" name="CO" id="CO" value="1" $checkedCO></td><td><img src="/images/co.png"></td><td>Colombia</td></tr>
+<tr><td><input type="checkbox" name="KR" id="KR" value="1" $checkedKR></td><td><img src="/images/kr.png"></td><td>Corea del Sur</td></tr>
+<tr><td><input type="checkbox" name="CR" id="CR" value="1" $checkedCR></td><td><img src="/images/cr.png"></td><td>Costa Rica</td></tr>
+<tr><td><input type="checkbox" name="HR" id="HR" value="1" $checkedHR></td><td><img src="/images/hr.png"></td><td>Croacia</td></tr>
+<tr><td><input type="checkbox" name="CU" id="CU" value="1" $checkedCU></td><td><img src="/images/cu.png"></td><td>Cuba</td></tr>
+<tr><td><input type="checkbox" name="DK" id="DK" value="1" $checkedDK></td><td><img src="/images/dk.png"></td><td>Dinamarca</td></tr>
+<tr><td><input type="checkbox" name="EC" id="EC" value="1" $checkedEC></td><td><img src="/images/ec.png"></td><td>Ecuador</td></tr>
+<tr><td><input type="checkbox" name="EG" id="EG" value="1" $checkedEG></td><td><img src="/images/eg.png"></td><td>Egipto</td></tr>
+<tr><td><input type="checkbox" name="SV" id="SV" value="1" $checkedSV></td><td><img src="/images/sv.png"></td><td>El Salvador</td></tr>
+<tr><td><input type="checkbox" name="AE" id="AE" value="1" $checkedAE></td><td><img src="/images/ae.png"></td><td>Emiratos Árabes</td></tr>
+<tr><td><input type="checkbox" name="SK" id="SK" value="1" $checkedSK></td><td><img src="/images/sk.png"></td><td>Eslovaquia</td></tr>
+<tr><td><input type="checkbox" name="SI" id="SI" value="1" $checkedSI></td><td><img src="/images/si.png"></td><td>Eslovenia</td></tr>
+</table>
+
+</td><td width="50"></td><td valign="top">
+
+<table>
+<tr><td><input type="checkbox" name="ES" id="ES" value="1" $checkedES></td><td><img src="/images/es.png"></td><td>España</td></tr>
+<tr><td><input type="checkbox" name="US" id="US" value="1" $checkedUS></td><td><img src="/images/us.png"></td><td>Estados Unidos</td></tr>
+<tr><td><input type="checkbox" name="EE" id="EE" value="1" $checkedEE></td><td><img src="/images/ee.png"></td><td>Estonia</td></tr>
+<tr><td><input type="checkbox" name="PH" id="PH" value="1" $checkedPH></td><td><img src="/images/ph.png"></td><td>Filipinas</td></tr>
+<tr><td><input type="checkbox" name="FI" id="FI" value="1" $checkedFI></td><td><img src="/images/fi.png"></td><td>Finlandia</td></tr>
+<tr><td><input type="checkbox" name="FR" id="FR" value="1" $checkedFR></td><td><img src="/images/fr.png"></td><td>Francia</td></tr>
+<tr><td><input type="checkbox" name="GR" id="GR" value="1" $checkedGR></td><td><img src="/images/gr.png"></td><td>Grecia</td></tr>
+<tr><td><input type="checkbox" name="GT" id="GT" value="1" $checkedGT></td><td><img src="/images/gt.png"></td><td>Guatemala</td></tr>
+<tr><td><input type="checkbox" name="HN" id="HN" value="1" $checkedHN></td><td><img src="/images/hn.png"></td><td>Honduras</td></tr>
+<tr><td><input type="checkbox" name="HK" id="HK" value="1" $checkedHK></td><td><img src="/images/hk.png"></td><td>Hong Kong</td></tr>
+<tr><td><input type="checkbox" name="HU" id="HU" value="1" $checkedHU></td><td><img src="/images/hu.png"></td><td>Hungría</td></tr>
+<tr><td><input type="checkbox" name="IN" id="IN" value="1" $checkedIN></td><td><img src="/images/in.png"></td><td>India</td></tr>
+<tr><td><input type="checkbox" name="ID" id="ID" value="1" $checkedID></td><td><img src="/images/id.png"></td><td>Indonesia</td></tr>
+<tr><td><input type="checkbox" name="IE" id="IE" value="1" $checkedIE></td><td><img src="/images/ie.png"></td><td>Irlanda</td></tr>
+<tr><td><input type="checkbox" name="IS" id="IS" value="1" $checkedIS></td><td><img src="/images/is.png"></td><td>Islandia</td></tr>
+<tr><td><input type="checkbox" name="IL" id="IL" value="1" $checkedIL></td><td><img src="/images/il.png"></td><td>Israel</td></tr>
+<tr><td><input type="checkbox" name="IT" id="IT" value="1" $checkedIT></td><td><img src="/images/it.png"></td><td>Italia</td></tr>
+<tr><td><input type="checkbox" name="JP" id="JP" value="1" $checkedJP></td><td><img src="/images/jp.png"></td><td>Japón</td></tr>
+<tr><td><input type="checkbox" name="LV" id="LV" value="1" $checkedLV></td><td><img src="/images/lv.png"></td><td>Letonia</td></tr>
+<tr><td><input type="checkbox" name="LI" id="LI" value="1" $checkedLI></td><td><img src="/images/li.png"></td><td>Liechtenstein</td></tr>
+<tr><td><input type="checkbox" name="LT" id="LT" value="1" $checkedLT></td><td><img src="/images/lt.png"></td><td>Lituania</td></tr>
+<tr><td><input type="checkbox" name="LU" id="LU" value="1" $checkedLU></td><td><img src="/images/lu.png"></td><td>Luxemburgo</td></tr>
+<tr><td><input type="checkbox" name="MK" id="MK" value="1" $checkedMK></td><td><img src="/images/mk.png"></td><td>Macedonia</td></tr>
+<tr><td><input type="checkbox" name="MT" id="MT" value="1" $checkedMT></td><td><img src="/images/mt.png"></td><td>Malta</td></tr>
+<tr><td><input type="checkbox" name="MA" id="MA" value="1" $checkedMA></td><td><img src="/images/ma.png"></td><td>Marruecos</td></tr>
+<tr><td><input type="checkbox" name="MX" id="MX" value="1" $checkedMX></td><td><img src="/images/mx.png"></td><td>México</td></tr>
+<tr><td><input type="checkbox" name="MC" id="MC" value="1" $checkedMC></td><td><img src="/images/mc.png"></td><td>Mónaco</td></tr>
+</table>
+
+</td><td width="50"></td><td valign="top">
+
+<table>
+<tr><td><input type="checkbox" name="NI" id="NI" value="1" $checkedNI></td><td><img src="/images/ni.png"></td><td>Nicaragua</td></tr>
+<tr><td><input type="checkbox" name="NO" id="NO" value="1" $checkedNO></td><td><img src="/images/no.png"></td><td>Noruega</td></tr>
+<tr><td><input type="checkbox" name="NZ" id="NZ" value="1" $checkedNZ></td><td><img src="/images/nz.png"></td><td>Nueva Zelanda</td></tr>
+<tr><td><input type="checkbox" name="NL" id="NL" value="1" $checkedNL></td><td><img src="/images/nl.png"></td><td>Países Bajos</td></tr>
+<tr><td><input type="checkbox" name="PK" id="PK" value="1" $checkedPK></td><td><img src="/images/pk.png"></td><td>Pakistán</td></tr>
+<tr><td><input type="checkbox" name="PA" id="PA" value="1" $checkedPA></td><td><img src="/images/pa.png"></td><td>Panamá</td></tr>
+<tr><td><input type="checkbox" name="PY" id="PY" value="1" $checkedPY></td><td><img src="/images/py.png"></td><td>Paraguay</td></tr>
+<tr><td><input type="checkbox" name="PE" id="PE" value="1" $checkedPE></td><td><img src="/images/pe.png"></td><td>Perú</td></tr>
+<tr><td><input type="checkbox" name="PL" id="PL" value="1" $checkedPL></td><td><img src="/images/pl.png"></td><td>Polonia</td></tr>
+<tr><td><input type="checkbox" name="PT" id="PT" value="1" $checkedPT></td><td><img src="/images/pt.png"></td><td>Portugal</td></tr>
+<tr><td><input type="checkbox" name="PR" id="PR" value="1" $checkedPR></td><td><img src="/images/pr.png"></td><td>Puerto Rico</td></tr>
+<tr><td><input type="checkbox" name="QA" id="QA" value="1" $checkedQA></td><td><img src="/images/qa.png"></td><td>Qatar</td></tr>
+<tr><td><input type="checkbox" name="GB" id="GB" value="1" $checkedGB></td><td><img src="/images/gb.png"></td><td>Reino Unido</td></tr>
+<tr><td><input type="checkbox" name="CZ" id="CZ" value="1" $checkedCZ></td><td><img src="/images/cz.png"></td><td>Repú. Checa</td></tr>
+<tr><td><input type="checkbox" name="DO" id="DO" value="1" $checkedDO></td><td><img src="/images/do.png"></td><td>Repú. Dominicana</td></tr>
+<tr><td><input type="checkbox" name="RO" id="RO" value="1" $checkedRO></td><td><img src="/images/ro.png"></td><td>Rumania</td></tr>
+<tr><td><input type="checkbox" name="RU" id="RU" value="1" $checkedRU></td><td><img src="/images/ru.png"></td><td>Rusia</td></tr>
+<tr><td><input type="checkbox" name="ZA" id="ZA" value="1" $checkedZA></td><td><img src="/images/za.png"></td><td>Sudáfrica</td></tr>
+<tr><td><input type="checkbox" name="SE" id="SE" value="1" $checkedSE></td><td><img src="/images/se.png"></td><td>Suecia</td></tr>
+<tr><td><input type="checkbox" name="CH" id="CH" value="1" $checkedCH></td><td><img src="/images/ch.png"></td><td>Suiza</td></tr>
+<tr><td><input type="checkbox" name="TR" id="TR" value="1" $checkedTR></td><td><img src="/images/tr.png"></td><td>Turquía</td></tr>
+<tr><td><input type="checkbox" name="UA" id="UA" value="1" $checkedUA></td><td><img src="/images/ua.png"></td><td>Ucrania</td></tr>
+<tr><td><input type="checkbox" name="UY" id="UY" value="1" $checkedUY></td><td><img src="/images/uy.png"></td><td>Uruguay</td></tr>
+<tr><td><input type="checkbox" name="VE" id="VE" value="1" $checkedVE></td><td><img src="/images/ve.png"></td><td>Venezuela</td></tr>
+</table>
+
+</td>
+</tr></table>
+
+
+</td></tr>
+</table>
+
+<br><br>
+ <table border="0" align="center" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td><input type="image" src="../images/submit_out.gif" name="boton1" id="boton1" value="Aplicar" onmousemove="status='Enviar'" onmousedown="this.src='../images/submit_in.gif';"  onmouseover="this.src='../images/submit_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/submit_out.gif';" target="_self" border="0" onclick="validarForm()">
+					
+                  <input type="image" src="../images/reset_out.gif" value="Cancelar" id="boton2" name="boton2" onmousemove="status='Enviar'" onmousedown="this.src='../images/reset_in.gif';"  onmouseover="this.src='../images/reset_over.gif';" onmouseout="status=window.defaultStatus;this.src='../images/reset_out.gif';" target="_self" onClick="reset()"></td>
+                </tr>
+              </table>
+
+<br>
+
+
+
+
+</td><td width="30"></td><td valign="top">
+
+
+
+
+
+</td></tr></table>
+	
+</td></tr></table>
+
+
+
+</form>
+
+EOF
+require "$imtlayers";
+print <<EOF;	
+ </body>
+</html>
+EOF
+
+#eliminar variable temporal de uso
+system("/bin/rm $aux >/dev/null 2>&1");
+@data = split (/\s*,\s*/,$acumu);
