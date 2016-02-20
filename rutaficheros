@@ -1,0 +1,1732 @@
+
+#####################################
+########    R  U  T  A  S    ########
+#####################################
+
+$SYSTEM="imt";
+
+$imtlayers = "/opt/imt/web/modulos/imtlayers.htm";
+
+### COMPARTIDO
+#--------------------------
+$cleanall = "/opt/imt/demonios-imt/cleanall.001";
+$firewall = "/opt/imt/demonios-imt/firewall.001";
+$prerouting = "/opt/imt/demonios-imt/prerouting.001";
+$portknocking = "/opt/imt/demonios-imt/portknocking";
+$modulos = "/opt/imt/gestor/modulos";
+$variables = "/opt/imt/gestor/variables";
+$estado = "/opt/imt/gestor/estado";
+$estadoproxyimap = "/opt/imt/conf-debian-$SYSTEM/networking/proxy_imap";
+$estadoproxysip = "/opt/imt/conf-debian-$SYSTEM/networking/proxy_sip";
+$estadoproxymsn = "/opt/imt/conf-debian-$SYSTEM/networking/proxy_msn";
+$estadoproxyssh = "/opt/imt/conf-debian-$SYSTEM/networking/proxy_ssh";
+$p3scanconf = "/opt/imt/conf-debian-$SYSTEM/p3scan/p3scan.conf";
+$p3scan = "/opt/imt/demonios-imt/imtp3scan";
+$imtscan = "/opt/imt/conf-debian-$SYSTEM/antivirus/imtscan";
+$antivirusdemon = "/opt/imt/demonios-imt/imtclamav-daemon";
+$crontab = "/opt/imt/conf-debian-$SYSTEM/system/root";
+$dhcpconf = "/opt/imt/conf-debian-$SYSTEM/system/dhcpd.conf";
+$notificar = "/opt/imt/conf-debian-$SYSTEM/notifiweb/notificar";
+$notificarvar = "/opt/imt/conf-debian-$SYSTEM/notifiweb/notificarvar";
+$httpscan = "/opt/imt/demonios-imt/httpscan";
+$filtroweblist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian";
+$filtrowebnumgrupo = "/opt/imt/conf-debian-$SYSTEM/httpscan/numgrupo";
+$userpass = "/opt/imt/conf-debian-$SYSTEM/squid/passwd";
+$squidconf = "/etc/squid/squid.conf";
+$squidaemon = "/opt/imt/demonios-imt/imtsquid";
+$backupaccion = "/opt/imt/conf-debian-$SYSTEM/firewall/backupaccion";
+$fwdownload = "/opt/imt/download/firewall";
+$fwipred = "/opt/imt/conf-debian-$SYSTEM/firewall/fwipred";
+$portservice = "/opt/imt/conf-debian-$SYSTEM/firewall/portservice";
+$vistafw_estado = "/opt/imt/conf-debian-$SYSTEM/firewall/vistafw_estado";
+$pptpdconf = "/opt/imt/conf-debian-$SYSTEM/vpn-pptp/pptpd.conf";
+$pptpduser = "/opt/imt/conf-debian-$SYSTEM/vpn-pptp/chap-secrets";
+$openvpncnf = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/openvpn.conf";
+$ipptxt = "/opt/imt/conf-debian-$SYSTEM/openvpn/ipp.txt";
+$fwtipo = "/opt/imt/conf-debian-$SYSTEM/firewall/fwtipo";
+$net_address2 = "/opt/imt/gestor/tools/networking/net_address2.pl";
+$listacapa7 = "/opt/imt/conf-debian-$SYSTEM/controlcapa7/listacapa7";
+$listaexten = "/opt/imt/conf-debian-$SYSTEM/controlcapa7/listaexten";
+$listaextra = "/opt/imt/conf-debian-$SYSTEM/controlcapa7/listaextra";
+$fwgestorvista = "/opt/imt/gestor/vista";
+$vartmp = "/var/tmp";
+$home = "/opt/imt/gestor/home";
+$dhcpserver = "/opt/imt/demonios-imt/imtdhcp3-server";
+$redsegmentada = "/opt/imt/conf-debian-$SYSTEM/networking/redsegmentada";
+$snortconf = "/opt/imt/conf-debian-$SYSTEM/ids/snort.conf";
+$snortdaemon = "/opt/imt/demonios-imt/imtsnort";
+$dns = "/opt/imt/conf-debian-$SYSTEM/system/resolv.conf";
+$numpreferdns = "/opt/imt/conf-debian-$SYSTEM/networking/numpreferdns";
+$cirlista = "/opt/imt/conf-debian-$SYSTEM/cir/cirlista";
+$cirbackup = "/opt/imt/conf-debian-$SYSTEM/cir/";
+$core = "/opt/imt/conf-debian-$SYSTEM/mamw/core.pl";
+$confmod = "/opt/imt/conf-debian-$SYSTEM/mamw/conf/";
+$networking = "/opt/imt/demonios-imt/networking";
+$marcas = "/opt/imt/conf-debian-$SYSTEM/firewall/marcas";
+$listacapa7 = "/opt/imt/conf-debian-$SYSTEM/controlcapa7/listacapa7";
+$listaexten = "/opt/imt/conf-debian-$SYSTEM/controlcapa7/listaexten";
+$listaextra = "/opt/imt/conf-debian-$SYSTEM/controlcapa7/listaextra";
+$smbconf = "/opt/imt/conf-debian-$SYSTEM/netbios/smb.conf";
+$samba = "/opt/imt/demonios-imt/imtsamba";
+$montadorecurso = "/opt/imt/conf-debian-$SYSTEM/networking/montadorecurso";
+$montadodisco = "/opt/imt/conf-debian-$SYSTEM/hardware/discoalmacen/montadodisco";
+$raizmontado = "/opt/imt/conf-debian-$SYSTEM/hardware/discoalmacen/raizmontado/";
+$winbind = "/opt/imt/demonios-imt/imtwinbind";
+$netbiosusuarios = "/opt/imt/conf-debian-$SYSTEM/netbios/netbiosusuarios";
+$netbiosgrupos = "/opt/imt/conf-debian-$SYSTEM/netbios/netbiosgrupos";
+$gadduser = "/opt/imt/conf-debian-$SYSTEM/netbios/g-adduser";
+$gdeluser = "/opt/imt/conf-debian-$SYSTEM/netbios/g-deluser";
+$gchgpwd = "/opt/imt/conf-debian-$SYSTEM/netbios/g-chgpwd";
+$grupopwd = "/etc/group";
+$openvpnd = "/opt/imt/demonios-imt/openvpnd";
+$keyconten = "/opt/imt/conf-debian-$SYSTEM/openvpn/keys";
+$openvpn = "/usr/sbin/openvpn";
+$openvpnexpre = "\/usr\/sbin\/openvpn";
+$rutakey = "/opt/imt/conf-debian-$SYSTEM/openvpn/keys/";
+$fw_openvpn = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_openvpn";
+$httpd = "/etc/init.d/apache2";
+$rutadisco = "/opt/imt/conf-debian-$SYSTEM/netbios/rutadisco";
+$siteconf = "/opt/imt/conf-debian-$SYSTEM/apache2/default";
+$htpasswd = "/usr/bin/htpasswd";
+$portsconf = "/opt/imt/conf-debian-$SYSTEM/apache2/ports.conf";
+$wep = "/opt/imt/conf-debian-$SYSTEM/wireless/wep";
+$ifdhcp = "/opt/imt/conf-debian-$SYSTEM/networking/ifdhcp";
+$listanotas = "/opt/imt/gestor/listanotas";
+$lanaliasint = "/opt/imt/conf-debian-$SYSTEM/networking/lanaliasint";
+$lanaliasext = "/opt/imt/conf-debian-$SYSTEM/networking/lanaliasext";
+$lanalias3 = "/opt/imt/conf-debian-$SYSTEM/networking/lanalias3";
+$lanalias4 = "/opt/imt/conf-debian-$SYSTEM/networking/lanalias4";
+$lanalias5 = "/opt/imt/conf-debian-$SYSTEM/networking/lanalias5";
+$lanalias6 = "/opt/imt/conf-debian-$SYSTEM/networking/lanalias6";
+$registrokeys = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/registrokeys";
+$spamassassin = "/opt/imt/demonios-imt/imtspamassassin";
+$filtradosmtp = "/opt/imt/demonios-imt/imtamavis";
+$amavisconf = "/opt/imt/conf-debian-$SYSTEM/smtpscan/20-debian_defaults";
+$postfixdemonio = "/opt/imt/demonios-imt/imtpostfix";
+$siproxydemonio = "/opt/imt/demonios-imt/imtsiproxd";
+$ptelnet = "/opt/imt/gestor/tools/networking/ptelnet.pl";
+$mysqlstock = "/opt/imt/conf-debian-$SYSTEM/mysql-stock/";
+$varlibmysql = "/var/lib/mysql/";
+$mysqld = "/opt/imt/demonios-imt/imtmysql";
+$backuppchosts = "/etc/backuppc/hosts";
+$etcbackuppc = "/etc/backuppc/";
+$imtupdateinforme = "/opt/imt/gestor/updateutils/informe";
+$smtpfilterconf = "/opt/imt/conf-debian-$SYSTEM/smtpscan/15-content_filter_mode";
+$smtpavscanners = "/opt/imt/conf-debian-$SYSTEM/smtpscan/15-av_scanners";
+$ulogdconf = "/etc/ulogd.conf";
+$sipconf = "/opt/imt/conf-debian-$SYSTEM/asterisk/sip.conf";
+$iaxconf = "/opt/imt/conf-debian-$SYSTEM/asterisk/iax.conf";
+$astgrupos = "/opt/imt/conf-debian-$SYSTEM/asterisk/grupos";
+$asteriskdemonio = "/opt/imt/demonios-imt/imtasterisk";
+$ipsecvpndemonio = "/opt/imt/demonios-imt/imtipsec";
+$mamwlog = "/opt/imt/conf-debian-$SYSTEM/mamw/log/";
+$clavesuser = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/firmarclaves/claves_user/";
+$fwestado = "/opt/imt/conf-debian-$SYSTEM/firewall/fwestado";
+$auditord = "/opt/imt/demonios-imt/imtauditord";
+$chillidemonio = "/opt/imt/demonios-imt/imtchillispot";
+$vpnptpd = "/opt/imt/demonios-imt/imtpptpd";
+$estadobalanceo = "/opt/imt/conf-debian-$SYSTEM/firewall/fwmarcadoestado";
+$cirdemonio = "/opt/imt/demonios-imt/imtcird";
+$bind = "/opt/imt/demonios-imt/imtbind";
+$xblued = "/opt/imt/demonios-imt/imtxblued";
+$hylafaxdemonio = "/opt/imt/demonios-imt/imthylafax";
+$jabberd = "/opt/imt/demonios-imt/imtejabberd";
+$backuppcd = "/opt/imt/demonios-imt/imtbackuppc";
+$mostrarmodu = "/opt/imt/gestor/mostrar";
+$httpscanconf = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/dansguardian.conf";
+$monitd = "/opt/imt/demonios-imt/monitd";
+$privoxyd = "/opt/imt/demonios-imt/imtprivoxy";
+$selectsqlserver = "/opt/imt/gestor/updateutils/select-sqlserver";
+$defaultdhcp3server="/etc/default/dhcp3-server";
+$hotspotnumgrupo="/opt/imt/conf-debian-$SYSTEM/hotspot/numgrupo";
+$confqos = "/opt/imt/conf-debian-$SYSTEM/qos/confqos";
+$generaldele = "/opt/imt/conf-debian-$SYSTEM/openvpn/generaldele";
+$useripnotifi = "/opt/imt/conf-debian-$SYSTEM/notifiweb/sarg.usertab";
+$privoxyconfig = "/etc/privoxy/config";
+$imthaarp = "/opt/imt/demonios-imt/imthaarp";
+$openvpndelecnf = "/opt/imt/conf-debian-$SYSTEM/openvpn/etc/openvpn.conf";
+$ipsecrets = "/var/lib/strongswan/ipsec.secrets.inc";
+$etcfstab = "/etc/fstab";
+$sargusers = "/opt/imt/conf-debian-$SYSTEM/notifiweb/sarg.users";
+$monitrc = "/opt/imt/conf-debian-$SYSTEM/monit/monitrc";
+$controlnumred = "/opt/imt/conf-debian-$SYSTEM/networking/numred";
+$proveeconten = "/etc/ppp/peers/";
+$rutasopenvpnremotoauto ="/opt/imt/conf-debian-$SYSTEM/openvpn/rutasopenvpnremotoauto";
+$rutasopenvpnremotoautocertun ="/opt/imt/conf-debian-$SYSTEM/openvpn/rutasopenvpnremotoautocertun";
+$controlimtclouddir="/opt/imt/conf-debian-$SYSTEM/imtcloud/controlimtcloud/";
+$rttablescreate = "/opt/imt/conf-debian-$SYSTEM/system/rt_tables_create";
+$controlaplicafw = "/opt/imt/conf-debian-$SYSTEM/firewall/controlaplicafw";
+$imtntop = "/opt/imt/demonios-imt/imtntop";
+$tablas = "/opt/imt/conf-debian-$SYSTEM/firewall/tablas";
+$accioncfp = "/opt/imt/conf-debian-$SYSTEM/system/accion_cfp";
+
+### accesolocal.htm ### Control de bloqueo y acceso interno via web y ssh ###
+#--------------------------
+#$prerouting $cleanall $firewall $knockimtconf $modulos $variables
+$localiptables = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_accesolocal";
+$fwlocal = "/opt/imt/conf-debian-$SYSTEM/firewall/fwlocal";
+
+### accesoremoto.htm ### Control de bloqueo y acceso externo via web y ssh ###
+#--------------------------
+#$prerouting $cleanall $firewall $knockimtconf $portknocking $modulos $variables $httpd
+$remotoiptables = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_accesoremoto";
+$fwremoto = "/opt/imt/conf-debian-$SYSTEM/firewall/fwremoto";
+$knockimtconf = "/opt/imt/conf-debian-$SYSTEM/portknocking/etc/knockd_imt.conf";
+$accremote = "/opt/imt/conf-debian-$SYSTEM/portknocking/etc/accremote";
+$fwremoto = "/opt/imt/conf-debian-$SYSTEM/firewall/fwremoto";
+$enlaceapachedefault = "/etc/apache2/sites-enabled/000-default";
+$enlaceapachedefaultssl = "/etc/apache2/sites-enabled/default-ssl";
+
+### acpiwakeup.htm ### Encendido programado del equipo con I.M.T. apagado ###
+#--------------------------
+#$modulos
+
+### actualizando.htm ### Pantalla de informacion durante proceso de actualizacion ###
+#--------------------------
+#$modulos $imtupdateinforme
+
+### altaservicio.htm ### Pantalla de activacion de modulos para produccion ###
+#--------------------------
+#$modulos
+
+### analisisfw.htm ### Analisis de trafico de datos generado por reglas del firewall ###
+#--------------------------
+#$modulos
+
+### antispamconfig.htm ### Panel de configuracion con tecnicas de control antispam ###
+#--------------------------
+#$modulos $spamassassin $filtradosmtp $amavisconf $postfixdemonio
+$spamconfig = "/opt/imt/conf-debian-$SYSTEM/spam/local.cf";
+$ham = "/usr/bin/sa-learn --showdots --ham --dir /opt/imt/conf-debian-$SYSTEM/spam/mailbayes/";
+$spam = "/usr/bin/sa-learn --showdots --spam --dir /opt/imt/conf-debian-$SYSTEM/spam/mailbayes/";
+$forget = "/usr/bin/sa-learn --showdots --forget --dir /opt/imt/conf-debian-$SYSTEM/spam/mailbayes/";
+$mailbayes = "/opt/imt/conf-debian-$SYSTEM/spam/mailbayes/";
+$postgreyopc = "/opt/imt/conf-debian-$SYSTEM/postgrey/postgrey";
+$whitelistclients = "/opt/imt/conf-debian-$SYSTEM/postgrey/whitelist_clients";
+$whitelistrecipients = "/opt/imt/conf-debian-$SYSTEM/postgrey/whitelist_recipients";
+$postgreydemonio = "/opt/imt/demonios-imt/imtpostgrey";
+
+### antivirus.htm ### Activacion de analisis AV por protocolo y version de firmas ###
+#--------------------------
+#$modulos $estado $prerouting $cleanall $firewall $p3scanconf $p3scan $imtscan $antivirusdemon $httpscan $httpscanconf
+$ftpscanconf = "/etc/frox.conf";
+$imtthaarp = "/opt/imt/demonios-imt/imthaarp";
+$imtscanescape = "\/opt\/imt\/conf-debian-$SYSTEM\/antivirus\/imtscan";
+$estadoavhttp = "/opt/imt/conf-debian-$SYSTEM/antivirus/estado/http";
+$estadoavftp = "/opt/imt/conf-debian-$SYSTEM/antivirus/estado/ftp";
+$estadoavpop3 = "/opt/imt/conf-debian-$SYSTEM/antivirus/estado/pop3";
+$estadoavsmtp = "/opt/imt/conf-debian-$SYSTEM/antivirus/estado/smtp";
+$froxd = "/opt/imt/demonios-imt/imtfrox";
+
+### antivirusconfig.htm ### Panel de configuracion del antivirus ###
+#--------------------------
+#$modulos $imtscan $antivirusdemon $notificarvar
+$freshclam = "/opt/imt/conf-debian-$SYSTEM/antivirus/freshclam.conf";
+$tamanoav = "/opt/imt/conf-debian-$SYSTEM/antivirus/tamanoav_estado";
+
+### aplicacapa7.htm ### Control de firewall a nivel de aplicación ###
+#--------------------------
+#$modulos
+
+### aptconsola.htm ### Consola web con ordenes de comandos no interactivos ###
+#--------------------------
+
+### aptsalida.htm ### Consola web con ordenes de comandos no interactivos ###
+#--------------------------
+#$modulos
+
+### aptweb.htm ### Utilizacion de comando aptitude dentro de entorno web  ###
+#--------------------------
+#$modulos
+
+### aptwebfull.htm ### Pantalla completa del modulos aptweb.htm ###
+#--------------------------
+#$modulos
+
+### astaltaobj.htm ### Creacion de puntos de voz para centralita VoIP ###
+#--------------------------
+#$modulos $sipconf $iaxconf $astgrupos $asteriskdemonio
+$astvisualiza = "/opt/imt/conf-debian-$SYSTEM/asterisk/visualiza";
+
+### astentrante.htm ### Control de llamadas entrantes de VoIP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $fwsecuencial $vistafw_estado $fwipred $portservice $pptpdconf $pptpduser
+
+### asterisk.htm ### Menu principal de VoIP ###
+#--------------------------
+# $modulos $estado $asteriskdemonio
+
+### astgeneral.htm ### Configuracion general de opciones de VoIP ###
+#--------------------------
+#$modulos $sipconf $iaxconf $astgrupos $asteriskdemonio
+$indicationsconf = "/etc/asterisk/indications.conf";
+
+### astinterno.htm ### Control de llamadas internas de VoIP ###
+#--------------------------
+#$modulos
+
+### astmusica.htm ### Carga de musica para la centralita VoIP ###
+#--------------------------
+# $modulos
+$musicalista = "/opt/imt/conf-debian-$SYSTEM/asterisk/musica/musicalista";
+$astmusica = "/opt/imt/conf-debian-$SYSTEM/asterisk/musica";
+
+### astsaliente.htm ### Control de llamadas salientes de VoIP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $fwsecuencial $vistafw_estado $fwipred $portservice $pptpdconf $pptpduser
+
+### asttarjetas.htm ### Configuracion de tarjetas analogicas para Centralita de Voz ###
+#--------------------------
+# PENDIENTE
+
+### auditorv3.htm ### Acceso para la realizacion de auditorias de seguridad ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $auditord
+$openvasintroduce = "/opt/imt/conf-debian-$SYSTEM/auditor/introduce";
+$openvasintroduceca = "/opt/imt/conf-debian-$SYSTEM/auditor/introduceca";
+$openvasfirmca = "/opt/imt/conf-debian-$SYSTEM/auditor/firmandoca";
+$fwauditor = "/opt/imt/conf-debian-$SYSTEM/firewall/fwauditor";
+$openvasadduser = "/usr/local/sbin/openvas-adduser";
+$openvasrmuser = "/usr/local/sbin/openvas-rmuser";
+$openvaskeyconten = "/usr/local/var/lib/openvas/users/";
+$imtopenvasadministrator = "/opt/imt/demonios-imt/imtopenvas-administrator";
+$imtopenvasmanager = "/opt/imt/demonios-imt/imtopenvas-manager";
+$imtopenvasscanner = "/opt/imt/demonios-imt/imtopenvas-scanner";
+$imtgreenbonesecurityassistant = "/opt/imt/demonios-imt/imtgreenbone-security-assistant";
+
+### autoregishostsv3.htm ### Registro de host presentes en la red ###
+#--------------------------
+# $modulos
+
+### avavisos.htm ### Personalizacion de avisos de antivirus por protocolo ###
+#--------------------------
+# $modulos $p3scan
+$p3scanmail = "/opt/imt/conf-debian-$SYSTEM/p3scan/p3scan.mail";
+
+### avlicencia.htm ### Panel de informacion de licencia de antivirus utilizada ###
+#--------------------------
+# $modulos
+
+### avpanel.htm ### Menu principal de servicio antivirus ###
+#--------------------------
+# $modulos $estado $antivirusdemon $smtpfilterconf $smtpavscanners $postfixdemonio $filtradosmtp $crontab $monitd $monitrc
+
+### backupimt.htm ### Backup de seguridad de la configuracion del sistema ###
+#--------------------------
+# $modulos $home $froxd $p3scan $antivirusdemon $asteriskdemonio $cleanall $firewall $prerouting $cirdemonio $hylafaxdemonio $vsftpdserver $squidaemon $httpscan $chillidemonio $snortdaemon $ipsecvpndemonio $samba $openvpnd $qosd $ratdemonio $spamassassin $vpnptpd
+$rutaimt = "/opt/imt/conf-debian-$SYSTEM/";
+$backupimt = "/opt/imt/gestor/backup-debian-$SYSTEM";
+
+### backuplineav3.htm ### Definicion de lineas para backup e informacion ###
+#--------------------------
+# $modulos $variables $crontab $redsegmentada $notificarvar $networking $rttablescreate
+$backuplinea = "/opt/imt/conf-debian-$SYSTEM/line-backup/backuplinea";
+$backuplineaescep = "\/opt\/imt\/conf-debian-$SYSTEM\/line-backup\/backuplinea";
+$backupumtsescep = "\/opt\/imt\/conf-debian-$SYSTEM\/line-backup\/backupumts";
+$linebackup = "/opt/imt/conf-debian-$SYSTEM/line-backup/linebackup";
+$datoslinebackup = "/opt/imt/conf-debian-$SYSTEM/line-backup/datoslinebackup";
+$varbackuplinea = "/opt/imt/conf-debian-$SYSTEM/line-backup/varbackuplinea";
+$rttablesbackup = "/opt/imt/conf-debian-$SYSTEM/system/rt_tables_backup";
+$backupcontrol = "/opt/imt/conf-debian-$SYSTEM/line-backup/backupcontrol";
+
+### backuppc.htm ### Denicion de recursos de red para realizar copias de datos ###
+#--------------------------
+# $modulos $montadodisco $backuppchosts $etcbackuppc $backuppcd
+$varlibbackuppc = "/var/lib/backuppc";
+$apachebackuppc = "/etc/apache2/conf-available/backuppc.conf";
+
+### balanceo.htm ### Menu principal del servicio balanceador de carga ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $networking $squidconf $squidaemon $estadobalanceo $estado
+$varcontroldeadline = "/opt/imt/conf-debian-$SYSTEM/balanceotrafico/varcontroldeadline";
+
+### cachedinamicov3.htm ### Web cache dinamico ###
+#--------------------------
+# $modulos $montadodisco $imthaarp $squidaemon $monitrc $monitd
+$haarpconf = "/etc/haarp/haarp.conf";
+$haarplst = "/etc/haarp/haarp.lst";
+$controlsquidinclude = "/opt/imt/conf-debian-$SYSTEM/squid/controlsquidinclude";
+
+### cacti.htm ### Pantalla de acceso al sistema de monitorizacion de Cacti ###
+#--------------------------
+# $modulos $estado $mysqlstock $varlibmysql $montadodisco $mysqld
+$apachecacti = "/etc/apache2/sites-available/cacti.conf";
+
+### cargaimagen.htm ### Carga imagenes de arranque remotas para uso por CIR ###
+#--------------------------
+# $modulos $vartmp $cirlista $cirbackup
+
+### carp.htm ### Permite redundancia de equipos aportando alta disponibilidad
+#--------------------------
+# $estado $networking $cleanall $firewall $prerouting
+$confcarp = "/opt/imt/conf-debian-$SYSTEM/carp/confcarp";
+$carpdemonio = "/opt/imt/demonios-imt/imtcarp";
+
+### cfdiskcapa.htm ### web ssh ###
+#--------------------------
+# $modulos
+
+### chivatomenuv3.htm ### Menu principal para elección y acceso al modo de chivato web ###
+#--------------------------
+# $modulos $squidconf
+
+### chivatowebv3.htm ### Define hora y modo de entrega de informes de navegacion ###
+#--------------------------
+# $modulos $crontab $montadorecurso $notificarvar $montadodisco $siteconf $httpscanconf $useripnotifi $httpd $sargusers
+$geninforme = "/opt/imt/conf-debian-$SYSTEM/notifiweb/geninforme";
+$geninformeescape = "\/opt\/imt\/conf-debian-$SYSTEM\/notifiweb\/geninforme";
+$templist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/templist";
+$bannedurllist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/bannedurllist";
+$bannedsitelist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/bannedsitelist";
+$bannedphraselist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/bannedphraselist";
+$sargconf = "/etc/squid/sarg.conf";
+$varlogescp = "\/opt\/imt\/conf-debian-\$SYSTEM\/httpscan\/var\/log\/dansguardian\/access.log";
+$varlogdansdirori = "/var/log/dansguardian";
+$varlogdansdir = "/opt/imt/conf-debian-$SYSTEM/httpscan/var/log/dansguardian";
+
+### cirmenu.htm ### Define menu que se visualiza para imagenes de arranque ###
+#--------------------------
+# $modulos $cirlista
+$bootmsg = "/opt/imt/conf-debian-$SYSTEM/cir/boot.msg";
+$default = "/opt/imt/conf-debian-$SYSTEM/cir/pxelinux.cfg/default";
+$cfgmenu = "/opt/imt/conf-debian-$SYSTEM/cir/cfgmenu/";
+$background = "/opt/imt/conf-debian-$SYSTEM/cir/background/";
+
+### cirpanel.htm ### Menu principal del servicio CIR ###
+#--------------------------
+# $modulos $cirdemonio
+
+### configeneral.htm ### Menu principal de la seccion configuracion general ###
+#--------------------------
+# $modulos
+
+### configfactory.htm ### Permite la vuelta a configuracion de fabrica ###
+#--------------------------
+# PENDIENTE
+
+### consoapli.htm ### Utilizacion de comando aptitude dentro de entorno web ###
+#--------------------------
+
+### consola.htm ### Utilizacion de comando aptitude dentro de entorno web  ###
+#--------------------------
+# $modulos
+
+### controlaplica.htm ### Administrador de aplicaciones online  ###
+#--------------------------
+# $modulos
+
+### controlcapa7.htm ### Control de firewall para aplicaciones  ###
+#--------------------------
+# $modulos
+
+### controlcertikeys.htm ### Informa sobre todos los certificados y keys del sistema ###
+#--------------------------
+# $modulos
+$openvpndir = "/opt/imt/conf-debian-$SYSTEM/openvpn/";
+$etcbind = "/etc/bind";
+$etcopenvpnprivado = "/etc/openvpn/privado/";
+
+### controldownload.htm ### Control de descarga a IMTCloud  ###
+#--------------------------
+# $modulos
+
+### controlemail.htm ### Listado de registros de email  ###
+#--------------------------
+# $modulos
+
+
+### controldownload.htm ###  ###
+#--------------------------
+# $modulos $controlimtclouddir
+
+### controllogs.htm ### Visualiza logs generados por el sistema y su transmision ###
+#--------------------------
+# $modulos $estado $etcfstab
+$controllog="/opt/imt/conf-debian-$SYSTEM/log/controllog";
+$varlogdir = "/var/log";
+$imtvarlog = "/opt/imt/demonios-imt/imtvarlog";
+
+### controlmodulosv3.htm ### Control de activacion y desactivacion de todos los modulos ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $fwestado $snortdaemon $antivirusdemon $auditord $chillidemonio $p3scan $spamassassin $p3scanconf $postfixdemonio $filtradosmtp $vpnptpd $openvpnd $estadobalanceo $squidconf $squidaemon $networking $samba $winbind $cirdemonio $ratdemonio $bind $xblued $hylafaxdemonio $crontab $jabberd $siteconf $portsconf $backuppcd $fwlogestado $mostrarmodu
+
+### cuentalerta.htm ### Se define la cuenta general de administrador ###
+#--------------------------
+# $modulos
+$muttrc = "/opt/imt/conf-debian-$SYSTEM/system/muttrc";
+$msmtprc = "/opt/imt/conf-debian-$SYSTEM/system/msmtprc";
+
+### daloradiusv3.htm ### Administrador de sistema radius  ###
+#--------------------------
+# $modulos $controlimtclouddir
+
+### despliegue.htm ### Se define el modo de despliegue en red con la maquina ###
+#--------------------------
+# $modulos $networking $prerouting $firewall $cleanall $portsconf $variables
+$despleimt = "/opt/imt/conf-debian-$SYSTEM/networking/despliegue";
+
+### detalles.htm ### Analisis de los virus detectados en cada protocolo ###
+#--------------------------
+# $modulos
+
+### dhcpserver.htm ### Configuracion del servidor DHCP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado $dhcpconf $dhcpserver $ipasigmac $redsegmentada $defaultdhcp3server $sargusers $cidrnetmask
+$leases = "/var/lib/dhcp/dhcpd.leases";
+$dhcp3relay = "/etc/default/dhcp3-relay";
+$dhcpglobal = "/opt/imt/conf-debian-imt/networking/dhcpd.global";
+$dhcprange = "/opt/imt/conf-debian-imt/networking/dhcpd.range";
+$dhcpipasigmac="/opt/imt/conf-debian-imt/networking/dhcpd.ipasigmac";
+
+### discoconfig.htm ### Conexion de unidades de disco duro para uso por servicios ###
+#--------------------------
+# $modulos $montadodisco $raizmontado $etcfstab
+$desmontar = "/opt/imt/conf-debian-$SYSTEM/hardware/discoalmacen/desmontar";
+$imtdiscoservicios = "/opt/imt/demonios-imt/imtdisco-servicios";
+
+### dispositivos.htm ### Detecta hardware donde esta el sistema y muestra datos ###
+#--------------------------
+# $modulos
+
+### dns.htm ### Se definen las direcciones para la resolucion DNS ###
+#--------------------------
+# $modulos $dns $numpreferdns $estado
+
+### dnsserver.htm ### Configuracion del servidor DNS ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $bind
+$fwserverdns = "/opt/imt/conf-debian-$SYSTEM/firewall/fwserverdns";
+$named = "/var/cache/bind/";	
+$namedconf = "/opt/imt/conf-debian-$SYSTEM/system/named.conf";
+$namedconfoptions = "/opt/imt/conf-debian-$SYSTEM/system/named.conf.options";
+$namedconflocal = "/opt/imt/conf-debian-$SYSTEM/system/named.conf.local";
+$controldns = "/opt/imt/conf-debian-$SYSTEM/networking/controldns";
+
+### dolibarrv3.htm ### Configuracion del servidor DNS ###
+#--------------------------
+# $modulos
+$apachedolibarr = "/etc/apache2/sites-available/dolibarr.conf";
+
+### dummy.htm ### Modulo de apoyo dummy ###
+#--------------------------
+
+### dyndns.htm ### Configuracion para uso de DynDNS ###
+#--------------------------
+# $modulos $crontab $ptelnet
+$dyndnsconf = "/opt/imt/conf-debian-$SYSTEM/system/ddclient.conf";
+
+### elkarbackupv3.htm ### Pantalla principal de acceso ###
+#--------------------------
+# $modulos $estado
+$cronelkarbackup = "/etc/cron.d/elkarbackup";
+$apacheelkarbackup = "/etc/apache2/sites-available/elkarbackup.conf";
+
+### entrada.htm ### Pantalla principal de acceso ###
+#--------------------------
+# $modulos
+$tipoacceso = "/opt/imt/gestor/tipoacceso";
+$enlacegoogle = "/opt/imt/gestor/enlacegoogle";
+$varimtslave ="/opt/imt/conf-debian-$SYSTEM/networking/varimtslave";
+
+### exportservi.htm ### Exportar objetos a servicios ###
+#--------------------------
+# $modulos
+$icingahostmk="/omd/sites/imticinga/etc/check_mk/conf.d/wato/hosts.mk";
+
+### fax.htm ### Configuracion del servidor de FAX ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $hylafaxdemonio
+$puertoruta = "/opt/imt/conf-debian-$SYSTEM/faxserver/puertofax";
+$configtty = "/etc/hylafax/config.ttyS";
+$faxuser = "/opt/imt/conf-debian-$SYSTEM/faxserver/hosts.hfaxd";
+$fwserverfax = "/opt/imt/conf-debian-$SYSTEM/firewall/fwserverfax";
+$testpuerto = "/opt/imt/conf-debian-$SYSTEM/faxserver/testpuerto";
+
+### faxmailocr.htm ### Convierte los faxes recibidos en emails segun su contenido ###
+#--------------------------
+# $modulos $crontab $notificarvar
+$faxmailocr = "/opt/imt/conf-debian-$SYSTEM/faxserver/faxmailocr";
+$faxocrpdfs = "/opt/imt/conf-debian-$SYSTEM/faxserver/pdfs";
+
+### fetchmail.htm ### Gestor de descarga de correo ####
+#--------------------------
+# $montadodisco
+$fetchmailrc = "/etc/fetchmailrc";
+$fetchmaildemonio = "/opt/imt/demonios-imt/imtfetchmail";
+
+### filtroweb.htm ### Bloqueo de acceso web de dominios, frases e IPs ###
+#--------------------------
+# $modulos $httpscan $filtroweblist $filtrowebnumgrupo
+
+### filtrowebavisos.htm ### Personalizacion de aviso en pantalla ante bloqueo web ###
+#--------------------------
+# $modulos $httpscan
+$filtrowebtemplate="/opt/imt/conf-debian-$SYSTEM/httpscan/share/dansguardian/languages/spanish/";
+
+### filtrowebdescargas.htm ### Control de descargas web por extension o tipo mime ###
+#--------------------------
+# $modulos $httpscan $filtroweblist $filtrowebnumgrupo
+$httpscanconf1 = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/dansguardianf1.conf";
+$exceptionextensionlist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/lists/exceptionextensionlist";
+$exceptionmimetypelist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/lists/exceptionmimetypelist";
+$bannedextensionlist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/lists/bannedextensionlist";
+$bannedmimetypelist = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/lists/bannedmimetypelist";
+
+### filtrowebexcep.htm ### Excepcion de acceso web de dominios, frases e IPs ###
+#--------------------------
+# $modulos $filtrowebnumgrupo $filtroweblist $httpscan
+
+### filtrowebgrupos.htm ### Definicion de grupos para filtrado web ### 
+#--------------------------
+# $modulos $filtroweblist $httpscan $userpass
+$filtergrupo = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/filtergroupslist";
+$ipgroups = "/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/lists/authplugins/ipgroups";
+$cidrnetmask = "/opt/imt/gestor/tools/networking/cidrnetmask";
+
+### filtrowebnavega.htm ### Control de navegadores ###
+#--------------------------
+# $modulos $filtrowebnumgrupo $httpscan
+
+### filtrowebsafesearch.htm ### Activación de Google SafeSearch ###
+#--------------------------
+# $modulos $bind
+$desplisafesearch = "/opt/imt/conf-debian-$SYSTEM/httpscan/despligoogledb";
+
+### filtrowebtemas.htm ### Bloqueo web por categorias de temas ###
+#--------------------------
+# $modulos $filtroweblist $filtrowebnumgrupo $httpscan $squidconf $squidaemon
+$controlanonimo="/opt/imt/conf-debian-$SYSTEM/firewall/controlanonimo";
+$controlestadowebfw="/opt/imt/conf-debian-$SYSTEM/httpscan/controlestadowebfw";
+
+### filtrowebuser.htm ### Control de navegacion web a traves de usuario y password ###
+#--------------------------
+# $modulos $userpass $squidaemon $squidconf $htpasswd
+
+### firewall.htm ### Se selecciona el tipo de firewall a usar y la politica de control ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $fwtipo
+$fwpolitica = "/opt/imt/conf-debian-$SYSTEM/firewall/fwpolitica";
+
+### ftpserverv3.htm ### Configuracion del servidor FTP ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $montadodisco
+$fwserverftp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwserverftp";
+$vsftpdconf = "/opt/imt/conf-debian-$SYSTEM/ftpserver/vsftpd.conf";
+$vsftpdhome = "/home/vsftpd";
+$ftphome = "/home/ftp";
+$vsftpdserver = "/opt/imt/demonios-imt/imtvsftpd";
+
+### fwaltaips.htm ### Creacion de objetos IPs para su utilizacion en el firewall ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $fwipred
+
+### fwaltapuertos.htm ### Creacion de objetos puertos para su utilizacion en el firewall ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $portservice
+
+### fwaplica.htm ### Control de firewall para grupos de aplicaciones ###
+#--------------------------
+# $modulos
+
+### fwbackup.htm ### Backup de la configuracion del firewall ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $backupaccion $fwdownload
+$fwbackup = "/opt/imt/conf-debian-$SYSTEM/firewall/fwbackup";
+
+### fwbloqueo.htm ### Creacion de reglas de bloqueo de firewall modo 2 ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $vistafw_estado $variables $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $net_address2
+$fwbloqueo = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_bloqueo_separado";
+
+### fwfavoritos7.htm ### Definicion de protocolos de uso en favoritos para capa 7 ###
+#--------------------------
+# $modulos $listacapa7
+
+### fwlogs.htm ### Creacion de reglas para logueo de trafico ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $vistafw_estado $variables $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $net_address2 $montadodisco $ulogdconf
+$fwlogs = "/opt/imt/conf-debian-$SYSTEM/firewall/fwlogs";
+$ulogd = "/etc/init.d/ulogd";
+
+### fwmodo.htm ### Menu principal del servicio de firewall ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $fwtipo $fwestado
+$fwlogestado = "/opt/imt/conf-debian-$SYSTEM/firewall/fwlogestado";
+
+### fwpermiso.htm ### Creacion de reglas de permiso de firewall modo 2 ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $vistafw_estado $variables $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $net_address2
+$fwpermiso = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_permiso_separado";
+
+### fwperso.htm ### Creacion de reglas de firewall personales ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting
+$fwperso = "/opt/imt/conf-debian-$SYSTEM/firewall/fwperso";
+
+### fwsecuencial7.htm ### Se definen las reglas de seguridad en capa 7 ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $vistafw_estado $variables $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $net_address2 $listacapa7 $listaexten $listaextra 
+$fwsecuencial7 = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_control_secuencial7";
+
+### fwsecuencial7b.htm ### Se definen las reglas de seguridad en capa 7 ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $vistafw_estado $variables $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $net_address2 $listacapa7 $listaexten $listaextra
+$fwsecuencial7b = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_control_secuencial7b";
+
+### fwsecuencial.htm ### Se definen las reglas de seguridad en capa 3 ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $vistafw_estado $variables $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $net_address2 $fwgestorvista $fwlogs
+$fwsecuencial = "/opt/imt/conf-debian-$SYSTEM/firewall/fw_control_secuencial";
+$proxyinputdefault = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_default";
+$confsecurfw = "/opt/imt/conf-debian-$SYSTEM/firewall/confsecurfw";
+
+### geoip.htm ### Control de acceso por pais ###
+#--------------------------
+# $modulos
+$fwgeoiplist = "/opt/imt/conf-debian-$SYSTEM/firewall/fwgeoiplist";
+
+### gestorkernelv3.htm ### Modificacion de kernel cargado en el sistema ###
+#--------------------------
+# $modulos
+$grubcfg = "/boot/grub/grub.cfg";
+$netrules = "/etc/udev/rules.d/70-persistent-net.rules";
+$changekernel = "/opt/imt/gestor/changekernel";
+
+### gestorlvm.htm ### Gestor de volumenes logicos ###
+#--------------------------
+# $modulos 
+
+### gestorcerti.htm ### Importación y gestión de certificados externos ###
+#--------------------------
+# $modulos $httpd
+$certiconten = "/opt/imt/conf-debian-$SYSTEM/certi";
+
+### gestordiscoweb.htm ### Gestor de ficheros web ###
+#--------------------------
+# $modulos
+
+### gestum.htm ### Sistema de automatizacion y reconocimiento de informacion ###
+#--------------------------
+# $modulos $montadodisco
+$confgestum = "/opt/imt/conf-debian-$SYSTEM/gestum/confgestum";
+$scanocr = "/opt/imt/conf-debian-$SYSTEM/gestum/scanocr";
+$gestumopenvpn = "/opt/imt/conf-debian-$SYSTEM/gestum/openvpn.conf";
+$gestumentrada = "/opt/imt/conf-debian-$SYSTEM/gestum/entrada";
+$gestumprocesado = "/opt/imt/conf-debian-$SYSTEM/gestum/procesado";
+$gestumsalida = "/opt/imt/conf-debian-$SYSTEM/gestum/salida";
+$gestumtmp = "/opt/imt/conf-debian-$SYSTEM/gestum/tmp";
+$gestumdir = "/opt/imt/conf-debian-$SYSTEM/gestum/";
+
+### graficosmenuv3.htm ### Menu principal de graficos y estadisticas ###
+#--------------------------
+# $modulos $estado $siteconf $httpd
+$munind = "/etc/init.d/munin-node";
+$muninrotate = "/etc/cron.d/munin";
+$muninnoderotate = "/etc/cron.d/munin-node";
+$muninconf = "/etc/munin/munin.conf";
+$apachemunin = "/etc/apache2/conf.d/munin";
+
+### graficosperso.htm ### Seccion para la activacion de graficas a visualizar ###
+#--------------------------
+# PENDIENTE
+
+### groupware.htm ### Seccion para activacion del groupware ###
+#--------------------------
+# $modulos $httpd $siteconf $portsconf
+$config = "/opt/imt/conf-debian-$SYSTEM/group/config.php";
+
+### gruposhost.htm ###  ###
+#--------------------------
+# $modulos
+
+### gruposhostregis.htm ### Asigna host grupos ###
+#--------------------------
+# $modulos
+$fwgrupored = "/opt/imt/conf-debian-$SYSTEM/firewall/fwgrupored";
+
+### gruposprotocapa3.htm ###  ###
+#--------------------------
+# $modulos
+$fwgrupoport = "/opt/imt/conf-debian-$SYSTEM/firewall/fwgrupoport";
+
+### gruposprotocapa3.htm ### Editor de grupos en base a IPs o redes ###
+#--------------------------
+# $modulos
+
+### guacamole.htm ### Administrador de sistema guacamole ###
+#--------------------------
+# $modulos
+
+### hardware.htm ### Menu principal de hardware a conectar al sistema ###
+#--------------------------
+# $modulos
+$estado = "/opt/imt/gestor/estado";
+
+### hilomusical.htm ### Reproducción de música y radio ###
+#--------------------------
+# $modulos
+$hiloconfig = "/opt/imt/conf-debian-$SYSTEM/hilomusical/hiloconfig";
+$rutadiscohilo = "/opt/imt/conf-debian-$SYSTEM/hilomusical/rutadisco";
+$hilomusicalenlace = "/opt/imt/conf-debian-$SYSTEM/hilomusical/hilomusical";
+
+### icingamenuv3.htm ### Géstion de icinga ###
+#--------------------------
+# $modulos $estado
+$imtomd = "/opt/imt/demonios-imt/imtomd";
+
+### icingav3.htm ### Administrador de sistema icinga ###
+#--------------------------
+# $modulos
+
+### histomodulos.htm ### Registra los módulos en los que se ha acometido cambios ###
+#--------------------------
+# $modulos
+$histomoduregis = "/write/historialmoduregis";
+
+### hostsactiv.htm ### Administrador de host activos en la red ###
+#--------------------------
+# $modulos
+
+### hostsdetect.htm ### Administrador de host dectectados ###
+#--------------------------
+# $modulos
+$listmacdevice = "/opt/imt/conf-debian-imt/system/listmacdevice";
+
+### hostsregis.htm ### Administrador de host registrados ###
+#--------------------------
+# $modulos $controlnumred
+
+### httpinverso.htm ### Transmision interna avanzada de trafico HTTP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting
+$nginxdir = "/opt/imt/conf-debian-$SYSTEM/nginx/";
+$nginxconf = "/opt/imt/conf-debian-$SYSTEM/nginx/nginx.conf";
+$nginxdaemon = "/opt/imt/demonios-imt/imtnginx";
+$fwhttpinverso = "/opt/imt/conf-debian-$SYSTEM/firewall/fwhttpinverso";
+
+### idioma.htm ### Permite el cambio de idioma en todo el interfaz ###
+#--------------------------
+# $modulos $home
+
+### ids.htm ### Muestra los tipos de ataques y su clasificacion ###
+#--------------------------
+# $modulos $estado $snortdaemon
+$alert = "/var/log/snort/alert";
+$limpiar = "/opt/imt/gestor/tools/ids/limpiar";
+
+### idsmenuv3.htm ### Menu de control del sismta IDS ###
+#--------------------------
+# $modulos
+
+### imthwd.htm ### Modulo de apoyo ###
+#--------------------------
+# $modulos $estado
+
+### imtlayers.htm ### Gestiona capas de gestion comunes a todos los modulos ###
+#--------------------------
+# $modulos $selectsqlserver $variables $etcfstab $controlimtclouddir
+$vertools = "/opt/imt/gestor/vertools";
+$verrecomen = "/opt/imt/gestor/recomendaciones";
+$imtcodigoactivacion = "/opt/imt/gestor/codigoactivacion";
+$imtcontrolhash = "/opt/imt/gestor/controlhash";
+$imtcontrollvm = "/opt/imt/demonios-imt/imtcontrollvm";
+$accionimtcontrollvm = "/opt/imt/conf-debian-$SYSTEM/system/accion_imtcontrollvm";
+$duplicacontrolred = "/opt/imt/gestor/tools/networking/duplicacontrolred";
+$autolvmcreate = "/opt/imt/conf-debian-$SYSTEM/system/autolvmcreate";
+
+### index.htm ### Define los frames que componen el menu y seccion derecha ###
+#--------------------------
+# $modulos
+
+### infoservicios.htm ### Se detallan todos los servicios en produccion ###
+#--------------------------
+# $modulos
+
+### inicio.htm ### Información del Sismtema IMT ###
+#--------------------------
+# $modulos
+
+### iniciov3.htm ### Informacion inicial tras logearse el administrador ###
+#--------------------------
+# $modulos $home $variables $smbconf $samba $portsconf $listanotas
+$license = "/opt/imt/gestor/license";
+$enlacegoogle = "/opt/imt/gestor/enlacegoogle";
+$sinoguia = "/opt/imt/gestor/sinoguia";
+
+### integracion.htm ### Menu principal de la seccion integracion ###
+#--------------------------
+# $modulos
+
+### interfaz.htm ### Modifica el aspecto del interfaz ###
+#--------------------------
+# $modulos $home $monitd
+$apachemonit = "/etc/monit/conf.d/apache.monit";
+$siteconfssl = "/etc/apache2/sites-available/default-ssl.conf";
+
+### ipcheck.htm ### Detecta la IP Publica de Internet ###
+#--------------------------
+# $modulos
+
+### ipsecconfig.htm ### Menu principal del servicio IPsec ###
+#--------------------------
+# $modulos $estado $ipsecvpndemonio
+
+### ipsecvpndele.htm ### Se definen los tuneles de conexion de IPsec ###
+#--------------------------
+# $modulos $estado $ipsecvpndemonio $redsegmentada $generaldele $ipsecrets
+$ipseconf = "/etc/ipsec.conf";
+$ipsecdele = "/opt/imt/conf-debian-$SYSTEM/ipsecvpn/ipsecdele";
+
+### ipsecvpnremoto.htm ### Configuracion para los clientes roadwarrior ###
+#--------------------------
+# $modulos $ipsecrets
+$ipsecclient = "/opt/imt/conf-debian-$SYSTEM/ipsecvpn/ipsecclient";
+
+### itopv3.htm ### Gestor del programa Itop (CMDB) ###
+#--------------------------
+# $modulos $estado $httpd
+$apacheitop = "/etc/apache2/sites-available/itop.conf";
+
+### jabber.htm ### Configuracion del servidor de mensajeria ###
+#--------------------------
+# $modulos $estado $jabberd
+$ejabberdcfg = "/opt/imt/conf-debian-$SYSTEM/jabber/ejabberd.cfg";
+
+### katalizer.htm ###  Trafico de datos de red
+#--------------------------
+# $modulos $estado $mysqld
+$katalyzerserver = "/opt/demonios-imt/imtkatalyzer";
+
+### kibana.htm ### Gestor del modulo Kibana ###
+#--------------------------
+# $modulos $estado $httpd
+$apachekibana = "/etc/apache2/sites-available/kibana";
+
+### lanservices.htm ### Se configuran todas las tarjetas de red y su uso en la red ###
+#--------------------------
+# $modulos $variables $networking $cleanall $firewall $prerouting $redsegmentada $snortconf $snortdaemon $openvpncnf $ipasigmac $dns $numpreferdns $crontab $openvpnd $wep $ifdhcp $lanaliasint $lanaliasext $lanalias3 $lanalias4 $lanalias5 $lanalias6 $estado $defaultdhcp3server $controlnumred $net_address2 $rutasopenvpnremotoauto $rutasopenvpnremotoautocertun $imtntop $tablas
+$dhcpextestado2 = "/opt/imt/conf-debian-$SYSTEM/networking/dhcpextestado2";
+$dhcpextestado3 = "/opt/imt/conf-debian-$SYSTEM/networking/dhcpextestado3";
+$dhcpextestado4 = "/opt/imt/conf-debian-$SYSTEM/networking/dhcpextestado4";
+$dhcpextestado5 = "/opt/imt/conf-debian-$SYSTEM/networking/dhcpextestado5";
+$dhcpextestado6 = "/opt/imt/conf-debian-$SYSTEM/networking/dhcpextestado6";
+$secrets = "/opt/imt/conf-debian-$SYSTEM/router/ppp/ppp/chap-secrets";
+$peersinfodesa = "/opt/imt/conf-debian-$SYSTEM/router/ppp/ppp/peers/infodesain";
+$proxylan = "/opt/imt/conf-debian-$SYSTEM/networking/proxylan";
+$macorigonales = "/tmp/macorigonales";
+$test3gexterna = "\/opt\/imt\/conf-debian-$SYSTEM\/line-backup\/test3gexterna";
+$desplipasarela = "/opt/imt/conf-debian-$SYSTEM/networking/despliegue/";
+$lanvlansint = "/opt/imt/conf-debian-$SYSTEM/networking/lanvlansint";
+$lanvlansext = "/opt/imt/conf-debian-$SYSTEM/networking/lanvlansext";
+$lanvlans3 = "/opt/imt/conf-debian-$SYSTEM/networking/lanvlans3";
+$lanvlans4 = "/opt/imt/conf-debian-$SYSTEM/networking/lanvlans4";
+$lanvlans5 = "/opt/imt/conf-debian-$SYSTEM/networking/lanvlans5";
+$lanvlans6 = "/opt/imt/conf-debian-$SYSTEM/networking/lanvlans6";
+$pppoealiasext = "/opt/imt/conf-debian-$SYSTEM/networking/pppoealiasext";
+$pppoealias3 = "/opt/imt/conf-debian-$SYSTEM/networking/pppoealias3";
+$pppoealias4 = "/opt/imt/conf-debian-$SYSTEM/networking/pppoealias4";
+$pppoealias5 = "/opt/imt/conf-debian-$SYSTEM/networking/pppoealias5";
+$pppoealias6 = "/opt/imt/conf-debian-$SYSTEM/networking/pppoealias6";
+$ebfwopenvpnori = "/opt/imt/conf-debian-$SYSTEM/firewall/ebfw_openvpn_ori";
+$openvpncertun = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/openvpncertun.conf";
+$lanaliasbr ="/opt/imt/conf-debian-$SYSTEM/networking/lanaliasbr";
+$lanaliasadmin = "/opt/imt/conf-debian-$SYSTEM/networking/lanaliasadmin";
+$actuifntop = "/opt/imt/conf-debian-imt/ntop/actuifntop";
+
+### licencias.htm ### Se muestra la licencia de I.M.T. ###
+#--------------------------
+# $modulos
+
+### listadomodulos.htm ### Se muestran todos los modulos con su descripcion ###
+#--------------------------
+# $modulos
+$listadomodulosconten = "/opt/imt/web/modulos";
+
+### litepoints.htm ### Gestor de dispositivos Lite Points a traves del IMT3 ###
+#--------------------------
+# $modulos
+
+### loader.htm ### Consola web con ordenes de comandos no interactivos ###
+#--------------------------
+
+### login.htm ### Valida a los usuarios que acceden al sistema ###
+#--------------------------
+# $modulos $home $mysqld $notificar
+$get_variables = "/opt/imt/conf-debian-imt/imtcloud/get_variables";
+
+### logvivobackuplinea.htm ### Log del backup de linea ###
+#--------------------------
+# $modulos
+
+### mantisv3.htm ### ###
+#--------------------------
+# $modulos $estado $httpd
+$apachemantis = "/etc/apache2/sites-available/mantis.conf";
+
+### mamwaction.htm ### Gestor de tareas programadas del MAMW ###
+#--------------------------
+# $modulos $crontab $core
+
+### mamwbackup.htm ### Backup de la configuracion del MAMW ###
+#--------------------------
+# $modulos
+
+### mamwconfig.htm ### Configuracion general del MAMW ###
+#--------------------------
+# $modulos
+$mamwemailadmin = "/opt/imt/conf-debian-$SYSTEM/mamw/mamwemailadmin";
+$mamwini = "/opt/imt/conf-debian-$SYSTEM/mamw/mamw.ini";
+
+### mamwempresas.htm ### Se configuran las acciones a realizar en el MAMW ###
+#--------------------------
+# $modulos $crontab $core $confmod $mamwlog
+$etcopenvpn = "/etc/openvpn/";
+
+### mamwhistorial.htm ### Se muestran todos los logs del MAMW ###
+#--------------------------
+# $modulos $mamwlog
+
+### mamwmenu.htm ### Menu principal del MAMW ###
+#--------------------------
+# $modulos $estado
+
+### mamwmodulos.htm ### Se controlan que modulos estaran activos para el MAMW ###
+#--------------------------
+# $modulos $confmod
+
+### mantisv3.htm ### Gestor del servicio Mantis bug tracert ###
+#--------------------------
+# $modulos
+
+### marcado.htm ### Se marca trafico capa 3 para enviarlo al gateway elegido ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $networking $vistafw_estado $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $squidconf $squidaemon $variables $net_address2 $marcas $estado $rttablescreate
+$fwbalanceo = "/opt/imt/conf-debian-$SYSTEM/firewall/fwbalanceo";
+$fwdetectos = "/opt/imt/conf-debian-$SYSTEM/firewall/fwdetectos";
+$fwnatbalanceo = "/opt/imt/conf-debian-$SYSTEM/firewall/fwnatbalanceo";
+$fwnatbalanceoproxy = "/opt/imt/conf-debian-$SYSTEM/firewall/fwnatbalanceoproxy";
+
+### marcado7.htm ### Se marca trafico capa 7 para enviarlo al gateway elegido ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $networking $vistafw_estado $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $variables $net_address2 $marcas $listacapa7 $listaexten $listaextra
+$fwbalanceo7 = "/opt/imt/conf-debian-$SYSTEM/firewall/fwbalanceo7";
+
+### marcadoqos.htm ### Se marca trafico capa 3 para asignarle un nivel de prioridad ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $networking $vistafw_estado $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $variables $net_address2
+$marcadoqos = "/opt/imt/conf-debian-$SYSTEM/qos/marcadoqos";
+
+### marcadoqos7.htm ### Se marca trafico capa 7 para asignarle un nivel de prioridad ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $networking $vistafw_estado $fwipred $portservice $pptpdconf $pptpduser $openvpncnf $ipptxt $variables $net_address2 $listacapa7 $listaexten $listaextra
+$marcadoqos7 = "/opt/imt/conf-debian-$SYSTEM/qos/marcadoqos7";
+
+### marcasbalanceo.htm ### Se definen los gateways para la distribucion del trafico ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $networking $marcas $rttablescreate $tablas
+$tablascontrol = "/opt/imt/conf-debian-$SYSTEM/firewall/tablascontrol";
+$defitables = "/etc/iproute2/rt_tables";
+$rttablesbalanceo = "/opt/imt/conf-debian-$SYSTEM/system/rt_tables_balanceo";
+$rutapesodefecto = "/opt/imt/conf-debian-$SYSTEM/firewall/pesodefecto";
+$fwbalanceovuelta = "/opt/imt/conf-debian-$SYSTEM/firewall/fwbalanceovuelta";
+
+### menulicencias.htm ### Menu principal para visualizar licencias ###
+#--------------------------
+# $modulos 
+
+### menuqos.htm ### Se visualizán los nivel de priorización y el uprate ###
+#--------------------------
+# $modulos
+
+### menuqosv3.htm ### Se visualizan los nivel de priorizacion y el uprate ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado $variables $confqos
+$qosestado = "/opt/imt/conf-debian-$SYSTEM/qos/qosestado";
+$qos = "/opt/imt/conf-debian-$SYSTEM/qos/qos";
+$qosd = "/opt/imt/demonios-imt/imtqos";
+
+### mfc.htm ### Envío de contadores y toners a través de agente mfc ###
+#--------------------------
+# $modulos $estado
+$codigocliente = "/opt/imt/conf-debian-$SYSTEM/mfc/codigocliente";
+$codigolicencia = "/opt/imt/conf-debian-$SYSTEM/mfc/codigolicencia";
+$codigoactivacion = "/opt/imt/conf-debian-$SYSTEM/mfc/codigoactivacion";
+
+### mfcauto.htm ### Envío de contadores y toners a través de agente mfc ###
+#--------------------------
+# $modulos $estado
+$apachemfcauto = "/etc/apache2/sites-available/mfcauto.conf";
+
+### mfi.htm ### Gestor integrado en el IMT3 de ubiquiti ###
+#--------------------------
+# $modulos $estado $controlaplicafw
+
+### modulos.htm ### Se muestran las tecnologias o aplicaciones disponibles ###
+#--------------------------
+# $modulos
+
+### moduloscircusoft.htm ### Listado de modulos del IMT3 circular ###
+#--------------------------
+# $modulos
+
+### moduloscircuv3.htm ### Listado de modulos del IMT3 circular ###
+#--------------------------
+# $modulos
+
+### modulosdispo.htm ### Esquema modular de las secciones del IMT3 ###
+#--------------------------
+# $modulos
+
+### modulosv3.htm ### Esquema modular de las secciones del IMT3 ###
+#--------------------------
+# $modulos
+
+### monit.htm ### Pantalla de acceso al sistema de Monit ###
+#--------------------------
+# $modulos $estado $monitd
+$selecmonit = "/opt/imt/conf-debian-$SYSTEM/monit/selecmonit";
+
+### msnip.htm ### Control de acceso MSN por IP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado
+$msnip = "/opt/imt/conf-debian-$SYSTEM/bloqueo/msn/msn_permiso_ip_selectivo";
+$anonimomsn = "/opt/imt/conf-debian-$SYSTEM/bloqueo/msn/anonimomsn";
+
+### msnmac.htm ### Control de acceso MSN por MAC ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado
+$msnmac = "/opt/imt/conf-debian-$SYSTEM/bloqueo/msn/msn_permiso_mac_selectivo";
+
+### msnp2p.htm ### Menu principal de acceso MSN y P2P ###
+#--------------------------
+# $modulos $estado
+
+### mswindows.htm ### Se definen los datos para la integracion con Windows Server ###
+#--------------------------
+# $modulos $smbconf $samba $winbind
+$krb5conf = "/opt/imt/conf-debian-$SYSTEM/system/krb5.conf";
+$hosts = "/etc/hosts";
+$netjoinpass = "/opt/imt/conf-debian-$SYSTEM/netbios/netjoinpass";
+$etckrbconf = "/etc/krb.conf";
+$etckrbrealms = "/etc/krb.realms";
+
+### multifuncion.htm ### Transmite los datos de equipos multifuncion ###
+#--------------------------
+# $modulos
+$confmultifuncion = "/opt/imt/conf-debian-$SYSTEM/multifuncion/confmultifuncion";
+$multifuncionopenvpn = "/opt/imt/conf-debian-$SYSTEM/multifuncion/openvpn.conf";
+$listadomultifunciones = "/opt/imt/conf-debian-$SYSTEM/multifuncion/listadomultifunciones";
+$multifunciondir = "/opt/imt/conf-debian-$SYSTEM/multifuncion/";
+
+### nas.htm ### Definicion de recursos CIFS y NFS ###
+#--------------------------
+# $modulos $montadorecurso
+$autofs = "/etc/init.d/autofs";
+$etcautonfs = "/etc/auto.nfs";
+$etcautosmb = "/etc/auto.smb";
+
+### natext.htm ### Nat a IPs externas no principales ###
+#--------------------------
+# $modulos $lanaliasext $lanalias3 $lanalias4 $lanalias5 $lanalias6 $redsegmentada $variables
+$natexterno = "/opt/imt/conf-debian-$SYSTEM/networking/natexterno";
+
+### natexcept.htm ### Excepción de nat para determinadas ips o redes ###
+#--------------------------
+# $modulos
+$natexcept = "/opt/imt/conf-debian-$SYSTEM/networking/natexcept";
+
+### netbioscarpetas.htm ### Gestion de carpetas de grupo y de servicios en NAS ###
+#--------------------------
+# $modulos $samba $netbiosusuarios $netbiosgrupos $gadduser $gdeluser $gchgpwd $grupopwd
+
+### netbiosconfig.htm ### Configuracion general de NAS ###
+#--------------------------
+# $modulos $montadodisco $cleanall $firewall $prerouting $samba $raizmontado $smbconf $rutadisco
+$fwnetbios = "/opt/imt/conf-debian-$SYSTEM/firewall/fwnetbios";
+$smbdefaultbat = "/opt/imt/conf-debian-$SYSTEM/netbios/default.bat";
+
+### netbiospanel.htm ### Menu principal de servicio almacen netbios ###
+#--------------------------
+# $modulos $estado $samba $winbind
+
+### netbiosuser.htm ### Creacion de carpetas de usuarios y grupos en NAS ###
+#--------------------------
+# $modulos $estado $samba $netbiosusuarios $netbiosgrupos $gadduser $gdeluser $gchgpwd $grupopwd $smbconf $raizmontado
+$gaddgroup = "/opt/imt/conf-debian-$SYSTEM/netbios/g-addgroup";
+$gdelgroup = "/opt/imt/conf-debian-$SYSTEM/netbios/g-delgroup";
+
+### netstatnat.htm ### Visualizacion de conexiones nateadas ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting
+
+### networkmap.htm ### Visualiza el mapa de toda la red ###
+#--------------------------
+# $modulos $listanotas
+
+### nodisponible.htm ### Panel informativo de que el modulo no esta activo ###
+#--------------------------
+# $modulos
+
+### nodos.htm ### Esquema de interconexión de modulos del IMT3 ###
+#--------------------------
+# $modulos
+
+### noip.htm ### Configuracion para uso de No-IP ###
+#--------------------------
+# $modulos $estado
+$noipexpect = "/opt/imt/conf-debian-$SYSTEM/networking/noipexpect";
+$noipserver = "/opt/imt/demonios-imt/imtnoip2";
+
+### notas.htm ### Seccion para apuntar notas del sistema ###
+#--------------------------
+# $modulos $listanotas
+
+### ntopv3.htm ### Gestor del servicio Ntop integrado en el IMT3 ###
+#--------------------------
+# $modulos
+
+### ntopng.htm ### Seccion para apuntar notas del sistema ###
+#--------------------------
+# $modulos $listanotas $monitrc $monitd $imtntop
+$varlibntop = "/var/lib/ntop";
+$varntop = "/var/ntop";
+$initcfgntop = "/var/lib/ntop/init.cfg";
+$fwntopng = "/opt/imt/conf-debian-$SYSTEM/firewall/fwntopng";
+
+### ntpserver.htm ### Configuracion del servidor NTP ###
+#--------------------------
+# $modulos
+$ntp = "/opt/imt/conf-debian-$SYSTEM/system/ntp.conf";
+$ntpdemonio = "/etc/init.d/ntp";
+
+### nxfilter.htm ### Gestor del servicio NXfilter (filtrado web por DNS) ###
+#--------------------------
+# $modulos
+$imtdemonionxfilter = "/opt/imt/demonios-imt/imtnxfilter";
+
+### ocs.htm ### Pantalla de acceso al sistema de monitorizacion OCS ###
+#--------------------------
+# $modulos $montadodisco
+$apacheocs = "/etc/apache2/conf-available/ocsinventory-reports.conf";
+
+### openerpv3.htm ### Gestor del servicio de OpenERP ###
+#--------------------------
+# $modulos
+
+### openmediavaultv3.htm.htm ### Gestor del servicio Openmediavault (NAS) ###
+#--------------------------
+# $modulos %estado $nginxdaemon
+$openmediavaultdemonio = "/opt/imt/demonios-imt/imtopenmediavault-engined";
+
+### opennopv3.htm ### Gestor del servicio WanOptimizer (optimizador wan) ###
+#--------------------------
+# $modulos
+
+### openvpnconfig.htm ### Menu principal del servicio de OpenVPN ###
+#--------------------------
+# $modulos $estado $openvpnd $crontab
+
+### openvpndele.htm ### Se definen los tuneles de conexion de OpenVPN ###
+#--------------------------
+# $modulos $openvpnd $cleanall $firewall $prerouting $keyconten $openvpn $rutakey $openvpnexpre $fw_openvpn $redsegmentada $ipsecdele $generaldele $openvpndelecnf
+$dyndnscontrol = "/opt/imt/conf-debian-$SYSTEM/openvpn/dyndnscontrol";
+
+### openvpnkey.htm ### Se generan las keys para OpenVPN delegaciones ###
+#--------------------------
+# $modulos $keyconten $openvpn
+
+### openvpnpki.htm ### Entidad emisora de certificados para clientes OpenVPN ###
+#--------------------------
+# $modulos $registrokeys $openvpnd $openvpncnf $clavesuser
+$openvpnfirmando = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/firmarclaves/firmando";
+$openvpnintroduce = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/firmarclaves/introduce";
+$openvpnintroduceca = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/firmarclaves/introduceca";
+$openvpnfirmandoca = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/firmarclaves/firmandoca";
+$revocar = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/firmarclaves/revocar";
+$openvpnclientes = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/clientes";
+
+### openvpnregis.htm ### Registra conexiones efectuadas por clientes OpenVPN ###
+#--------------------------
+# $modulos
+$openvpnlist = "/var/log/openvpn_list.log";
+
+### openvpnremotocer.htm ### Acceso a clientes OpenVPN por certificados a traves de tap ###
+#--------------------------
+# $modulos $ipptxt $openvpn $openvpndelecnf $cleanall $firewall $prerouting $openvpnd $registrokeys $clavesuser $rutasopenvpnremotoauto $rutasopenvpnremotoautocertun
+$rutaspersopenvpn = "/opt/imt/conf-debian-$SYSTEM/openvpn/rutaspersonales";
+$persoclientesvpn = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/clientes/";
+$fwcontrolopenvpncert1 = "/opt/imt/conf-debian-$SYSTEM/firewall/fwcontrolopenvpncert1";
+
+### openvpnremotocertun.htm ### Acceso a clientes OpenVPN por certificados a traves de tun ###
+#--------------------------
+# $modulos $openvpn $cleanall $firewall $prerouting $openvpnd $rutasopenvpnremotoauto $rutasopenvpnremotoautocertun
+$openvpnremotocertun = "/opt/imt/conf-debian-$SYSTEM/openvpn/remotos/openvpncertun.conf";
+$rutaspersopenvpncertun = "/opt/imt/conf-debian-$SYSTEM/openvpn/rutaspersonalescertun";
+
+### openvpnremotokey.htm ### Acceso a clientes OpenVPN por keys ###
+#--------------------------
+# $modulos $keyconten $openvpn $rutakey $openvpncnf $openvpnd $openvpnexpre $cleanall $firewall $prerouting $fw_openvpn
+$generalremoto = "/opt/imt/conf-debian-$SYSTEM/openvpn/generalremoto";
+
+### imtopentrafficshaper.htm ### Gestión QoS a través de Opentrafficshaper ###
+#--------------------------
+# $modulos
+$imtopentrafficshaper = "/opt/imt/demonios-imt/imtopentrafficshaper";
+
+### openvpnusername.htm ### Acceso a clientes OpenVPN por usuario y password ###
+#--------------------------
+# $modulos $estado
+$openvpnusuarios = "/opt/imt/conf-debian-$SYSTEM/openvpn/openvpnusuarios";
+$openvpnadduser = "/opt/imt/conf-debian-$SYSTEM/openvpn/openvpn-adduser";
+$openvpndeluser = "/opt/imt/conf-debian-$SYSTEM/openvpn/openvpn-deluser";
+$openvpnchgpwd = "/opt/imt/conf-debian-$SYSTEM/openvpn/openvpn-chgpwd";
+
+### oscommerce.htm ### Seccion para activacion del oscommerce ###
+#--------------------------
+# $modulos $montadodisco $httpd $rutadisco $siteconf $portsconf
+$configureadmin = "/opt/imt/conf-debian-$SYSTEM/oscommerce/catalog/admin/includes/configure.php";
+$configurepublic = "/opt/imt/conf-debian-$SYSTEM/oscommerce/catalog/includes/configure.php";
+
+### otrsv3.htm ### Gestor del servicio OTRS (software de asistencias a escritorios) ###
+#--------------------------
+# $modulos $estado $httpd
+$apacheotrs2 = "/etc/apache2/conf-available/otrs2.conf";
+
+### owncloudv3.htm ### Gestor del servicio Owncloud (almacenage en la nube) ###
+#--------------------------
+# $modulos $estado $httpd
+$apacheowncloud = "/etc/apache2/conf-available/owncloud.conf";
+
+### pandorafmsv3.htm ### Gestor del servicio Pandora fms (monitorización) ###
+#--------------------------
+# $modulos
+
+
+### papercut.htm ### Gestion y control de impresion ###
+#--------------------------
+# $modulos $estado
+$rutaimtstore = "/opt/imt/gestor/rutaimtstore";
+
+### p2pip.htm ### Control de acceso P2P por IP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado
+$p2piptablesip = "/opt/imt/conf-debian-$SYSTEM/bloqueo/p2p/p2p_permiso_ip_selectivo";
+
+### p2pmac.htm ### Control de acceso MSN por MAC ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado
+$p2piptablesmac = "/opt/imt/conf-debian-$SYSTEM/bloqueo/p2p/p2p_permiso_mac_selectivo";
+
+### parareini.htm ### Control de apagado y reinicio del sistema ###
+#--------------------------
+# $modulos
+
+### pasopanel.htm ### Menu principal del controlador de paso ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $crontab
+$fwlogestado = "/opt/imt/conf-debian-$SYSTEM/firewall/fwlogestado";
+
+### poliacceso.htm ### Menu principal de seccion control de acceso ###
+#--------------------------
+# $modulos
+
+### portalcautivo.htm ### Configuracion del servicio de portal cautivo ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $crontab $chillidemonio $confqos $variables $redsegmentada
+$fwserverchilli = "/opt/imt/conf-debian-$SYSTEM/firewall/fwserverchilli";
+$chilliconf = "/opt/imt/conf-debian-$SYSTEM/hotspot/chilli.conf";
+$chilli2conf = "/opt/imt/conf-debian-$SYSTEM/hotspot/chilli2.conf";
+$chilli3conf = "/opt/imt/conf-debian-$SYSTEM/hotspot/chilli3.conf";
+$chilli4conf = "/opt/imt/conf-debian-$SYSTEM/hotspot/chilli4.conf";
+$pcautivolibres = "/opt/imt/conf-debian-$SYSTEM/hotspot/pcautivo-libres";
+$pcautivolibresesc = "\/opt\/imt\/conf-debian-$SYSTEM\/hotspot\/pcautivo-libres";
+$opcportalgesdir = "/opt/imt/conf-debian-$SYSTEM/hotspot/opcportalges";
+$hotspotlogin = "/opt/imt/web/modulos/hotspotloginimt.cgi";
+$imagenes = "/opt/imt/web/imagenes/";
+$confhotspot = "/opt/imt/conf-debian-$SYSTEM/hotspot/confhotspot";
+$hotspotqos1 = "/opt/imt/conf-debian-$SYSTEM/qos/hotspotqos1";
+$hotspotqos2 = "/opt/imt/conf-debian-$SYSTEM/qos/hotspotqos2";
+$hotspotqos3 = "/opt/imt/conf-debian-$SYSTEM/qos/hotspotqos3";
+$hotspotqos4 = "/opt/imt/conf-debian-$SYSTEM/qos/hotspotqos4";
+$esendexdatos = "/opt/imt/conf-debian-$SYSTEM/hotspot/cuentaesendex";
+$freeradiusclientsconf = "/etc/freeradius/clients.conf";
+$freeradiusdemonio = "/opt/imt/demonios-imt/imtfreeradius";
+$varchilli = "/opt/imt/conf-debian-$SYSTEM/chilli/varchilli";
+
+### portalimagenv3.htm ### Gestor del servicio Portal Imagen (administrador de imagenes) ###
+#--------------------------
+# $modulos $estado $httpd
+$apachegallery3 = "/etc/apache2/sites-available/gallery3.conf";
+
+### portshadowauto.htm ### Configuracion de sistema PortShadow ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $portknocking
+$knockconf = "/opt/imt/conf-debian-$SYSTEM/portknocking/etc/knockd_auto.conf";
+
+### poweroffpcs.htm ### Gestion para apagado controlado de equipos en red ###
+#--------------------------
+# $modulos
+$poweroffpcsvalor = "/opt/imt/conf-debian-$SYSTEM/poweroffpcs/poweroffpcsvalor";
+$poweroffpcsvalorauto = "/opt/imt/conf-debian-$SYSTEM/poweroffpcs/poweroffpcsvalorauto";
+$poweroffpcsautomatico = "/opt/imt/conf-debian-$SYSTEM/poweroffpcs/poweroffpcsautomatico";
+$sshpoweroff = "/opt/imt/conf-debian-$SYSTEM/poweroffpcs/sshpoweroffexpect";
+
+### pppoe.htm ### Creación de conexiones PPPoE para uso en configuración lan ###
+#--------------------------
+# $modulos $proveeconten $variables
+$chapsecrets = "/etc/ppp/chap-secrets";
+$pppoepeers = "/opt/imt/conf-debian-imt/networking/pppoepeers";
+
+### prefetch.htm ### Sistema de aceleracion de precargado de paginas ###
+#--------------------------
+# $modulos
+$prefetchconf = "/etc/squid-prefetch.conf";
+$imtsquidprefetch = "/opt/imt/demonios-imt/imtsquid-prefetch";
+
+### privoxy.htm ### Ofrece modificacion de datos web y privacidad. ###
+#--------------------------
+# $modulos $estado $privoxyd $privoxyconfig
+$tord = "/opt/imt/demonios-imt/imttor";
+
+### protocapa3.htm ### Relación entre protocolos y puertos ###
+#--------------------------
+# $modulos
+
+### proveedores.htm ###  ###
+#--------------------------
+# $modulos
+
+### proxysv3.htm ### Control de proxys por protocolo y uso de excepciones ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $vistafw_estado $fwipred $portservice $variables $squidconf $squidaemon $httpscan $froxd $p3scan $siproxydemonio $fwgestorvista $estadoproxyimap $estadoproxysip $estadoproxymsn $estadoproxyssh $estado $httpscanconf $monitd $httpscan $privoxyd $privoxyconfig $imthaarp $p3scanconf $ftpscanconf
+$preproxy = "/opt/imt/conf-debian-$SYSTEM/networking/preproxy";
+$preproxyauto = "/opt/imt/conf-debian-$SYSTEM/networking/preproxy_auto";
+$preproxydefault = "/opt/imt/conf-debian-$SYSTEM/networking/preproxy_default";
+$proxyinputhttp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_http";
+$proxyinputftp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_ftp";
+$proxyinputpop3 = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_pop3";
+$proxyinputsmtp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_smtp";
+$proxyinputimap = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_imap";
+$proxyinputsip = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyinput_sip";
+$proxyoutputhttp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyoutput_http";
+$proxyoutputftp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyoutput_ftp";
+$proxyoutputpop3 = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyoutput_pop3";
+$proxyoutputsmtp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyoutput_smtp";
+$proxyoutputimap = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyoutput_imap";
+$proxyoutputsip = "/opt/imt/conf-debian-$SYSTEM/firewall/fwproxyoutput_sip";
+$squidmonit = "/opt/imt/conf-debian-$SYSTEM/monit/modulos/squid.monit";
+$privoxymonit = "/opt/imt/conf-debian-$SYSTEM/monit/modulos/privoxy.monit";
+$dansguardianmonit = "/opt/imt/conf-debian-$SYSTEM/monit/modulos/dansguardian.monit";
+$wanproxyserverconf = "/opt/imt/conf-debian-$SYSTEM/wanproxy/server.conf";
+$wanproxyclientconf = "/opt/imt/conf-debian-$SYSTEM/wanproxy/client.conf";
+$portcontrol = "/opt/imt/gestor/portcontrol";
+
+### bridge.htm ### El tráfico es enrutado en vez de puenteado ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting
+$bridgecontrol = "/opt/imt/conf-debian-$SYSTEM/networking/bridgecontrol";
+
+### proxysip.htm ### Configuracion de proxy SIP ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $siproxydemonio
+$fwserversiproxy = "/opt/imt/conf-debian-$SYSTEM/firewall/fwserversiproxy";
+$siproxyconf = "/etc/siproxd.conf";
+$siproxyuserpass = "/etc/siproxd_passwd.cfg";
+
+### pwdadmin.htm ### Se crean usuarios y passwords de acceso al sistema ###
+#--------------------------
+# $modulos $htpasswd $variables $crontab $notificarvar
+
+### qosprioriv3.htm ### Gestor de configuración del sistema quos ###
+#--------------------------
+# $modulos
+
+### rastreo.htm ### Monitoriza equipos detectados por netbios en la red ###
+#--------------------------
+# $modulos $variables $redsegmentada $backuppchosts $etcbackuppc $fwipred $useripnotifi
+$rastreotxt = "/tmp/rastreotxt";
+
+### rat.htm ### Configuracion del servicio RAT ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $portsconf
+$fwserverrat = "/opt/imt/conf-debian-$SYSTEM/firewall/fwserverrat";
+$ratdemonio = "/opt/imt/demonios-imt/imtratserver";
+$ratconfig = "/opt/imt/conf-debian-$SYSTEM/rat/ratproxy/conf/rat.config";
+$genratconfig = "/opt/imt/conf-debian-$SYSTEM/rat/generajar/ratcommon/ch/bfh/hti/rat/common/config/rat.config";
+$ratmasterjnlp = "/opt/imt/conf-debian-$SYSTEM/rat/ratmaster/ratmaster.jnlp";
+$rathostjnlp = "/opt/imt/conf-debian-$SYSTEM/rat/rathost/rathost.jnlp";
+$creajar = "/opt/imt/conf-debian-$SYSTEM/rat/generajar/creajar";
+$ratbackground = "/opt/imt/conf-debian-$SYSTEM/rat/generajar/ratmaster/ch/bfh/hti/rat/master/ressources/";
+
+### regiscontrolcapa7.htm ### Análisis de aplicaciones pasando a traves del IMT3 ###
+#--------------------------
+# $modulos
+
+### register.htm ### Panel para el registro de unidades en preactivacion ###
+#--------------------------
+# $modulos
+
+### reload.htm ### Consola web con ordenes de comandos no interactivos ###
+#--------------------------
+# $modulos
+
+### restarthttp.htm ### Permite reinicio del servidor web sin perder conexion ###
+#--------------------------
+# $httpd $cleanall $firewall $prerouting
+
+### resulcachedinamico.htm ### Informe del contenido dinámico cacheado ###
+#--------------------------
+# $modulos
+
+### resulwebfind.htm ### Busqueda de dominio en blacklist ###
+#--------------------------
+$filtrowebblacklist="/opt/imt/conf-debian-$SYSTEM/httpscan/etc/dansguardian/lists/blacklists/";
+
+### roadmap.htm ### Se muestran los desarrollos y la situacion de estado ###
+#--------------------------
+# $modulos $selectsqlserver
+
+### rutasestaticas.htm ### Seccion para la creacion de rutas estaticas ###
+#--------------------------
+# $modulos $variables $networking
+$rutasestaticas = "/opt/imt/conf-debian-$SYSTEM/networking/rutasestaticas";
+
+### salicru.htm ### Gestor del servicio Salicru para SAIS ###
+#--------------------------
+# $modulos
+
+### salida.htm ### Consola web con ordenes de comandos no interactivos ###
+#--------------------------
+# $modulos
+
+### sbcv3.htm ###   ###
+#--------------------------
+# $modulos
+
+### sender.htm ### Consola web con ordenes de comandos no interactivos ###
+#--------------------------
+
+### shellaccess.htm ### Configuracion de password de root para acceso por shell ###
+#--------------------------
+# $modulos $variables $cleanall $firewall $prerouting $notificarvar
+$sshconfig = "/etc/ssh/sshd_config";
+$sshdemonio = "/etc/init.d/ssh";
+$mismopassweb = "/opt/imt/gestor/mismopassweb";
+$sshdmonit = "/etc/monit/conf.d/sshd.monit";
+
+### showhotspotemail.htm ### Logs de analisis del antivirus ###
+#--------------------------
+# $modulos
+
+### smtpconfig.htm ### Configuracion del sistema de analisis por SMTP y relay ###
+#--------------------------
+# $modulos $montadodisco $filtradosmtp $estado $raizmontado $smtpavscanners
+$fwsmtp = "/opt/imt/conf-debian-$SYSTEM/firewall/fwsmtp";
+$harakaplugins="/opt/imt/conf-debian-$SYSTEM/haraka/config/plugins";
+$harakasmtpini="/opt/imt/conf-debian-$SYSTEM/haraka/config/smtp.ini";
+$harakasmtpforward="/opt/imt/conf-debian-$SYSTEM/haraka/config/smtp_forward.ini";
+$harakarcptaccess="/opt/imt/conf-debian-$SYSTEM/haraka/config/rcpt_to.access.ini";
+$harakaauthflatfile="/opt/imt/conf-debian-$SYSTEM/haraka/config/auth_flat_file.ini";
+$harakahostlist="/opt/imt/conf-debian-$SYSTEM/haraka/config/host_list_regex";
+$harakaratelimit="/opt/imt/conf-debian-$SYSTEM/haraka/config/rate_limit.ini";
+$harakarcptaccessblacklist="/opt/imt/conf-debian-$SYSTEM/haraka/config/rcpt_to.access.blacklist_regex";
+$harakarcptaccesswhitelist="/opt/imt/conf-debian-$SYSTEM/haraka/config/rcpt_to.access.whitelist_regex";
+$harakamailfromblacklist="/opt/imt/conf-debian-$SYSTEM/haraka/config/mail_from.access.blacklist_regex";
+$harakamailfromwhitelist="/opt/imt/conf-debian-$SYSTEM/haraka/config/mail_from.access.whitelist_regex";
+$harakademonio="/opt/imt/demonios-imt/imtharaka";
+
+### snapshotimt.htm ### Permite realizar copias de seguridad de todo el medio ###
+#--------------------------
+# $modulos
+
+### snmp.htm ### Configuracion del servidor SNMP ###
+#--------------------------
+# $modulos $estado
+$snmpdconf = "/opt/imt/conf-debian-$SYSTEM/snmp/snmpd.conf";
+$snmpdemoni = "/opt/imt/demonios-imt/imtsnmpd";
+
+### sysinfo.htm ### Ofrece datos internos del sistema a nivel de rendimiento ###
+#--------------------------
+# $modulos
+
+### systemupgrade.htm ### Permite el upgrade de paquetes del sistema ###
+#--------------------------
+# $modulos
+$sourceslist = "/etc/apt/sources.list";
+
+### tail.htm ### Recolector de registro sobre fichero ###
+#--------------------------
+# $modulos
+
+### tailpoe.htm ### Recolector de registro sobre fichero ###
+#--------------------------
+# $modulos
+
+### tailpoe2.htm ### Recolector de registro sobre fichero ###
+#--------------------------
+# $modulos
+
+### tailpoe3.htm ### Recolector de registro sobre fichero ###
+#--------------------------
+# $modulos
+
+### tailpoe4.htm ### Recolector de registro sobre fichero ###
+#--------------------------
+# $modulos
+
+### tarjeta3g.htm ### Configuracion del dispositivo 3G conectado ###
+#--------------------------
+# $modulos $crontab
+$wvdial = "/opt/imt/conf-debian-$SYSTEM/hardware/tarjeta3g/wvdial.conf";
+$autoconec3g = "/opt/imt/conf-debian-$SYSTEM/line-backup/autoconec3g";
+$autoconec3gexpre = "\/opt\/imt\/conf-debian-$SYSTEM\/line-backup\/autoconec3g";
+$destiestadopin = "/opt/imt/conf-debian-$SYSTEM/line-backup/estadopin";
+$modulesconf = "/etc/modules.conf";
+
+### tarjetawifi.htm ### Configuracion del dispositivo Wifi conectado ###
+#--------------------------
+# $modulos $wep $networking $cleanall $firewall $prerouting $dhcpconf $ifdhcp $dhcpserver $cirbackup $dns
+$tipoencripta = "/opt/imt/conf-debian-$SYSTEM/wireless/tipoencripta";
+$hostapd = "/opt/imt/conf-debian-$SYSTEM/wireless/hostapd.conf";
+$lanaliaswifi = "/opt/imt/conf-debian-$SYSTEM/networking/lanaliaswifi";
+
+### teclado.htm ### Gestiona el control de acceso por teclado ###
+#--------------------------
+# $modulos
+
+### tituloupdate.htm ### Actualización de título ###
+#--------------------------
+# $modulos
+
+### tocv3.htm ### Menu de la izquierda para acceso a secciones ###
+#--------------------------
+# $modulos $listanotas $fwtipo $mostrarmodu
+$accesslog = "/var/log/dansguardian/access.log";
+
+### tocbusca.htm ### Menú de busqueda por palabras ###
+#--------------------------
+# $modulos
+
+### update.htm ### Panel donde se realiza la actualizacion del sistema ###
+#--------------------------
+# $modulos $imtupdateinforme $crontab $selectsqlserver
+$imtupdater = "/opt/imt/gestor/imt-updater";
+$updatevariables = "/opt/imt/gestor/updateutils/variables";
+$mirrorsupdate = "/opt/imt/gestor/updateutils/mirrorset/mirrors-update";
+$checkhttp = "/opt/imt/gestor/tools/networking/check_http";
+$enproceso = "/opt/imt/gestor/updateutils/enproceso";
+
+### updatecloud.htm ### Listado de actualizaciones y características de las mismas ###
+#--------------------------
+# $modulos
+
+### varlogvivo.htm ### Visualizador de logs ###
+#--------------------------
+# $modulos
+
+### varlogvivo2.htm ### Visualizador de logs ###
+#--------------------------
+# $modulos
+
+### verfichero.htm ### Modulo de apollo para visualizar fichero interno ###
+#--------------------------
+# $modulos
+
+### verficherocodigo.htm ### Visualiza codigo interno de fichero ###
+#--------------------------
+# $modulos
+
+### unifi.htm ### Unifi ###
+#--------------------------
+# $modulos $estado $controlaplicafw
+$imtdemoniounifi = "/opt/imt/demonios-imt/imtunifi";
+$imtdemoniomongodb = "/opt/imt/demonios-imt/imtmongodb";
+
+### unifivideo.htm ### Gestor del servicio Unifi Video ###
+#--------------------------
+# $modulos
+
+### verplantillaweb.htm	### Código de la plantilla para el bloqueo de webs del filtrador web ###
+#--------------------------
+# $modulos
+
+### virtualserver.htm ### Se realizan las redirecciones de trafico de datos ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $lanaliasext $lanalias3 $lanalias4 $lanalias5 $redsegmentada $controlnumred $proveeconten $accioncfp
+$virtualserver = "/opt/imt/conf-debian-$SYSTEM/networking/virtualserver";
+$fwvirtualserver = "/opt/imt/conf-debian-$SYSTEM/firewall/fwvirtualserver";
+$preproxyvirtualserver = "/opt/imt/conf-debian-$SYSTEM/networking/preproxy_virtualserver";
+$fwvirtualservergeoip = "/opt/imt/conf-debian-$SYSTEM/firewall/fwvirtualservergeoip";
+
+### visorpaso.htm ### Muestra la informacion logueada en el controlador de paso ###
+#--------------------------
+# $modulos $ulogdconf
+$syslogemu= "/var/log/ulog/syslogemu.log";
+$limpiarvisor = "/opt/imt/conf-debian-$SYSTEM/firewall/limpiarvisor";
+
+### voipip.htm ### Control de acceso VoIP por IP ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado
+$voipip = "/opt/imt/conf-debian-$SYSTEM/bloqueo/voip/voip_permiso_ip_selectivo";
+
+### voipmac.htm ### Control de acceso VoIP por MAC ###
+#--------------------------
+# $modulos $cleanall $firewall $prerouting $estado
+$voipmac = "/opt/imt/conf-debian-$SYSTEM/bloqueo/voip/voip_permiso_mac_selectivo";
+
+### vpnwebssl.htm ### Configuracion del servidor de VPN Web SSL ###
+#--------------------------
+# $modulos $estado
+$aditod = "/opt/imt/demonios-imt/imtadito";
+
+### vpnpptpconfig.htm ### Configuración del servidor de VPN PPTP ###
+#--------------------------
+# $modulos $estado $cleanall $firewall $prerouting $pptpdconf $vpnptpd
+$pptpsecrets = "/opt/imt/conf-debian-$SYSTEM/vpn-pptp/chap-secrets";
+$fwipredvpn = "/opt/imt/conf-debian-$SYSTEM/firewall/fwipredvpn";
+$pptpoptions = "/opt/imt/conf-debian-$SYSTEM/vpn-pptp/pptpd-options";
+
+### vtigerv3.htm ### Gestor del servicio Vtiger (CRM) ###
+#--------------------------
+# $modulos $estado $httpd
+$apachevtiger = "/etc/apache2/sites-available/vtigercrm.conf";
+
+### wakeonlan.htm ### Gestión para encendido controlado de equipos en red ###
+#--------------------------
+# $modulos $crontab
+$wakeonlanvalor = "/opt/imt/conf-debian-$SYSTEM/wakeonlan/wakeonlanvalor";
+$wakeonlanvalorauto = "/opt/imt/conf-debian-$SYSTEM/wakeonlan/wakeonlanvalorauto";
+$wakeonlanautomatico = "/opt/imt/conf-debian-$SYSTEM/wakeonlan/wakeonlan-automatico";
+$wakeonlanmanual = "/opt/imt/conf-debian-$SYSTEM/wakeonlan/wakeonlan-manual";
+$wakeonlan = "/usr/sbin/etherwake";
+
+### webshellv3.htm ### Acceso a shell desde la web de gestion del IMT3 ###
+#--------------------------
+# $modulos
+
+### wizard.htm ### Panel que realiza el proceso de wizard ###
+#--------------------------
+# PENDIENTE
+
+### woc.htm ### Gestión y control del wan optimizer ###
+#--------------------------
+# $modulos
+
+### xblue.htm ### Gestión del sistema Xblue ###
+#--------------------------
+# $modulos $estado $xblued
+$xbluegroup = "/opt/imt/conf-debian-$SYSTEM/xblue/contents/group/";
+$xbluecontents = "/opt/imt/conf-debian-$SYSTEM/xblue/contents/group/contents.ini";
+
+### zabbix.htm ### Pantalla de acceso al sistema de monitorizacion de Zabbix ###
+#--------------------------
+# $modulos $estado $montadodisco
+$zabbixagent = "/opt/imt/demonios-imt/imtzabbix-agent";
+$zabbixserver = "/opt/imt/demonios-imt/imtzabbix-server";
+$apachezabbix = "/etc/apache2/conf.d/zabbix.conf";
+
+### zoneminder.htm ### Gestor del sistema zoneminder para el control de camaras ###
+#--------------------------
+# $modulos $estado $httpd
+$apachezoneminder = "/etc/apache2/conf-available/zoneminder.conf";
+

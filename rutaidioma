@@ -1,0 +1,234 @@
+
+@data = split (/\//,$0);
+$modulo = $data[5];
+
+#Backup IMT auto
+#if( $#ARGV > 0 ) {
+#exec "/opt/imt/gestor/autobackupimt";
+#}
+
+##use CGI qw(param);
+##if (param()) {
+##system ("/opt/imt/gestor/autobackupimt >/dev/null 2>&1 &");
+##}
+
+if ($modulo ne "entrada.htm" && $modulo ne "nodos.htm" && $modulo ne "fabrica.htm" && $modulo ne "consola.htm" && $modulo ne "salida.htm" && $modulo ne "register.htm")
+{
+use CGI::Session;
+
+$query = new CGI;
+
+$cookie = $query->cookie(-name => "controlimt");
+if ($cookie) {
+  CGI::Session->name($cookie);
+}
+#else
+#{
+#print "Location: http:\/\/www.terra.es\n\n";
+#}
+
+  $session = new CGI::Session("driver:File",$cookie,{'Directory'=>"/tmp"}) or die "$!";
+  $sesiperfil = $session->param('sesiperfil');
+  $sesiuser = $session->param('sesiuser');
+  $sesiip = $session->param('sesiip');
+  $sesiidioma = $session->param('sesiidioma');
+
+if ($sesiperfil eq "" || $sesiuser eq "")
+{
+print "Location: entrada.htm?sesioff=1\n\n";
+exit(0);
+}
+
+$updateprocess=`ps auxf | grep imt-updater | grep -v grep | grep -v nano | grep -v vi`;
+
+if ($updateprocess ne "" && $q->param('noviewactu') ne "1" && $modulo ne "actualizando.htm")
+{
+print "Location: actualizando.htm\n\n";
+exit(0);
+}
+
+if($sesiperfil eq "Admin")
+{
+   $controlbuttonbase="image";
+   $controlbuttonmod="image";
+   $imagenvisiblebase="";
+   $imagenvisiblemod="";
+   $imagendesac="";
+}
+elsif($sesiperfil eq "User")
+{
+   $controlbuttonbase="hidden";  
+   $controlbuttonmod="image";
+#   $imagenvisiblebase="visibility:hidden";
+   $imagenvisiblemod="";
+   $imagendesac="disabled";
+}
+elsif($sesiperfil eq "Monitor")
+{
+   $controlbuttonbase="hidden";   
+   $controlbuttonmod="hidden";
+   $imagenvisiblebase="visibility:hidden";
+   $imagenvisiblemod="visibility:hidden";
+   $imagendesac="disabled";
+}
+
+
+if($q->param('volver') eq "")
+{
+   $volver=$ENV{'HTTP_REFERER'};
+}
+else
+{
+   $volver=$q->param('volver');
+}
+
+
+}
+
+#Ruta
+$moduloruta = "/opt/imt/gestor/modulos";
+$home = "/opt/imt/gestor/home";
+
+#lectura inicial de los servicios
+#···············································································	
+
+	open(OLD, "< $home")    or die "can't open $home: $!";
+		
+	while (<OLD>) 
+	{
+	
+			if (/^\s*IDIOMA\s*=.*$/)
+     		{
+				chomp;
+				$_ =~ s/^\s+//;
+				@data = split (/\s*=\s*/,$_);
+		 		$idioma = $data[1];
+			}
+
+			 if (/^\s*VISTA\s*=.*$/)
+			 {
+			        chomp;
+			        $_ =~ s/^\s+//;
+			        @data = split (/\s*=\s*/,$_);
+			        $vistaestilo = $data[1];
+			 }
+																								 
+	}
+
+	close(OLD)     or die "can't close $home: $!";
+
+
+if($sesiidioma ne "")
+{
+	$idioma = $sesiidioma;
+}
+
+if($idioma eq "espanol")
+{
+  $idicharset="Latin1";
+  $idicorto="es";
+}
+elsif($idioma eq "polaco")
+{
+  $idicharset="UTF-8";
+  $idicorto="pl";
+}
+elsif($idioma eq "ingles")
+{
+  $idicharset="Latin1";
+  $idicorto="en";
+}
+elsif($idioma eq "ruso")
+{
+  $idicharset="UTF-8";
+  $idicorto="ru";
+}
+else
+{
+  $idicharset="Latin1";
+  $idicorto="es";
+}
+
+$versionimt=`uname -n`;
+
+require "/opt/imt/web/idiomas/$idioma";
+
+#if($ENV{'CONTENT_LENGTH'} ne "")
+#{
+
+$dirvalor=$q->param('dir');
+
+$oscucapano=$q->param('oscucapano');
+
+if ($dirvalor eq "" && $oscucapano ne 1 && $modulo ne "index.htm" && $modulo ne "tocv3.htm" && $modulo ne "tocbusca.htm" && $modulo ne "tocv.htm" && $modulo ne "consola.htm" && $modulo ne "salida.htm" && $modulo ne "register.htm" && $modulo ne "verplantillaweb.htm" && $modulo ne "controlipmac.htm" && $modulo ne "varlogvivo.htm" && $modulo ne "varlogvisu.htm" && $modulo ne "resulcachedinamico.htm" && $modulo ne "verfichero.htm" && $modulo ne "verficherocodigo.htm" && $modulo ne "hilomusical.htm" && $modulo ne "systemupgrade.htm" && $modulo ne "gestordiscoweb.htm" && $modulo ne "chivatowebv3.htm" && $modulo ne "parareini.htm" && $modulo ne "gestorkernelv3.htm" && $modulo ne "update.htm" && $modulo ne "actualizando.htm" && $modulo ne "interfaz.htm" && $modulo ne "hilomusical.htm" && $modulo ne "gruposhostsregis.htm" && $modulo ne "controlcapa7.htm" && $modulo ne "wizard.htm" && $modulo ne "")
+{
+$CONTENTHTML=1;
+
+if ($modulo eq "upgradeversions.htm")
+{
+$idicharset="UTF-8";
+}
+
+print "Content-type: text/html; charset=$idicharset\n";
+print "Content-Language: $idicorto\r\n\r\n";
+
+print <<EOF;
+<div style="position:absolute; left:0; top:0; visibility:hidden; Z-INDEX: 1000; opacity:0.4; filter:alpha(opacity=40);height: 1000; width:100%;" name=oscuprocess id=oscuprocess>
+<table cellpadding="0" cellspacing="0" bgcolor=black width="100%" height="100%"><tr><td align=center>
+</td></tr>
+</table>
+</div>
+
+<div style="position:absolute; top:160; visibility:hidden; Z-INDEX: 1002; margin-left: auto; margin-right: auto; width: 320px; height: 220px; left: 36%" name=oscuprocess2 id=oscuprocess2>
+<table cellpadding="0" cellspacing="0" bgcolor=white width="100%" height="100%" style="-webkit-box-shadow: 0px 1px 3px black;
+  -moz-box-shadow: 0px 1px 3px black;
+  box-shadow: 0px 1px 3px black;
+  -webkit-border-radius: 20;
+  -moz-border-radius: 20;
+  border-radius: 20px;"><tr><td align=center>
+<img src="../images/engraproces.gif"><img src="../images/engraproces.gif"><img src="../images/engraproces.gif"><br>
+<img src="../images/engraproces.gif"><img src="../images/engraproces.gif"><img src="../images/engraproces.gif">
+</table><br>
+<center>
+<font color=white style="font-size:25"><b>¡Aplicando cambios en el sistema!</b></font><br><font color=white style="font-size:20">Espere por favor.</font>
+</center>
+</div>
+</html>
+EOF
+
+#print <<EOF;
+#<script language="JavaScript1.2">
+#document.getElementById('oscuprocess').style.visibility='visible';
+#document.getElementById('oscuprocess2').style.visibility='visible';
+#</script>
+#EOF
+
+}
+
+if($ENV{'CONTENT_LENGTH'} ne "")
+{
+#Convertir timestamp a fecha entendible
+($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime();
+
+#dando formato a las partes
+$anyo=sprintf("%02d",$year+1900);
+$mes=sprintf("%02d",$mon+1);
+$dia=sprintf("%02d",$mday);
+$hora=sprintf("%02d",$hour);
+$minuto=sprintf("%02d",$min);
+$segundo=sprintf("%02d",$sec);
+
+system("echo '$hora:$minuto:$segundo $dia-$mes-$anyo  $modulo' >> /write/historialmoduregis");
+
+if($ENV{'CONTENT_LENGTH'} ne "" && $dirvalor eq "" && $oscucapano ne 1 && $modulo ne "verplantillaweb.htm" && $modulo ne "controlipmac.htm" && $modulo ne "varlogvivo.htm" && $modulo ne "varlogvisu.htm" && $modulo ne "verfichero.htm" && $modulo ne "verficherocodigo.htm" && $modulo ne "resulcachedinamico.htm" && $modulo ne "chivatowebv3.htm" && $modulo ne "parareini.htm" && $modulo ne "gestorkernelv3.htm" && $modulo ne "update.htm" && $modulo ne "actualizando.htm" && $modulo ne "interfaz.htm" && $modulo ne "hilomusical.htm" && $modulo ne "gruposhostsregis.htm" && $modulo ne "controlcapa7.htm" && $modulo ne "wizard.htm")
+{
+print <<EOF;
+<script language="JavaScript1.2">
+document.getElementById('oscuprocess').style.visibility='visible';
+document.getElementById('oscuprocess2').style.visibility='visible';         
+</script>
+EOF
+}
+}
+
+return 1;
